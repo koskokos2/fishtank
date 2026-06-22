@@ -1,10 +1,12 @@
 # Project
+.DS_Store
 node_modules/
 dist/
 fishtank
 preview.png
 backdrop.png
 octopus.png
+jellyfish.png
 *.log
 .claude/settings.local.json
 

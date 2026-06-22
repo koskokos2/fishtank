@@ -5,10 +5,12 @@ import { SWIM_FRAMES } from "./fishbake";
 import {
   makeOctopus,
   makeNautilusSprite,
+  NAUTILUS_FRAMES,
+  makeJellyfishSprite,
+  JELLYFISH_FRAMES,
   spawnCephalopod,
   setupCephalopodArms,
 } from "./cephalopod";
-import { NAUTILUS_FRAMES } from "./nautilusAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -28,10 +30,9 @@ const k = kaplay({
 });
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
-// to an N×N block, perfectly crisp with no crawl). At the 1280x720 buffer the
-// common 16:9 displays land exactly (1440p = 2x, 4K = 3x). 1080p would only reach
-// 1x, leaving big bars — there we fall back to a fractional fill, whose uneven
-// pixel steps are far less visible at this density than they were at 640x360.
+// to an N×N block, perfectly crisp with no crawl). At the 1920x1080 buffer, 4K
+// lands exactly at 2x. Smaller displays use a fractional fill, whose uneven pixel
+// steps are far less visible at this density than they were at 640x360.
 const canvas = document.querySelector("canvas")!;
 function fitWindow() {
   const fit = Math.min(window.innerWidth / VW, window.innerHeight / VH);
@@ -55,13 +56,14 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
   k.choose(fishKindIndices),
 );
 
-// The fish and nautilus atlases are smooth-downscaled on a canvas (async image
-// decode), so resolve them first, then register every sprite together — that way
-// they're all in the load queue before onLoad fires (no load-order race).
+// The fish and nautilus sheets are baked on a canvas after async image decode, so
+// resolve them first, then register every sprite together — that way they're all
+// in the load queue before onLoad fires (no load-order race).
 (async () => {
-  const [fishSheets, nautilusSheet] = await Promise.all([
+  const [fishSheets, nautilusSheet, jellyfishSheet] = await Promise.all([
     makeFishSheets(),
     makeNautilusSprite(),
+    makeJellyfishSprite(),
   ]);
 
   k.loadSprite("backdrop", makeBackdrop(BACKDROP_SEED));
@@ -74,7 +76,11 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
   k.loadSprite("octopus", makeOctopus());
   k.loadSprite("nautilus", nautilusSheet, {
     sliceX: NAUTILUS_FRAMES,
-    anims: { idle: { from: 0, to: NAUTILUS_FRAMES - 1, loop: true, speed: 10 } },
+    anims: { idle: { from: 0, to: NAUTILUS_FRAMES - 1, loop: true, speed: 1 } },
+  });
+  k.loadSprite("jellyfish", jellyfishSheet, {
+    sliceX: JELLYFISH_FRAMES,
+    anims: { idle: { from: 0, to: JELLYFISH_FRAMES - 1, loop: true, speed: 1 } },
   });
 
   setupTank(k);
@@ -82,11 +88,12 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
 
   k.onLoad(() => {
     fishPicks.forEach((kind, i) =>
-      spawnFish(k, `fish-${kind}`, FISH_KINDS[kind].level),
+      spawnFish(k, `fish-${kind}`, FISH_KINDS[kind]),
     );
     // A few cephalopods drift among the fish as larger accent creatures.
     spawnCephalopod(k, "nautilus");
     spawnCephalopod(k, "octopus");
     spawnCephalopod(k, "octopus");
+    spawnCephalopod(k, "jellyfish");
   });
 })();

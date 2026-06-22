@@ -3,18 +3,30 @@
 import { deflateSync, inflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
 import { BW, BH, backdropPixels } from "../src/backdrop";
-import { OCTO_W, OCTO_H, octopusPixels } from "../src/cephalopod";
+import {
+  OCTO_W,
+  OCTO_H,
+  octopusPixels,
+  jellyTentacleSheet,
+  JELLYFISH_FRAMES,
+} from "../src/cephalopod";
 import {
   FISH_ATLAS,
   FISH_ATLAS_CELL,
   FISH_ATLAS_COLS,
 } from "../src/fishAtlas";
+import {
+  SEA_CREATURES_ATLAS,
+  SEA_CREATURES_ATLAS_CELL,
+  SEA_CREATURES_ATLAS_COLS,
+  SEA_CREATURE_JELLYFISH_INDEX,
+} from "../src/seaCreaturesAtlas";
 import { FISH_KINDS } from "../src/fish";
 import {
   cellBBox,
-  downscaleBox,
-  fishDims,
+  copyRect,
   shearSheet,
+  type Buf,
   SWIM_FRAMES,
 } from "../src/fishbake";
 
@@ -31,15 +43,73 @@ const opt = (k: string) => argv[k] ?? process.env[k];
 
 // MODE=fish (default) bakes every fish's swim sheet from the atlas; MODE=backdrop
 // bakes the static scene to backdrop.png; MODE=octopus bakes the octopus body
-// (its arms are per-frame so they only show in `bun run dev`). The nautilus is a
-// baked image atlas (nautilusAtlas.ts) — inspect art/nautilus-atlas-128.png.
+// (its arms are per-frame so they only show in `bun run dev`); MODE=jellyfish bakes
+// the jellyfish tentacle-sway frames (its bell pulse is a runtime squash, so it only
+// shows in `bun run dev`). The nautilus is cropped from the sea-creature atlas and
+// animated in-browser at load.
 const MODE = opt("MODE") ?? "fish";
 const S = Number(opt("S") ?? (MODE === "backdrop" ? 1 : 6)); // upscale factor
 
 if (MODE === "backdrop") renderBackdrop();
 else if (MODE === "octopus")
   renderCreature(octopusPixels(), OCTO_W, OCTO_H, "octopus.png");
+else if (MODE === "jellyfish") renderJellyfish();
 else renderFishGrid();
+
+// Bakes the jellyfish tentacle frames exactly as the app does — crop atlas cell 0,
+// then the same horizontal-sway sheet — so the tentacle motion can be reviewed
+// without a browser. (The bell-pulse squash is runtime-only; see `bun run dev`.)
+function renderJellyfish() {
+  const atlas = decodePng(dataUrlToBuffer(SEA_CREATURES_ATLAS));
+  const cell = SEA_CREATURES_ATLAS_CELL;
+  const col = SEA_CREATURE_JELLYFISH_INDEX % SEA_CREATURES_ATLAS_COLS;
+  const row = Math.floor(SEA_CREATURE_JELLYFISH_INDEX / SEA_CREATURES_ATLAS_COLS);
+  const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
+  const sheet = jellyTentacleSheet(
+    copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh),
+  );
+  renderSheet(sheet, "jellyfish.png", JELLYFISH_FRAMES);
+}
+
+// Upscale one frame-strip Buf over a vertical tank gradient and write it to PNG.
+function renderSheet(s: Buf, name: string, frames: number) {
+  const pad = 8;
+  const cw = pad + s.w * S + pad;
+  const ch = pad + s.h * S + pad;
+  const out = new Uint8Array(cw * ch * 4);
+  for (let y = 0; y < ch; y++) {
+    const t = y / ch;
+    const r = 18 + (6 - 18) * t;
+    const g = 70 + (22 - 70) * t;
+    const b = 92 + (34 - 92) * t;
+    for (let x = 0; x < cw; x++) {
+      const i = (y * cw + x) * 4;
+      out[i] = r;
+      out[i + 1] = g;
+      out[i + 2] = b;
+      out[i + 3] = 255;
+    }
+  }
+  for (let y = 0; y < s.h; y++) {
+    for (let x = 0; x < s.w; x++) {
+      const si = (y * s.w + x) * 4;
+      const a = s.data[si + 3];
+      if (a === 0) continue;
+      const af = a / 255;
+      for (let sy = 0; sy < S; sy++) {
+        for (let sx = 0; sx < S; sx++) {
+          const i = ((pad + y * S + sy) * cw + (pad + x * S + sx)) * 4;
+          out[i] = s.data[si] * af + out[i] * (1 - af);
+          out[i + 1] = s.data[si + 1] * af + out[i + 1] * (1 - af);
+          out[i + 2] = s.data[si + 2] * af + out[i + 2] * (1 - af);
+          out[i + 3] = 255;
+        }
+      }
+    }
+  }
+  writeFileSync(name, encodePng(out, cw, ch));
+  console.log(`wrote ${name} (${cw}x${ch}) — ${frames} tentacle frames`);
+}
 
 // One cephalopod body, upscaled over a dark tank-blue ground (alpha-composited).
 function renderCreature(px: number[][], w: number, h: number, name: string) {
@@ -97,10 +167,10 @@ function renderBackdrop() {
   console.log(`wrote ${name} (${cw}x${ch})`);
 }
 
-// Bakes the fish exactly as the app does — same downscale + tail-swish shear (the
-// box downscale here stands in for the browser's smooth resampler) — so the swim
-// frames can be reviewed without a browser. One fish per row, its swim frames
-// laid out left to right. SPECIES=name filters to one fish by FISH_KINDS name.
+// Bakes the fish exactly as the app does — native atlas copy + tail-swish shear
+// — so the swim frames can be reviewed without a browser. One fish per row, its
+// swim frames laid out left to right. SPECIES=name filters to one fish by
+// FISH_KINDS name.
 function renderFishGrid() {
   const pad = 8;
   const atlas = decodePng(dataUrlToBuffer(FISH_ATLAS));
@@ -115,8 +185,7 @@ function renderFishGrid() {
     const col = i % FISH_ATLAS_COLS;
     const row = Math.floor(i / FISH_ATLAS_COLS);
     const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
-    const { dw, dh } = fishDims(bb.bw, bb.bh);
-    return shearSheet(downscaleBox(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh, dw, dh));
+    return shearSheet(copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh));
   });
 
   const cw = pad + Math.max(...sheets.map((s) => s.w)) * S + pad;
