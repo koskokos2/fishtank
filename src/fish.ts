@@ -4,42 +4,48 @@ import {
   FISH_ATLAS_CELL,
   FISH_ATLAS_COLS,
 } from "./fishAtlas";
-import { cellBBox, fishDims, shearSheet, type Buf } from "./fishbake";
+import { cellBBox, copyRect, shearSheet } from "./fishbake";
 import { RES } from "./res";
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
-export type FishKind = { name: string; level: { min: number; max: number } };
+export type FishKind = {
+  name: string;
+  level: { min: number; max: number };
+  speed: number; // multiplier on thrust and initial velocity (1.0 = baseline)
+};
 
 // One entry per atlas cell, row-major (see fishAtlas.ts). Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
+// `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
 export const FISH_KINDS: FishKind[] = [
-  { name: "angelfish", level: { min: 0.22, max: 0.58 } },
-  { name: "rainbow-shark", level: { min: 0.62, max: 0.95 } },
-  { name: "discus", level: { min: 0.34, max: 0.64 } },
-  { name: "guppy", level: { min: 0.05, max: 0.4 } },
-  { name: "goldfish", level: { min: 0.3, max: 0.72 } },
-  { name: "clown-loach", level: { min: 0.6, max: 0.92 } },
-  { name: "purple-cichlid", level: { min: 0.48, max: 0.85 } },
-  { name: "cardinal-tetra", level: { min: 0.18, max: 0.5 } },
-  { name: "yellow-lab", level: { min: 0.5, max: 0.88 } },
-  { name: "striped-barb", level: { min: 0.42, max: 0.8 } },
-  { name: "congo-tetra", level: { min: 0.3, max: 0.65 } },
-  { name: "koi", level: { min: 0.04, max: 0.38 } },
+  { name: "angelfish",      level: { min: 0.10, max: 0.42 }, speed: 0.70 }, // slow  — deep laterally-flat body
+  { name: "rainbow-shark",  level: { min: 0.72, max: 0.97 }, speed: 1.25 }, // fast  — burst charges when territorial
+  { name: "discus",         level: { min: 0.28, max: 0.58 }, speed: 0.60 }, // slow  — nearly sedentary, prefers still water
+  { name: "guppy",          level: { min: 0.02, max: 0.26 }, speed: 0.85 }, // med   — burst-escape specialist, large tail
+  { name: "goldfish",       level: { min: 0.22, max: 0.62 }, speed: 1.15 }, // fast  — sustained cruiser, multiple speed modes
+  { name: "clown-loach",    level: { min: 0.68, max: 0.96 }, speed: 1.00 }, // med   — variable; rest-then-dash rhythm
+  { name: "purple-cichlid", level: { min: 0.52, max: 0.86 }, speed: 1.30 }, // fast  — open-water hunter, uses full tank
+  { name: "cardinal-tetra", level: { min: 0.06, max: 0.34 }, speed: 0.80 }, // slow  — schooling fish, slow-current habitat
+  { name: "yellow-lab",     level: { min: 0.58, max: 0.92 }, speed: 1.00 }, // med   — active forager, typical cichlid pace
+  { name: "striped-barb",   level: { min: 0.44, max: 0.76 }, speed: 1.35 }, // fast  — energetic darter, rapid direction changes
+  { name: "congo-tetra",    level: { min: 0.20, max: 0.52 }, speed: 1.20 }, // fast  — strong swimmer, adapted to fast currents
+  { name: "koi",            level: { min: 0.02, max: 0.28 }, speed: 1.40 }, // fast  — largest body, powerful burst-and-coast
 ];
 
-// Bake one swim sheet per fish: smooth-downscale each atlas cell's tight crop to
-// fish size, then synthesize a tail-swish swim cycle (see fishbake.ts). Returns a
-// data URL per FISH_KINDS entry, in order. Async because the atlas image decodes
-// off-thread; await before registering sprites so the load queue is complete.
+// Bake one swim sheet per fish: copy each atlas cell's tight crop at native
+// pixel-art resolution, then synthesize a tail-swish swim cycle (see fishbake.ts).
+// Returns a data URL per FISH_KINDS entry, in order. Async because the atlas
+// image decodes off-thread; await before registering sprites so the load queue is
+// complete.
 export async function makeFishSheets(): Promise<string[]> {
   const img = await loadImage(FISH_ATLAS);
   const cell = FISH_ATLAS_CELL;
 
-  // One scratch canvas holding the whole atlas: read once for bbox detection,
-  // and drawn from directly for each (smooth) per-cell downscale.
+  // One scratch canvas holding the whole atlas: read once for bbox detection and
+  // direct pixel copies. No smoothing or runtime scaling is applied to fish art.
   const scratch = document.createElement("canvas");
   scratch.width = img.width;
   scratch.height = img.height;
@@ -53,21 +59,8 @@ export async function makeFishSheets(): Promise<string[]> {
     const col = i % FISH_ATLAS_COLS;
     const row = Math.floor(i / FISH_ATLAS_COLS);
     const bb = cellBBox(full, img.width, col * cell, row * cell, cell);
-    const { dw, dh } = fishDims(bb.bw, bb.bh);
-
-    const small = document.createElement("canvas");
-    small.width = dw;
-    small.height = dh;
-    const mctx = small.getContext("2d")!;
-    mctx.imageSmoothingEnabled = true;
-    mctx.imageSmoothingQuality = "high";
-    mctx.drawImage(img, bb.x, bb.y, bb.bw, bb.bh, 0, 0, dw, dh);
-    const buf: Buf = {
-      data: new Uint8Array(mctx.getImageData(0, 0, dw, dh).data),
-      w: dw,
-      h: dh,
-    };
-    return bufToDataURL(shearSheet(buf));
+    const fish = copyRect(full, img.width, bb.x, bb.y, bb.bw, bb.bh);
+    return bufToDataURL(shearSheet(fish));
   });
 }
 
@@ -117,8 +110,9 @@ const SEPARATION = 0.25; // share of the overlap each fish resolves per frame
 export function spawnFish(
   k: KAPLAYCtx,
   spriteName: string,
-  level: { min: number; max: number } = { min: 0.1, max: 0.9 },
+  kind: Pick<FishKind, "level" | "speed"> = { level: { min: 0.1, max: 0.9 }, speed: 1 },
 ) {
+  const { level, speed: sp } = kind;
   const minY = 16 * RES;
   const maxY = () => k.height() * 0.8;
   // Map the species' preferred band (fractions of the swimmable height) to pixel
@@ -145,7 +139,7 @@ export function spawnFish(
   ]);
   fish.play("swim", { loop: true });
 
-  let vx = k.choose([-1, 1]) * 24 * RES;
+  let vx = k.choose([-1, 1]) * 24 * RES * sp;
   let vy = 0;
   let heading = Math.sign(vx); // intended horizontal travel direction
   let facingRight = vx > 0;
@@ -221,7 +215,7 @@ export function spawnFish(
 
     // Burst applies thrust; coast applies none. Drag acts in both phases, so a
     // coast is a decelerating glide.
-    const ax = phase === "burst" ? heading * ACCEL : 0;
+    const ax = phase === "burst" ? heading * ACCEL * sp : 0;
     const ay = phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
     vx += ax * dt;
     vy += ay * dt;
