@@ -1,15 +1,21 @@
-// Procedural static backdrop, baked once into a single 640x360 sprite. Like the
-// fish in pixels.ts it's generated as a raw RGBA buffer (headlessly previewable),
-// then painted to an offscreen canvas for kaplay. A warm tropical reef: a
-// dithered water gradient, ruined columns + a stone arch, and coral, over the
-// warm gold sand. Ordered (Bayer) dithering gives the gradients pixel texture
-// instead of flat bands.
+// Procedural static backdrop, baked once into a single BW x BH sprite. Generated
+// as a raw RGBA buffer (headlessly previewable), then painted to an offscreen
+// canvas for kaplay. A warm tropical reef: a dithered water gradient, ruined
+// columns + a stone arch, and coral, over the warm gold sand. Ordered (Bayer)
+// dithering gives the gradients pixel texture instead of flat bands.
+//
+// Authored in 640x360 design space and scaled by RES: macro features (columns,
+// arch, coral, sand height) multiply by S so the composition is unchanged, while
+// the noise frequencies and the Bayer/grain patterns are left alone so they get
+// finer at higher RES — the denser pixel texture is the whole point.
 
 import { type RGBA, lerp, clamp01 } from "./color";
+import { RES } from "./res";
 
-export const BW = 640;
-export const BH = 360;
-const SAND_H = 58; // sand floor height from the bottom
+const S = RES;
+export const BW = 640 * S;
+export const BH = 360 * S;
+const SAND_H = 58 * S; // sand floor height from the bottom
 
 // --- deterministic noise + dithering ---------------------------------------
 
@@ -132,7 +138,7 @@ const setPx = (buf: Buf, x: number, y: number, c: RGBA) => {
 };
 
 const sandTopAt = (x: number) =>
-  BH - SAND_H + Math.round((fbm(x * 0.025, 0, 21) - 0.5) * 12);
+  BH - SAND_H + Math.round((fbm(x * 0.025, 0, 21) - 0.5) * 12 * S);
 
 // --- painters (back to front) ------------------------------------------------
 
@@ -172,7 +178,7 @@ function column(buf: Buf, cx: number, top: number, hw: number) {
       setPx(buf, x, y, ditherRamp(STONE, clamp01(L), x, y));
     }
   }
-  block(buf, cx - hw - 3, top - 5, cx + hw + 3, top - 1); // capital
+  block(buf, cx - hw - 3 * S, top - 5 * S, cx + hw + 3 * S, top - 1 * S); // capital
 }
 
 function arch(
@@ -195,7 +201,7 @@ function arch(
       if (ang < 0 || ang > Math.PI) continue;
       const blk = Math.floor(ang / step);
       if (missing.has(blk)) continue;
-      if (r > ro - 2 && fbm(x * 0.2, y * 0.2, 41) < 0.35) continue; // chipped edge
+      if (r > ro - 2 * S && fbm(x * 0.2, y * 0.2, 41) < 0.35) continue; // chipped edge
       const ga = (ang % step) / step;
       const mortar = ga < 0.08 || ga > 0.92;
       const gr = (r - ri) / (ro - ri);
@@ -207,16 +213,16 @@ function arch(
 }
 
 function paintRuins(buf: Buf) {
-  const cxL = 248;
-  const cxR = 392;
-  const hw = 9;
-  const springline = 158; // where the arch springs from the column tops
+  const cxL = 248 * S;
+  const cxR = 392 * S;
+  const hw = 9 * S;
+  const springline = 158 * S; // where the arch springs from the column tops
   column(buf, cxL, springline, hw);
-  column(buf, cxR, 214, hw); // right column broken short, below the springline
+  column(buf, cxR, 214 * S, hw); // right column broken short, below the springline
   // Arch radius = half the column span, so its springs land on the column tops.
   // Blocks 0-2 (the right-lower spring) are gone — collapsed toward the broken
   // right column — leaving the arch intact over the left.
-  arch(buf, (cxL + cxR) / 2, springline, (cxR - cxL) / 2, (cxR - cxL) / 2 + 12, new Set([0, 1, 2]));
+  arch(buf, (cxL + cxR) / 2, springline, (cxR - cxL) / 2, (cxR - cxL) / 2 + 12 * S, new Set([0, 1, 2]));
 }
 
 function disc(buf: Buf, cx: number, cy: number, r: number, col: RGBA) {
@@ -291,14 +297,14 @@ function branch(
 
 function paintCoral(buf: Buf, rng: () => number) {
   // Brain-coral mounds along the sand and at a column base.
-  brainMound(buf, 120, sandTopAt(120) - 6, 22, CORAL);
-  brainMound(buf, 470, sandTopAt(470) - 4, 18, CORAL_ROSE);
-  brainMound(buf, 545, sandTopAt(545) - 8, 26, CORAL);
-  brainMound(buf, 250, sandTopAt(250) - 4, 14, CORAL_ROSE);
+  brainMound(buf, 120 * S, sandTopAt(120 * S) - 6 * S, 22 * S, CORAL);
+  brainMound(buf, 470 * S, sandTopAt(470 * S) - 4 * S, 18 * S, CORAL_ROSE);
+  brainMound(buf, 545 * S, sandTopAt(545 * S) - 8 * S, 26 * S, CORAL);
+  brainMound(buf, 250 * S, sandTopAt(250 * S) - 4 * S, 14 * S, CORAL_ROSE);
   // Branching coral rising from the sand.
-  branch(buf, 90, sandTopAt(90), -Math.PI / 2 - 0.1, 16, 3, 5, CORAL_ROSE, rng);
-  branch(buf, 580, sandTopAt(580), -Math.PI / 2 + 0.15, 18, 3, 5, CORAL, rng);
-  branch(buf, 430, sandTopAt(430), -Math.PI / 2, 14, 2, 4, CORAL, rng);
+  branch(buf, 90 * S, sandTopAt(90 * S), -Math.PI / 2 - 0.1, 16 * S, 3 * S, 5, CORAL_ROSE, rng);
+  branch(buf, 580 * S, sandTopAt(580 * S), -Math.PI / 2 + 0.15, 18 * S, 3 * S, 5, CORAL, rng);
+  branch(buf, 430 * S, sandTopAt(430 * S), -Math.PI / 2, 14 * S, 2 * S, 4, CORAL, rng);
 }
 
 function paintSand(buf: Buf) {
@@ -311,8 +317,8 @@ function paintSand(buf: Buf) {
     }
     setPx(buf, x, top, SAND[2]); // sunlit crest
     // Dithered silt fading up into the water.
-    for (let y = top - 6; y < top; y++) {
-      if ((top - y) / 6 < bayer(x, y)) setPx(buf, x, y, SAND[1]);
+    for (let y = top - 6 * S; y < top; y++) {
+      if ((top - y) / (6 * S) < bayer(x, y)) setPx(buf, x, y, SAND[1]);
     }
   }
 }

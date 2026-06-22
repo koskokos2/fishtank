@@ -1,5 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
+import { RES } from "./res";
 
+const S = RES;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 // The static scene (dithered water, ruins, coral, sand) is baked once into the
@@ -34,14 +36,14 @@ export function setupTank(k: KAPLAYCtx) {
       draw() {
         const w = k.width();
         const h = k.height();
-        const cell = 12;
+        const cell = 12 * S;
         const t = k.time();
         for (let x = 0; x < w; x += cell) {
           for (let y = 0; y < h * 0.6; y += cell) {
             const v =
-              Math.sin(x * 0.05 + t) +
-              Math.sin(y * 0.07 - t * 0.8) +
-              Math.sin((x + y) * 0.04 + t * 1.3);
+              Math.sin((x * 0.05) / S + t) +
+              Math.sin((y * 0.07) / S - t * 0.8) +
+              Math.sin(((x + y) * 0.04) / S + t * 1.3);
             const depth = 1 - y / (h * 0.6);
             const a = Math.max(0, v) * 0.05 * depth;
             if (a > 0.01)
@@ -67,11 +69,11 @@ export function setupTank(k: KAPLAYCtx) {
         for (const p of midPlants) {
           drawStrand(k, {
             baseX: p.fx * k.width(),
-            baseY: floorY() + 3,
+            baseY: floorY() + 3 * S,
             segs: p.segs,
-            segH: 4,
-            width: 3,
-            sway: 5,
+            segH: 4 * S,
+            width: 3 * S,
+            sway: 5 * S,
             phase: p.phase,
             base: k.rgb(20, 80, 50),
             tip: k.rgb(64, 150, 86),
@@ -92,11 +94,11 @@ export function setupTank(k: KAPLAYCtx) {
         for (const p of foreKelp) {
           drawStrand(k, {
             baseX: p.fx * k.width(),
-            baseY: k.height() + 4,
+            baseY: k.height() + 4 * S,
             segs: p.segs,
-            segH: 6,
-            width: 6,
-            sway: 8,
+            segH: 6 * S,
+            width: 6 * S,
+            sway: 8 * S,
             phase: p.phase,
             base: k.rgb(6, 28, 26),
             tip: k.rgb(12, 44, 36),
@@ -130,7 +132,7 @@ function drawStrand(k: KAPLAYCtx, o: StrandOpts) {
     k.drawRect({
       pos: k.vec2(o.baseX + sway, o.baseY - i * o.segH),
       width: Math.max(1, o.width * (1 - t * 0.6)),
-      height: o.segH + 1,
+      height: o.segH + 1 * S,
       anchor: "center",
       color: k.rgb(
         lerp(o.base.r, o.tip.r, t),
@@ -145,20 +147,20 @@ function drawStrand(k: KAPLAYCtx, o: StrandOpts) {
 function spawnMotes(k: KAPLAYCtx, count: number) {
   for (let i = 0; i < count; i++) {
     const mote = k.add([
-      k.rect(k.rand(1, 2), k.rand(1, 2)),
+      k.rect(k.rand(1, 2) * S, k.rand(1, 2) * S),
       k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
       k.color(200, 220, 230),
       k.opacity(k.rand(0.05, 0.2)),
       k.z(15),
     ]);
-    const drift = k.rand(2, 6);
+    const drift = k.rand(2, 6) * S;
     const phase = k.rand(0, Math.PI * 2);
 
     mote.onUpdate(() => {
       mote.pos.y += drift * k.dt();
-      mote.pos.x += Math.sin(k.time() * 0.5 + phase) * 0.2;
-      if (mote.pos.y > k.height() + 4) {
-        mote.pos.y = -4;
+      mote.pos.x += Math.sin(k.time() * 0.5 + phase) * 0.2 * S;
+      if (mote.pos.y > k.height() + 4 * S) {
+        mote.pos.y = -4 * S;
         mote.pos.x = k.rand(0, k.width());
       }
     });
@@ -168,20 +170,20 @@ function spawnMotes(k: KAPLAYCtx, count: number) {
 function spawnBubbles(k: KAPLAYCtx, count: number) {
   for (let i = 0; i < count; i++) {
     const bubble = k.add([
-      k.circle(k.rand(1, 2.5)),
+      k.circle(k.rand(1, 2.5) * S),
       k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
       k.color(200, 230, 255),
       k.opacity(k.rand(0.2, 0.5)),
       k.z(30),
     ]);
-    const rise = k.rand(12, 28);
+    const rise = k.rand(12, 28) * S;
     const phase = k.rand(0, Math.PI * 2);
 
     bubble.onUpdate(() => {
       bubble.pos.y -= rise * k.dt();
-      bubble.pos.x += Math.sin(k.time() * 2 + phase) * 0.3;
-      if (bubble.pos.y < -10) {
-        bubble.pos.y = k.height() + 10;
+      bubble.pos.x += Math.sin(k.time() * 2 + phase) * 0.3 * S;
+      if (bubble.pos.y < -10 * S) {
+        bubble.pos.y = k.height() + 10 * S;
         bubble.pos.x = k.rand(0, k.width());
       }
     });

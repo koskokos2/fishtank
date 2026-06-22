@@ -20,7 +20,9 @@ import type { KAPLAYCtx } from "kaplay";
 import { type RGBA } from "./color";
 import { type FishColor, rampFor, shade, selectiveOutline } from "./pixels";
 import { NAUTILUS_ATLAS, NAUTILUS_FRAMES } from "./nautilusAtlas";
+import { RES } from "./res";
 
+const S = RES;
 const STEPS = 6; // ramp length from buildRamp/rampFor
 
 // Region codes for the octopus body builder.
@@ -53,8 +55,8 @@ function bake(px: RGBA[], w: number, h: number): string {
 // back (the rear), a rounded head below-forward carrying one big amber eye, and
 // an arm crown at the front-lower edge. The eight curling, suckered arms are
 // drawn per frame (not baked) by the arm layer below.
-export const OCTO_W = 32;
-export const OCTO_H = 28;
+export const OCTO_W = 32 * S;
+export const OCTO_H = 28 * S;
 const OCTO_BASE: FishColor = { h: 288, s: 0.13, l: 0.54 };
 
 export function octopusPixels(): RGBA[] {
@@ -71,20 +73,22 @@ export function octopusPixels(): RGBA[] {
       }
   };
 
-  ell(19, 10, 10, 9, BODY); // mantle dome (upper, rear-right), egg-tall
-  ell(12, 17, 8, 6, BODY); // head (lower-left, the front)
+  ell(19 * S, 10 * S, 10 * S, 9 * S, BODY); // mantle dome (upper, rear-right), egg-tall
+  ell(12 * S, 17 * S, 8 * S, 6 * S, BODY); // head (lower-left, the front)
 
   // Big amber eye on the head, looking left: dark pupil ringed in gold + a glint.
-  ell(8, 17, 3, 3, RING);
-  for (let y = 16; y <= 17; y++) for (let x = 7; x <= 8; x++) code[y * W + x] = PUPIL;
-  code[16 * W + 7] = GLINT;
+  ell(8 * S, 17 * S, 3 * S, 3 * S, RING);
+  for (let y = 16 * S; y < 18 * S; y++)
+    for (let x = 7 * S; x < 9 * S; x++) code[y * W + x] = PUPIL;
+  for (let y = 16 * S; y < 17 * S; y++)
+    for (let x = 7 * S; x < 8 * S; x++) code[y * W + x] = GLINT;
 
   const ramp = rampFor(OCTO_BASE);
   const buf: RGBA[] = code.map((c, i) => {
     const x = i % W;
     const y = Math.floor(i / W);
     // Top-lit so the mantle dome reads round.
-    const L = Math.max(0, Math.min(1, 0.9 - ((y - 2) / (H - 4)) * 0.62));
+    const L = Math.max(0, Math.min(1, 0.9 - ((y - 2 * S) / (H - 4 * S)) * 0.62));
     let idx = Math.round(L * (STEPS - 1));
     if (c === BODY) {
       if ((x * 2 + y) % 5 === 0) idx += 1; // reticulated skin sheen
@@ -110,7 +114,7 @@ export const makeOctopus = () => bake(octopusPixels(), OCTO_W, OCTO_H);
 // load onto a 2D canvas (area resampling, NOT the global nearest-neighbor filter
 // which would alias), yielding a fish-sized sprite sheet drawn at scale 1. The
 // tentacle wave is baked into the frames, so the nautilus needs no arm config.
-export const NAUT_FRAME = 36; // on-screen frame size (px); ~fish-sized
+export const NAUT_FRAME = 36 * S; // on-screen frame size (px); ~fish-sized
 
 export function makeNautilusSprite(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -182,29 +186,29 @@ const KINDS: Record<string, KindCfg> = {
   octopus: {
     sprite: "octopus",
     z: 18,
-    frontOff: 4, // arm crown sits just forward of center
-    refSpeed: 60,
+    frontOff: 4 * S, // arm crown sits just forward of center
+    refSpeed: 60 * S,
     drag: 2.2,
     level: { min: 0.62, max: 0.92 }, // benthic — hugs the lower tank
     motion: "crawl",
     crawl: {
-      speed: 16, // slow omnidirectional drift
+      speed: 16 * S, // slow omnidirectional drift
       roam: [1.4, 3.0],
       jetChance: 0.18, // rare escape
-      jetImpulse: 70,
+      jetImpulse: 70 * S,
       jetDur: 0.6,
     },
     arms: {
       count: 8,
       spread: 2.4, // wide downward fan
-      len: 15,
+      len: 15 * S,
       seg: 10,
-      width: 1.8,
+      width: 1.8 * S,
       wave: 0.7,
       freq: 2.2,
       color: [120, 108, 132, 255],
       droop: Math.PI / 2,
-      crownY: 7,
+      crownY: 7 * S,
       curl: 0.18,
       suckers: [223, 198, 150, 255],
     },
@@ -212,16 +216,16 @@ const KINDS: Record<string, KindCfg> = {
   nautilus: {
     sprite: "nautilus",
     z: 16,
-    frontOff: 7, // unused (no procedural arms) but required by the shared config
-    refSpeed: 18,
+    frontOff: 7 * S, // unused (no procedural arms) but required by the shared config
+    refSpeed: 18 * S,
     drag: 1.1,
     level: { min: 0.08, max: 0.78 },
     anim: "idle", // loop the 12-frame atlas; tentacles are baked in
     motion: "jet",
-    cruise: 7, // rare, slow anterior-first amble
+    cruise: 7 * S, // rare, slow anterior-first amble
     segCruise: [3.5, 6.5],
     // Slow, infrequent pulses — an efficient, unhurried posterior-first drifter.
-    jet: { interval: [1.4, 2.6], impulse: 18, vert: 0.2 },
+    jet: { interval: [1.4, 2.6], impulse: 18 * S, vert: 0.2 },
     segJet: [3, 6],
     armsBias: 0.3, // predominantly posterior-first (body leading)
   },
@@ -304,7 +308,7 @@ function drawTentacle(
     ang += curl * (0.4 + u); // steady curl, tighter toward the tip
     x += Math.cos(ang) * segLen;
     y += Math.sin(ang) * segLen;
-    const wHalf = Math.max(0.5, width * (1 - u * 0.8));
+    const wHalf = Math.max(0.5 * S, width * (1 - u * 0.8));
     k.drawRect({
       pos: k.vec2(Math.round(x), Math.round(y)),
       width: wHalf * 2,
@@ -316,8 +320,8 @@ function drawTentacle(
     if (sc && s % 2 === 0 && u < 0.85) {
       k.drawRect({
         pos: k.vec2(Math.round(x), Math.round(y)),
-        width: 1,
-        height: 1,
+        width: 1 * S,
+        height: 1 * S,
         anchor: "center",
         color: sc,
         opacity: 0.9,
@@ -332,14 +336,14 @@ const TILT_STEP = 7;
 
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
-  const minY = 24;
+  const minY = 24 * S;
   const maxY = () => k.height() * 0.78;
   const bandTop = () => minY + (maxY() - minY) * cfg.level.min;
   const bandBot = () => minY + (maxY() - minY) * cfg.level.max;
 
   const body = k.add([
     k.sprite(cfg.sprite),
-    k.pos(k.rand(60, k.width() - 60), k.rand(bandTop(), bandBot())),
+    k.pos(k.rand(60 * S, k.width() - 60 * S), k.rand(bandTop(), bandBot())),
     k.anchor("center"),
     k.rotate(0),
     k.scale(1),
@@ -414,7 +418,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   body.onUpdate(() => {
     const dt = k.dt();
     const drag = cfg.drag;
-    const mX = 40;
+    const mX = 40 * S;
 
     if (turning) {
       // Glide through the pivot; flip the facing as the squash crosses zero.
@@ -453,7 +457,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         const dx = tx - px;
         const dy = ty - py;
         const d = Math.hypot(dx, dy) || 1;
-        const sp = cr.speed * Math.min(1, d / 12); // ease off near the target
+        const sp = cr.speed * Math.min(1, d / (12 * S)); // ease off near the target
         vx += ((dx / d) * sp - vx) * 4 * dt;
         vy += ((dy / d) * sp - vy) * 4 * dt;
       }
@@ -473,7 +477,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             vy += clamp((depth - py) * 1.5, -v, v);
           }
         }
-        vy += clamp((depth - py) * 0.8, -14, 14) * dt;
+        vy += clamp((depth - py) * 0.8, -14 * S, 14 * S) * dt;
       }
     }
 
@@ -495,7 +499,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       if (!turning && cfg.motion === "jet") segTimer = 0;
     }
 
-    const slope = clamp(Math.atan2(vy, Math.abs(vx) + 10), -0.3, 0.3);
+    const slope = clamp(Math.atan2(vy, Math.abs(vx) + 10 * S), -0.3, 0.3);
     const targetPitch = ((facing > 0 ? slope : -slope) * 180) / Math.PI;
     ang += (targetPitch - ang) * (1 - Math.exp(-6 * dt));
 
