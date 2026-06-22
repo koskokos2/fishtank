@@ -1,0 +1,8 @@
+node_modules/
+dist/
+fishtank
+preview.png
+backdrop.png
+octopus.png
+*.log
+.claude/settings.local.json
