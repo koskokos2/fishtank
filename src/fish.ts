@@ -1,7 +1,95 @@
 import type { KAPLAYCtx } from "kaplay";
+import {
+  FISH_ATLAS,
+  FISH_ATLAS_CELL,
+  FISH_ATLAS_COLS,
+} from "./fishAtlas";
+import { cellBBox, fishDims, shearSheet, type Buf } from "./fishbake";
+import { RES } from "./res";
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
+
+export type FishKind = { name: string; level: { min: number; max: number } };
+
+// One entry per atlas cell, row-major (see fishAtlas.ts). Every fish faces left.
+// `level` is the species' preferred vertical band as fractions of the swimmable
+// height (0 = surface, 1 = floor), taken from its real-life habitat.
+export const FISH_KINDS: FishKind[] = [
+  { name: "angelfish", level: { min: 0.22, max: 0.58 } },
+  { name: "rainbow-shark", level: { min: 0.62, max: 0.95 } },
+  { name: "discus", level: { min: 0.34, max: 0.64 } },
+  { name: "guppy", level: { min: 0.05, max: 0.4 } },
+  { name: "goldfish", level: { min: 0.3, max: 0.72 } },
+  { name: "clown-loach", level: { min: 0.6, max: 0.92 } },
+  { name: "purple-cichlid", level: { min: 0.48, max: 0.85 } },
+  { name: "cardinal-tetra", level: { min: 0.18, max: 0.5 } },
+  { name: "yellow-lab", level: { min: 0.5, max: 0.88 } },
+  { name: "striped-barb", level: { min: 0.42, max: 0.8 } },
+  { name: "congo-tetra", level: { min: 0.3, max: 0.65 } },
+  { name: "koi", level: { min: 0.04, max: 0.38 } },
+];
+
+// Bake one swim sheet per fish: smooth-downscale each atlas cell's tight crop to
+// fish size, then synthesize a tail-swish swim cycle (see fishbake.ts). Returns a
+// data URL per FISH_KINDS entry, in order. Async because the atlas image decodes
+// off-thread; await before registering sprites so the load queue is complete.
+export async function makeFishSheets(): Promise<string[]> {
+  const img = await loadImage(FISH_ATLAS);
+  const cell = FISH_ATLAS_CELL;
+
+  // One scratch canvas holding the whole atlas: read once for bbox detection,
+  // and drawn from directly for each (smooth) per-cell downscale.
+  const scratch = document.createElement("canvas");
+  scratch.width = img.width;
+  scratch.height = img.height;
+  const sctx = scratch.getContext("2d")!;
+  sctx.drawImage(img, 0, 0);
+  const full = new Uint8Array(
+    sctx.getImageData(0, 0, img.width, img.height).data.buffer,
+  );
+
+  return FISH_KINDS.map((_, i) => {
+    const col = i % FISH_ATLAS_COLS;
+    const row = Math.floor(i / FISH_ATLAS_COLS);
+    const bb = cellBBox(full, img.width, col * cell, row * cell, cell);
+    const { dw, dh } = fishDims(bb.bw, bb.bh);
+
+    const small = document.createElement("canvas");
+    small.width = dw;
+    small.height = dh;
+    const mctx = small.getContext("2d")!;
+    mctx.imageSmoothingEnabled = true;
+    mctx.imageSmoothingQuality = "high";
+    mctx.drawImage(img, bb.x, bb.y, bb.bw, bb.bh, 0, 0, dw, dh);
+    const buf: Buf = {
+      data: new Uint8Array(mctx.getImageData(0, 0, dw, dh).data),
+      w: dw,
+      h: dh,
+    };
+    return bufToDataURL(shearSheet(buf));
+  });
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = src;
+  });
+}
+
+function bufToDataURL(b: Buf): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = b.w;
+  canvas.height = b.h;
+  const ctx = canvas.getContext("2d")!;
+  const id = ctx.createImageData(b.w, b.h);
+  id.data.set(b.data);
+  ctx.putImageData(id, 0, 0);
+  return canvas.toDataURL();
+}
 
 // Motion model grounded in fish-swimming kinematics:
 //  - Burst-and-coast gait: fish thrust in bursts, then glide with a still body
@@ -10,18 +98,20 @@ const clamp = (v: number, lo: number, hi: number) =>
 //    animation speeds up under thrust and nearly stops while coasting.
 //  - The rigid body pitches toward its travel direction — nose up rising, down
 //    diving — and turns emerge from decelerating and reversing, never snapping.
-const ACCEL = 66; // forward thrust during a burst (px/s^2)
+// Speeds, accelerations and spacing are in px (/s) so they scale with RES; decay
+// rates, angles and the per-frame share are unitless and stay fixed.
+const ACCEL = 66 * RES; // forward thrust during a burst (px/s^2)
 const DRAG = 1.1; // horizontal water resistance (per second)
 const VDRAG = 1.4; // vertical water resistance
-const VMAX = 26; // cap on vertical speed (keeps pitch gentle)
+const VMAX = 26 * RES; // cap on vertical speed (keeps pitch gentle)
 const MAX_TILT = (22 * Math.PI) / 180;
 // Pitch snaps to multiples of this (degrees) so a tilted sprite holds a fixed
 // rotation between steps instead of resampling — and rotating pixels — every frame.
 const TILT_STEP = 7;
-const AVOID = 520; // separation acceleration; grows as fish get closer
-const AVOID_MAX = 150; // cap so a deep overlap can't fling a fish across the tank
-const BODY_OFF = 8; // head/tail separation points sit this far from the center
-const PAIR_DIST = 12; // min spacing kept between any two body points
+const AVOID = 520 * RES; // separation acceleration; grows as fish get closer
+const AVOID_MAX = 150 * RES; // cap so a deep overlap can't fling a fish across the tank
+const BODY_OFF = 8 * RES; // head/tail separation points sit this far from the center
+const PAIR_DIST = 12 * RES; // min spacing kept between any two body points
 const SEPARATION = 0.25; // share of the overlap each fish resolves per frame
 
 export function spawnFish(
@@ -29,7 +119,7 @@ export function spawnFish(
   spriteName: string,
   level: { min: number; max: number } = { min: 0.1, max: 0.9 },
 ) {
-  const minY = 16;
+  const minY = 16 * RES;
   const maxY = () => k.height() * 0.8;
   // Map the species' preferred band (fractions of the swimmable height) to pixel
   // Y bounds, so spawning and the swim target favor that level. A little inset
@@ -42,7 +132,7 @@ export function spawnFish(
   // draws 1:1 so the whole tank shares one pixel grid.
   const fish = k.add([
     k.sprite(spriteName),
-    k.pos(k.rand(40, k.width() - 40), k.rand(bandTop(), bandBot())),
+    k.pos(k.rand(40 * RES, k.width() - 40 * RES), k.rand(bandTop(), bandBot())),
     k.anchor("center"),
     k.rotate(0),
     k.z(20),
@@ -55,7 +145,7 @@ export function spawnFish(
   ]);
   fish.play("swim", { loop: true });
 
-  let vx = k.choose([-1, 1]) * 24;
+  let vx = k.choose([-1, 1]) * 24 * RES;
   let vy = 0;
   let heading = Math.sign(vx); // intended horizontal travel direction
   let facingRight = vx > 0;
@@ -125,14 +215,14 @@ export function spawnFish(
     }
 
     // Steer away from the walls; the burst then carries the turn through.
-    const margin = 50;
+    const margin = 50 * RES;
     if (px < margin) heading = 1;
     else if (px > w - margin) heading = -1;
 
     // Burst applies thrust; coast applies none. Drag acts in both phases, so a
     // coast is a decelerating glide.
     const ax = phase === "burst" ? heading * ACCEL : 0;
-    const ay = phase === "burst" ? clamp((depth - py) * 0.9, -34, 34) : 0;
+    const ay = phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
     vx += ax * dt;
     vy += ay * dt;
     vx -= vx * DRAG * dt;
@@ -152,12 +242,12 @@ export function spawnFish(
 
     // Facing flips only once travel is clearly horizontal, so a turn reads as a
     // slow reversal rather than a snap.
-    if (vx > 6) facingRight = true;
-    else if (vx < -6) facingRight = false;
+    if (vx > 6 * RES) facingRight = true;
+    else if (vx < -6 * RES) facingRight = false;
     fish.flipX = facingRight;
 
     // Pitch toward the travel direction, clamped so the fish never goes vertical.
-    const slope = clamp(Math.atan2(vy, Math.abs(vx) + 8), -MAX_TILT, MAX_TILT);
+    const slope = clamp(Math.atan2(vy, Math.abs(vx) + 8 * RES), -MAX_TILT, MAX_TILT);
     const targetAngle = ((facingRight ? slope : -slope) * 180) / Math.PI;
     ang = lerpTo(ang, targetAngle, 8, dt);
 
@@ -177,7 +267,7 @@ export function spawnFish(
 
     // Tail beats faster under thrust, nearly stops while gliding.
     const speed = Math.hypot(vx, vy);
-    const targetBeat = phase === "burst" ? Math.min(13, 4 + speed * 0.18) : 1.2;
+    const targetBeat = phase === "burst" ? Math.min(13, 4 + (speed * 0.18) / RES) : 1.2;
     beat = lerpTo(beat, targetBeat, 6, dt);
     fish.animSpeed = beat;
   });

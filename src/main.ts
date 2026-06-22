@@ -1,7 +1,7 @@
 import kaplay from "kaplay";
-import { makeFishSheet, FISH_SPECIES } from "./pixels";
 import { makeBackdrop } from "./backdrop";
-import { spawnFish } from "./fish";
+import { spawnFish, makeFishSheets, FISH_KINDS } from "./fish";
+import { SWIM_FRAMES } from "./fishbake";
 import {
   makeOctopus,
   makeNautilusSprite,
@@ -10,18 +10,16 @@ import {
 } from "./cephalopod";
 import { NAUTILUS_FRAMES } from "./nautilusAtlas";
 import { setupTank } from "./tank";
+import { VW, VH } from "./res";
 
 const FISH_COUNT = 20;
 const BACKDROP_SEED = 1;
 
-// Fixed virtual resolution: the whole scene renders into a 640x360 buffer that
-// is scaled up to the window. This gives the fish and the procedurally-drawn
-// background a single, consistent pixel grid — every sprite texel and every
-// scene primitive is one buffer pixel. The canvas is left at 640x360 here and
-// integer-scaled by fitInteger() below.
-const VW = 640;
-const VH = 360;
-
+// Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
+// 640x360 design space scaled by RES) that is scaled up to the window. This gives
+// the fish and the procedurally-drawn background a single, consistent pixel grid
+// — every sprite texel and every scene primitive is one buffer pixel. The canvas
+// is left at VW x VH here and scaled to the window by fitWindow() below.
 const k = kaplay({
   width: VW,
   height: VH,
@@ -29,17 +27,15 @@ const k = kaplay({
   background: [6, 24, 43],
 });
 
-// Pixel-perfect display: scale the buffer by the largest whole number that fits
-// the window, centered, letterboxing any remainder. Fractional scaling maps a
-// source pixel to 2- or 3-wide screen pixels unevenly, which crawls when sprites
-// move; an integer factor keeps every pixel identical. On 16:9 displays the
-// factor lands exactly (1080p = 3x, 1440p = 4x, 4K = 6x), so there are no bars.
+// Display scaling: prefer the largest whole-number scale (every buffer pixel maps
+// to an N×N block, perfectly crisp with no crawl). At the 1280x720 buffer the
+// common 16:9 displays land exactly (1440p = 2x, 4K = 3x). 1080p would only reach
+// 1x, leaving big bars — there we fall back to a fractional fill, whose uneven
+// pixel steps are far less visible at this density than they were at 640x360.
 const canvas = document.querySelector("canvas")!;
-function fitInteger() {
-  const scale = Math.max(
-    1,
-    Math.floor(Math.min(window.innerWidth / VW, window.innerHeight / VH)),
-  );
+function fitWindow() {
+  const fit = Math.min(window.innerWidth / VW, window.innerHeight / VH);
+  const scale = fit >= 2 ? Math.floor(fit) : fit;
   Object.assign(canvas.style, {
     width: `${VW * scale}px`,
     height: `${VH * scale}px`,
@@ -50,24 +46,29 @@ function fitInteger() {
     transform: "translate(-50%, -50%)",
   });
 }
-fitInteger();
-window.addEventListener("resize", fitInteger);
+fitWindow();
+window.addEventListener("resize", fitWindow);
 
-const fishSpecies = Array.from({ length: FISH_COUNT }, () =>
-  k.choose(FISH_SPECIES),
+// Which kind each spawned fish is — one random atlas cell per fish.
+const fishKindIndices = FISH_KINDS.map((_, i) => i);
+const fishPicks = Array.from({ length: FISH_COUNT }, () =>
+  k.choose(fishKindIndices),
 );
 
-// The nautilus atlas is smooth-downscaled on a canvas (async image decode), so
-// resolve it first, then register every sprite together — that way they're all
-// in the load queue before onLoad fires (no load-order race).
+// The fish and nautilus atlases are smooth-downscaled on a canvas (async image
+// decode), so resolve them first, then register every sprite together — that way
+// they're all in the load queue before onLoad fires (no load-order race).
 (async () => {
-  const nautilusSheet = await makeNautilusSprite();
+  const [fishSheets, nautilusSheet] = await Promise.all([
+    makeFishSheets(),
+    makeNautilusSprite(),
+  ]);
 
   k.loadSprite("backdrop", makeBackdrop(BACKDROP_SEED));
-  fishSpecies.forEach((species, i) => {
-    k.loadSprite(`fish-${i}`, makeFishSheet(species), {
-      sliceX: 2,
-      anims: { swim: { from: 0, to: 1, loop: true, speed: 1 } },
+  fishSheets.forEach((sheet, i) => {
+    k.loadSprite(`fish-${i}`, sheet, {
+      sliceX: SWIM_FRAMES,
+      anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
   k.loadSprite("octopus", makeOctopus());
@@ -80,8 +81,8 @@ const fishSpecies = Array.from({ length: FISH_COUNT }, () =>
   setupCephalopodArms(k);
 
   k.onLoad(() => {
-    fishSpecies.forEach((species, i) =>
-      spawnFish(k, `fish-${i}`, species.level),
+    fishPicks.forEach((kind, i) =>
+      spawnFish(k, `fish-${kind}`, FISH_KINDS[kind].level),
     );
     // A few cephalopods drift among the fish as larger accent creatures.
     spawnCephalopod(k, "nautilus");

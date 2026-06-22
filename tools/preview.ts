@@ -1,16 +1,22 @@
 // Headless sprite previewer. Bakes the procedural fish straight to a PNG so the
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
-import { deflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
-import {
-  FISH_SPECIES,
-  FISH_W,
-  FISH_H,
-  fishFrame,
-  type Species,
-} from "../src/pixels";
 import { BW, BH, backdropPixels } from "../src/backdrop";
 import { OCTO_W, OCTO_H, octopusPixels } from "../src/cephalopod";
+import {
+  FISH_ATLAS,
+  FISH_ATLAS_CELL,
+  FISH_ATLAS_COLS,
+} from "../src/fishAtlas";
+import { FISH_KINDS } from "../src/fish";
+import {
+  cellBBox,
+  downscaleBox,
+  fishDims,
+  shearSheet,
+  SWIM_FRAMES,
+} from "../src/fishbake";
 
 // Knobs can be passed as trailing args (`bun tools/preview.ts S=30 ONE=1`) or as
 // env vars (`S=30 ONE=1 bun ...`). Args are preferred — a single permission rule
@@ -23,12 +29,12 @@ const argv = Object.fromEntries(
 );
 const opt = (k: string) => argv[k] ?? process.env[k];
 
-// MODE=fish (default) renders the fish grid; MODE=backdrop bakes the static
-// scene to backdrop.png; MODE=octopus bakes the octopus body (its arms are
-// per-frame so they only show in `bun run dev`). The nautilus is a baked image
-// atlas (nautilusAtlas.ts), not procedural — inspect art/nautilus-atlas-128.png.
+// MODE=fish (default) bakes every fish's swim sheet from the atlas; MODE=backdrop
+// bakes the static scene to backdrop.png; MODE=octopus bakes the octopus body
+// (its arms are per-frame so they only show in `bun run dev`). The nautilus is a
+// baked image atlas (nautilusAtlas.ts) — inspect art/nautilus-atlas-128.png.
 const MODE = opt("MODE") ?? "fish";
-const S = Number(opt("S") ?? (MODE === "backdrop" ? 1 : 10)); // upscale factor
+const S = Number(opt("S") ?? (MODE === "backdrop" ? 1 : 6)); // upscale factor
 
 if (MODE === "backdrop") renderBackdrop();
 else if (MODE === "octopus")
@@ -91,31 +97,31 @@ function renderBackdrop() {
   console.log(`wrote ${name} (${cw}x${ch})`);
 }
 
+// Bakes the fish exactly as the app does — same downscale + tail-swish shear (the
+// box downscale here stands in for the browser's smooth resampler) — so the swim
+// frames can be reviewed without a browser. One fish per row, its swim frames
+// laid out left to right. SPECIES=name filters to one fish by FISH_KINDS name.
 function renderFishGrid() {
-  const pad = 10;
+  const pad = 8;
+  const atlas = decodePng(dataUrlToBuffer(FISH_ATLAS));
+  const cell = FISH_ATLAS_CELL;
 
-  // SPECIES=name filters to one species; otherwise every species is shown, one
-  // row each with both swim frames. COLS defaults to 2 so a species' two frames
-  // sit side by side on its own row.
-  const species: Species[] = opt("SPECIES")
-    ? FISH_SPECIES.filter((s) => s.name === opt("SPECIES"))
-    : FISH_SPECIES;
-  const cols = Number(opt("COLS") ?? 2);
+  const kinds = opt("SPECIES")
+    ? FISH_KINDS.filter((k) => k.name === opt("SPECIES"))
+    : FISH_KINDS;
 
-  const cells: { frame: number; sp: Species }[] = opt("ONE")
-    ? [{ frame: 0, sp: species[0] }]
-    : species.flatMap((sp) => [
-        { frame: 0, sp },
-        { frame: 1, sp },
-      ]);
+  const sheets = kinds.map((k) => {
+    const i = FISH_KINDS.indexOf(k);
+    const col = i % FISH_ATLAS_COLS;
+    const row = Math.floor(i / FISH_ATLAS_COLS);
+    const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
+    const { dw, dh } = fishDims(bb.bw, bb.bh);
+    return shearSheet(downscaleBox(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh, dw, dh));
+  });
 
-  const rows = Math.ceil(cells.length / cols);
-  const cellW = FISH_W * S;
-  const cellH = FISH_H * S;
-  const cw = cols * (cellW + pad) + pad;
-  const ch = rows * (cellH + pad) + pad;
+  const cw = pad + Math.max(...sheets.map((s) => s.w)) * S + pad;
+  const ch = pad + sheets.reduce((h, s) => h + s.h * S + pad, 0);
   const out = new Uint8Array(cw * ch * 4);
-
   for (let y = 0; y < ch; y++) {
     const t = y / ch;
     const r = 18 + (6 - 18) * t;
@@ -130,33 +136,88 @@ function renderFishGrid() {
     }
   }
 
-  const blit = (px: number[][], ox: number, oy: number) => {
-    for (let y = 0; y < FISH_H; y++) {
-      for (let x = 0; x < FISH_W; x++) {
-        const [r, g, b, a] = px[y * FISH_W + x];
+  let oy = pad;
+  for (const s of sheets) {
+    for (let y = 0; y < s.h; y++) {
+      for (let x = 0; x < s.w; x++) {
+        const si = (y * s.w + x) * 4;
+        const a = s.data[si + 3];
         if (a === 0) continue;
         const af = a / 255;
         for (let sy = 0; sy < S; sy++) {
           for (let sx = 0; sx < S; sx++) {
-            const i = ((oy + y * S + sy) * cw + (ox + x * S + sx)) * 4;
-            out[i] = r * af + out[i] * (1 - af);
-            out[i + 1] = g * af + out[i + 1] * (1 - af);
-            out[i + 2] = b * af + out[i + 2] * (1 - af);
+            const i = ((oy + y * S + sy) * cw + (pad + x * S + sx)) * 4;
+            out[i] = s.data[si] * af + out[i] * (1 - af);
+            out[i + 1] = s.data[si + 1] * af + out[i + 1] * (1 - af);
+            out[i + 2] = s.data[si + 2] * af + out[i + 2] * (1 - af);
             out[i + 3] = 255;
           }
         }
       }
     }
-  };
-
-  cells.forEach((c, idx) => {
-    const ox = pad + (idx % cols) * (cellW + pad);
-    const oy = pad + Math.floor(idx / cols) * (cellH + pad);
-    blit(fishFrame(c.sp, c.frame) as unknown as number[][], ox, oy);
-  });
+    oy += s.h * S + pad;
+  }
 
   writeFileSync("preview.png", encodePng(out, cw, ch));
-  console.log(`wrote preview.png (${cw}x${ch})`);
+  console.log(
+    `wrote preview.png (${cw}x${ch}) — ${kinds.length} fish, ${SWIM_FRAMES} swim frames each`,
+  );
+}
+
+function dataUrlToBuffer(url: string): Buffer {
+  return Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
+}
+
+// --- minimal PNG decode (8-bit, color type 6 RGBA, no interlace) ---
+function decodePng(buf: Buffer): { rgba: Uint8Array; w: number; h: number } {
+  let p = 8;
+  let w = 0, h = 0, bitDepth = 0, colorType = 0;
+  const idat: Buffer[] = [];
+  while (p < buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.toString("ascii", p + 4, p + 8);
+    const data = buf.subarray(p + 8, p + 8 + len);
+    if (type === "IHDR") {
+      w = data.readUInt32BE(0);
+      h = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === "IDAT") idat.push(data);
+    else if (type === "IEND") break;
+    p += 12 + len;
+  }
+  if (bitDepth !== 8 || colorType !== 6)
+    throw new Error(`unsupported PNG: depth ${bitDepth} colorType ${colorType}`);
+  const raw = inflateSync(Buffer.concat(idat));
+  const bpp = 4;
+  const stride = w * bpp;
+  const rgba = new Uint8Array(w * h * bpp);
+  let rp = 0;
+  for (let y = 0; y < h; y++) {
+    const filter = raw[rp++];
+    for (let x = 0; x < stride; x++) {
+      const v = raw[rp++];
+      const a = x >= bpp ? rgba[y * stride + x - bpp] : 0;
+      const b = y > 0 ? rgba[(y - 1) * stride + x] : 0;
+      const c = x >= bpp && y > 0 ? rgba[(y - 1) * stride + x - bpp] : 0;
+      let recon: number;
+      switch (filter) {
+        case 0: recon = v; break;
+        case 1: recon = v + a; break;
+        case 2: recon = v + b; break;
+        case 3: recon = v + ((a + b) >> 1); break;
+        case 4: {
+          const pp = a + b - c;
+          const pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
+          recon = v + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);
+          break;
+        }
+        default: throw new Error(`bad filter ${filter}`);
+      }
+      rgba[y * stride + x] = recon & 0xff;
+    }
+  }
+  return { rgba, w, h };
 }
 
 // --- minimal PNG (RGBA, 8-bit, no interlace) ---
