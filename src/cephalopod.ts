@@ -40,7 +40,7 @@ const S = RES;
 // single crawl/rest/swim poses, indexed by name via OCTOPUS_POSE. The crawl/swim machine
 // below selects the frame per state.
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle hover)
-const OCTO_STRIDE = 28 * S; // px of horizontal travel per reach<->push gait step
+const OCTO_STRIDE = 9 * S; // px of horizontal travel per reach<->push gait step
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
 
 // =========================== NAUTILUS ===========================
@@ -224,6 +224,11 @@ type KindCfg = {
     impulse: number; // forward push per pulse
     vert: number; // up share of the push (0..1)
     sink: number; // settle sink speed back toward the band
+    // Some excursions become a roaming "swim-around": it lifts off and wanders
+    // left/right a clearance above the sand for a while before settling back down.
+    roamChance: number; // chance a dive becomes a swim-around
+    roamSecs: [number, number]; // how long it swims around before settling (s)
+    roamHover: [number, number]; // px clearance kept above the sand while roaming
   };
   // pulse kind (jellyfish): rhythmic bell-pump propulsion. Each cycle is
   // contraction (active power stroke, main thrust) → relaxation (elastic recoil,
@@ -258,10 +263,13 @@ const KINDS: Record<string, KindCfg> = {
       gather: 0.16, // bunch up
       thrust: 0.12, // power-stroke hold
       glide: [0.5, 0.9], // coast per pulse
-      pulses: [1, 3], // chain a few pulses per bout
+      pulses: [2, 5], // chain several pulses per dive
       impulse: 90 * S, // forward push per pulse
       vert: 0.55, // up share — lifts off the bottom into a short arc
       sink: 26 * S, // settle back down to the substrate
+      roamChance: 0.4, // some dives become a roaming swim-around
+      roamSecs: [3, 8], // duration of a swim-around before settling
+      roamHover: [40 * S, 90 * S], // clearance kept above the sand while roaming
     },
   },
   nautilus: {
@@ -354,6 +362,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let restTimer = k.rand(2, 6); // octopus: time left parked-and-resting on the ground
   let restLong = false; // this rest is a long park → curl up (settled) rather than spread
   let swimVigorous = false; // this swim bout is multi-pulse → use the energetic pose row
+  let swimRoaming = false; // this excursion wanders the water before settling
+  let swimRoamLeft = 0; // seconds of roaming left
+  let swimHover = 0; // target clearance above the sand while roaming
   let swimCooldown = k.rand(
     cfg.crawl?.swimEvery[0] ?? 6,
     cfg.crawl?.swimEvery[1] ?? 12,
@@ -440,7 +451,10 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             swimSub = "gather";
             subTimer = cr.gather;
             pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
-            swimVigorous = pulsesLeft >= 2; // multi-pulse bout → energetic pose row
+            swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
+            swimRoamLeft = swimRoaming ? k.rand(cr.roamSecs[0], cr.roamSecs[1]) : 0;
+            swimHover = k.rand(cr.roamHover[0], cr.roamHover[1]);
+            swimVigorous = swimRoaming || pulsesLeft >= 2; // energetic pose row
             swimDir =
               px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
             if (swimDir !== facing) curlTimer = 0.4; // curl through the launch turn
@@ -451,15 +465,20 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         vy = clamp((groundY(px) - py) * 8, -cr.speed * 4, cr.speed * 4);
       } else {
         // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
-        // (glide). After the last pulse, settle: fall back onto the sand and resume
-        // crawling on contact.
+        // (glide). After the last pulse a single dive settles; a roaming excursion
+        // instead redirects and keeps wandering until its time runs out, then settles.
+        if (swimRoaming) swimRoamLeft -= dt;
         subTimer -= dt;
         if (swimSub === "gather") {
           if (subTimer <= 0) {
             swimSub = "thrust";
             subTimer = cr.thrust;
             vx += swimDir * cr.impulse; // forward power stroke
-            vy -= cr.impulse * cr.vert; // and up, lifting off the ground
+            // A roamer only lifts until it reaches its hover line above the sand,
+            // then strokes are horizontal (no gravity here, so altitude holds).
+            const hoverY = groundY(px) - swimHover;
+            const climb = swimRoaming ? clamp((py - hoverY) / (30 * S), 0, 1) : 1;
+            vy -= cr.impulse * cr.vert * climb;
           }
         } else if (swimSub === "thrust") {
           if (subTimer <= 0) {
@@ -472,6 +491,16 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             if (pulsesLeft > 0) {
               swimSub = "gather";
               subTimer = cr.gather;
+            } else if (swimRoaming && swimRoamLeft > 0) {
+              // keep roaming: a short bout in a fresh inward direction
+              pulsesLeft = Math.round(k.rand(1, 2));
+              swimSub = "gather";
+              subTimer = cr.gather;
+              const dir =
+                px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+              if (dir !== swimDir) curlTimer = 0.4; // curl through the turn
+              swimDir = dir;
+              beginTurn(dir);
             } else swimSub = "settle";
           }
         } else {
@@ -571,7 +600,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     }
     if (hitWall) {
       if (cfg.motion === "jet") segTimer = 0;
-      if (octoMode === "swim") swimSub = "settle";
+      if (octoMode === "swim") {
+        // a roamer bounces off the wall and keeps wandering; a single dive settles
+        if (swimRoaming && swimRoamLeft > 0) {
+          swimDir = px < k.width() / 2 ? 1 : -1;
+          beginTurn(swimDir);
+        } else swimSub = "settle";
+      }
     }
 
     // Jellyfish tilts lazily toward its horizontal travel direction; all other
