@@ -10,6 +10,11 @@ import {
   FISH_ATLAS_LAYOUT,
 } from "../src/fishAtlas";
 import {
+  FISH_EXTRA_ATLAS,
+  FISH_EXTRA_ATLAS_CELL,
+  FISH_EXTRA_ATLAS_LAYOUT,
+} from "../src/fishExtraAtlas";
+import {
   SEA_CREATURES_ATLAS,
   SEA_CREATURES_ATLAS_CELL,
   SEA_CREATURES_ATLAS_COLS,
@@ -41,9 +46,9 @@ const argv = Object.fromEntries(
 const opt = (k: string) => argv[k] ?? process.env[k];
 
 // MODE=fish (default) bakes every fish's swim sheet from the atlas; MODE=backdrop
-// bakes the static scene to backdrop.png; MODE=octopus composites the layered
-// octopus atlas into sample poses (the live pose-swapping state machine only shows
-// in `bun run dev`); MODE=jellyfish bakes the jellyfish tentacle-sway frames (its
+// bakes the static scene to backdrop.png; MODE=octopus lays out the baked octopus
+// poses (the live pose-swapping state machine only shows in `bun run dev`);
+// MODE=jellyfish bakes the jellyfish tentacle-sway frames (its
 // bell pulse is a runtime squash, so it only shows in `bun run dev`). The nautilus
 // is cropped from the sea-creature atlas and animated in-browser at load.
 const MODE = opt("MODE") ?? "fish";
@@ -54,10 +59,10 @@ else if (MODE === "octopus") renderOctopus();
 else if (MODE === "jellyfish") renderJellyfish();
 else renderFishGrid();
 
-// Lays out the baked octopus frames — the idle-pose arm-sway loop followed by the
-// swim_pulse, glide_streaming and curled_turn poses — so the keyed art and the
-// gentle sway can be checked without a browser. The live pose-swapping state
-// machine (and the sway playing in motion) still needs `bun run dev`.
+// Lays out the baked octopus frames — the idle-hover arm-sway loop followed by the
+// eleven crawl/rest/swim poses — so the art and framing can be checked without a
+// browser. The live pose-swapping state machine (and the sway playing in motion)
+// still needs `bun run dev`.
 function renderOctopus() {
   const atlas = decodePng(dataUrlToBuffer(OCTOPUS_ATLAS));
   const fw = OCTOPUS_FRAME_W;
@@ -190,15 +195,20 @@ function renderBackdrop() {
 // FISH_KINDS name.
 function renderFishGrid() {
   const pad = 8;
-  const atlas = decodePng(dataUrlToBuffer(FISH_ATLAS));
-  const cell = FISH_ATLAS_CELL;
+  const atlas1 = decodePng(dataUrlToBuffer(FISH_ATLAS));
+  const atlas2 = decodePng(dataUrlToBuffer(FISH_EXTRA_ATLAS));
 
   const kinds = opt("SPECIES")
     ? FISH_KINDS.filter((k) => k.name === opt("SPECIES"))
     : FISH_KINDS;
 
   const sheets = kinds.map((k) => {
-    const { row, col } = FISH_ATLAS_LAYOUT[k.name];
+    const inExtra = k.name in FISH_EXTRA_ATLAS_LAYOUT;
+    const atlas = inExtra ? atlas2 : atlas1;
+    const cell = inExtra ? FISH_EXTRA_ATLAS_CELL : FISH_ATLAS_CELL;
+    const { row, col } = inExtra
+      ? FISH_EXTRA_ATLAS_LAYOUT[k.name]
+      : FISH_ATLAS_LAYOUT[k.name];
     const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
     return shearSheet(copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh));
   });

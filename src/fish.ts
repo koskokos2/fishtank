@@ -4,6 +4,11 @@ import {
   FISH_ATLAS_CELL,
   FISH_ATLAS_LAYOUT,
 } from "./fishAtlas";
+import {
+  FISH_EXTRA_ATLAS,
+  FISH_EXTRA_ATLAS_CELL,
+  FISH_EXTRA_ATLAS_LAYOUT,
+} from "./fishExtraAtlas";
 import { cellBBox, copyRect, shearSheet } from "./fishbake";
 import { RES } from "./res";
 
@@ -16,11 +21,12 @@ export type FishKind = {
   speed: number; // multiplier on thrust and initial velocity (1.0 = baseline)
 };
 
-// One entry per fish. Names must match FISH_ATLAS_LAYOUT keys (fishAtlas.ts). Every fish faces left.
+// Names must match keys in FISH_ATLAS_LAYOUT or FISH_EXTRA_ATLAS_LAYOUT. Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
 export const FISH_KINDS: FishKind[] = [
+  // --- main atlas ---
   { name: "angelfish",              level: { min: 0.10, max: 0.42 }, speed: 0.70 }, // slow  — deep laterally-flat body
   { name: "red_tailed_black_shark", level: { min: 0.72, max: 0.97 }, speed: 1.25 }, // fast  — burst charges when territorial
   { name: "discus",                 level: { min: 0.28, max: 0.58 }, speed: 0.60 }, // slow  — nearly sedentary, prefers still water
@@ -33,32 +39,55 @@ export const FISH_KINDS: FishKind[] = [
   { name: "royal_pleco",            level: { min: 0.44, max: 0.76 }, speed: 1.35 }, // fast  — energetic darter, rapid direction changes
   { name: "gourami",                level: { min: 0.20, max: 0.52 }, speed: 1.20 }, // fast  — strong swimmer, adapted to fast currents
   { name: "koi",                    level: { min: 0.02, max: 0.28 }, speed: 1.40 }, // fast  — largest body, powerful burst-and-coast
+  // --- extra atlas ---
+  { name: "betta",                  level: { min: 0.15, max: 0.50 }, speed: 0.65 }, // slow  — long flowing fins, prefers still midwater
+  { name: "corydoras",              level: { min: 0.72, max: 0.95 }, speed: 0.75 }, // slow  — benthic schooler, scavenging bottom trot
+  { name: "kuhli_loach",            level: { min: 0.80, max: 0.98 }, speed: 0.55 }, // slow  — eel-like bottom creep
+  { name: "hatchetfish",            level: { min: 0.00, max: 0.15 }, speed: 1.10 }, // fast  — surface skimmer, burst-capable
+  { name: "zebra_danio",            level: { min: 0.05, max: 0.35 }, speed: 1.30 }, // fast  — high-energy schooler
+  { name: "harlequin_rasbora",      level: { min: 0.08, max: 0.38 }, speed: 0.90 }, // med   — compact mid-upper schooler
+  { name: "ram_cichlid",            level: { min: 0.48, max: 0.78 }, speed: 1.00 }, // med   — active small cichlid, mid-low
+  { name: "black_molly",            level: { min: 0.18, max: 0.62 }, speed: 0.95 }, // med   — livebearer, wide mid-range
+  { name: "rainbowfish",            level: { min: 0.18, max: 0.55 }, speed: 1.20 }, // fast  — strong cruiser, iridescent midwater
+  { name: "glass_catfish",          level: { min: 0.28, max: 0.62 }, speed: 0.70 }, // slow  — drifting, nearly transparent
+  { name: "otocinclus",             level: { min: 0.62, max: 0.92 }, speed: 0.80 }, // slow  — tiny grazer, lower half
+  { name: "clown_loach",            level: { min: 0.68, max: 0.95 }, speed: 1.05 }, // med   — striped bottom cruiser
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
 // pixel-art resolution, then synthesize a tail-swish swim cycle (see fishbake.ts).
-// Returns a data URL per FISH_KINDS entry, in order. Async because the atlas
-// image decodes off-thread; await before registering sprites so the load queue is
-// complete.
+// Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
+// decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const img = await loadImage(FISH_ATLAS);
-  const cell = FISH_ATLAS_CELL;
+  const [img1, img2] = await Promise.all([
+    loadImage(FISH_ATLAS),
+    loadImage(FISH_EXTRA_ATLAS),
+  ]);
 
-  // One scratch canvas holding the whole atlas: read once for bbox detection and
-  // direct pixel copies. No smoothing or runtime scaling is applied to fish art.
-  const scratch = document.createElement("canvas");
-  scratch.width = img.width;
-  scratch.height = img.height;
-  const sctx = scratch.getContext("2d")!;
-  sctx.drawImage(img, 0, 0);
-  const full = new Uint8Array(
-    sctx.getImageData(0, 0, img.width, img.height).data.buffer,
-  );
+  const toPixels = (img: HTMLImageElement) => {
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const cx = c.getContext("2d")!;
+    cx.drawImage(img, 0, 0);
+    return {
+      full: new Uint8Array(cx.getImageData(0, 0, img.width, img.height).data.buffer),
+      width: img.width,
+    };
+  };
+
+  const a1 = toPixels(img1);
+  const a2 = toPixels(img2);
 
   return FISH_KINDS.map((kind) => {
-    const { row, col } = FISH_ATLAS_LAYOUT[kind.name];
-    const bb = cellBBox(full, img.width, col * cell, row * cell, cell);
-    const fish = copyRect(full, img.width, bb.x, bb.y, bb.bw, bb.bh);
+    const inExtra = kind.name in FISH_EXTRA_ATLAS_LAYOUT;
+    const { full, width } = inExtra ? a2 : a1;
+    const cell = inExtra ? FISH_EXTRA_ATLAS_CELL : FISH_ATLAS_CELL;
+    const { row, col } = inExtra
+      ? FISH_EXTRA_ATLAS_LAYOUT[kind.name]
+      : FISH_ATLAS_LAYOUT[kind.name];
+    const bb = cellBBox(full, width, col * cell, row * cell, cell);
+    const fish = copyRect(full, width, bb.x, bb.y, bb.bw, bb.bh);
     return bufToDataURL(shearSheet(fish));
   });
 }

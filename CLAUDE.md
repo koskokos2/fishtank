@@ -9,7 +9,7 @@ Runs as a **web page** and as a **Linux desktop executable** from one codebase.
 - **Bun** — package manager, bundler, dev server, and single-binary compiler. No npm, Vite, or Node.
 - **Kaplay** — rendering, game loop, sprites, scene graph. (Maintained Kaboom.js fork.)
 - **TypeScript** — the only language in the app.
-- **Pixel art, no external asset pipeline.** The reef backdrop is generated procedurally in code (`src/backdrop.ts`), baked to an offscreen canvas, and handed to Kaplay via `loadSprite`. The fish, sea creatures, and octopus are native transparent pixel-art atlases (`128px` cells) embedded as base64 data URLs; fish/nautilus/jellyfish animation sheets are synthesized from static atlas cells at load, and the octopus is a layered atlas composited and pose-swapped live. No PNG files are loaded at runtime — every image is code or an embedded data URL.
+- **Pixel art, no external asset pipeline.** The reef backdrop is generated procedurally in code (`src/backdrop.ts`), baked to an offscreen canvas, and handed to Kaplay via `loadSprite`. The fish, sea creatures, and octopus are native transparent pixel-art atlases (`128px` cells) embedded as base64 data URLs; fish/nautilus/jellyfish animation sheets are synthesized from static atlas cells at load, and the octopus's assembled-pose atlas is baked to a sprite sheet at build and pose-swapped live. No PNG files are loaded at runtime — every image is code or an embedded data URL.
 - **webview-bun** — wraps the web build in a native WebKitGTK window for the Linux binary.
 
 ## Commands
@@ -32,7 +32,7 @@ The sprites can be baked to a PNG headlessly — no dev server, browser, or webv
 bun tools/preview.ts                       # every fish, all swim frames → preview.png
 bun tools/preview.ts SPECIES=koi S=12      # one fish, zoomed, for pixel-level checks
 bun tools/preview.ts MODE=backdrop         # the baked reef scene → backdrop.png (VW×VH)
-bun tools/preview.ts MODE=octopus S=6       # octopus layers composited into sample poses → octopus.png
+bun tools/preview.ts MODE=octopus S=6       # octopus assembled poses laid out → octopus.png
 ```
 
 Knobs: `MODE` = `fish` (default), `backdrop`, `octopus`, or `jellyfish`; `S` =
@@ -42,9 +42,9 @@ preferred so the single `Bash(bun tools/preview.ts:*)` permission covers every
 variation without prompts. For `fish`, the previewer decodes the embedded atlas
 and runs the *same* native pixel copy + tail-swish shear as the app
 (`src/fishbake.ts`); `jellyfish` likewise bakes the *same* horizontal tentacle-sway
-frames from the sea-creature atlas; `octopus` lays out the four keyed
-"assembled" poses (idle_hover, swim_pulse, glide_streaming, curled_turn — the ones
-the app shows); `backdrop` bakes the procedural reef pixels directly.
+frames from the sea-creature atlas; `octopus` lays out the baked octopus frames (the
+idle-hover sway loop + the eleven crawl/rest/swim poses the app shows); `backdrop`
+bakes the procedural reef pixels directly.
 Open/read the PNG to review.
 Prefer this over guessing when iterating on art. The animated scene layers
 (caustics, plants, motes, bubbles), the nautilus animation, the jellyfish bell pulse
@@ -62,7 +62,7 @@ src/
   fishbake.ts # DOM-free atlas → sprite helpers: crop, native copy, and the synthesized tail-swish swim frames (shared by fish.ts and the previewer)
   cephalopod.ts # Octopus (baked pose frames — an idle arm-sway loop + swim/turn poses — swapped by a crawl/swim state machine, benthic) + nautilus (sea-creature atlas crop + baked tentacle wiggle, jet-cruise motion) + jellyfish (atlas crop + baked horizontal tentacle sway + runtime bell-pulse squash, "pulse" motion); shared spawn/motion scaffolding
   seaCreaturesAtlas.ts # GENERATED — the embedded base64 sea-creature sprite atlas (3x2 grid of 128px cells)
-  octopusAtlas.ts # GENERATED — the embedded base64 octopus sprite sheet baked from the source atlas's "assembled" poses: an idle arm-sway loop + single swim_pulse/glide/curl frames, background keyed to alpha
+  octopusAtlas.ts # GENERATED — the embedded base64 octopus sprite sheet baked from the source atlas's twelve "assembled" poses (rows 3-5): an idle-hover arm-sway loop + single crawl/rest/swim pose frames, indexed by name via OCTOPUS_POSE
   tank.ts     # animated layers over the baked backdrop: caustics, swaying plants, motes, bubbles
   backdrop.ts # static reef (smooth water, dithered ruins/coral/sand) baked to one full-resolution (VW×VH) sprite
   color.ts    # shared color helpers (hslToRgb, lerp, clamp01) used by backdrop
@@ -71,7 +71,7 @@ tools/
   png.ts      # shared minimal PNG codec (decode/encode RGBA) used by preview.ts + gen-octopus-atlas.ts
   gen-fish-atlas.ts # one-off: re-embed art/fish-atlas-128.png into src/fishAtlas.ts
   gen-sea-creatures-atlas.ts # one-off: re-embed art/sea-creatures-atlas-128.png into src/seaCreaturesAtlas.ts
-  gen-octopus-atlas.ts # one-off: key art/octopus-atlas-128.png's black bg to alpha + re-embed into src/octopusAtlas.ts
+  gen-octopus-atlas.ts # one-off: flood-extract art/octopus-atlas-128.png's twelve assembled poses, bake to a sprite sheet + re-embed into src/octopusAtlas.ts
 desktop.ts    # webview-bun launcher for the desktop binary
 index.html    # mounts the kaplay canvas (web target)
 ```
@@ -88,7 +88,7 @@ Kaplay needs a browser context (canvas + WebGL), so the compiled binary is **not
 ## Conventions
 
 - **Every creature is a pixel-art atlas; animation is all whole-pixel.** The fish are a transparent atlas embedded as a base64 data URL (`src/fishAtlas.ts` from `art/fish-atlas-128.png`), one native 128px cell per fish. A new fish = a new 128px cell + an entry in `FISH_KINDS` (name + habitat level); regenerate with `tools/gen-fish-atlas.ts`. The fish frames are static, so a tail-swish "swim" is synthesized at bake by shearing the rear of the body in whole-pixel steps (`fishbake.ts`) — keeping it on the integer pixel grid — played at a speed tied to swim speed. The nautilus and jellyfish are cropped from the sea-creature atlas (`src/seaCreaturesAtlas.ts` from `art/sea-creatures-atlas-128.png`, cells 4 and 0) and use the same static-cell-to-animation approach: the nautilus wiggles the lower-left tentacle region while the shell stays rigid; the jellyfish sways its full-width tentacle curtain as a horizontal travelling wave, and its propulsive bell *pulse* is a separate runtime `scale.y` squash (≤ 1 to stay crisp) synced to the swim thrust — see the `"pulse"` motion. A new sea creature = a new 128px cell + an index export from `gen-sea-creatures-atlas.ts` + a `KINDS` entry.
-- **The octopus is the most complex creature — pose-driven, not deformed.** It comes from its own atlas (`art/octopus-atlas-128.png` + `.json`), a side-view left-facing octopus. The first three rows are component layers (body / back tentacles / front tentacles), but they do **not** overlay into a clean creature in code — stacking all three doubles the arms into a tangle, and one or two layers is incomplete — so `tools/gen-octopus-atlas.ts` uses the atlas's last row, the artist's pre-composited **"assembled" poses** (idle_hover, swim_pulse, glide_streaming, curled_turn). It keys the opaque-black background to alpha (border flood-fill + size-thresholded enclosed cavities, preserving the eye pupils), and **bakes them into a clean sheet** (`src/octopusAtlas.ts`): each pose is flood-extracted as a connected blob (so the mantle dome that overflows its source cell isn't clipped), and the idle pose is expanded into a short **arm-sway loop** (whole-pixel horizontal travelling wave, jellyfish-style, mantle rigid) followed by the single pulse/glide/curl frames. The crawl/swim state machine in `cephalopod.ts` then selects one frame per update. Behaviour is benthic: it **rests on the sand** (its body centre rides `OCTO_SIT` px above the dune contour from `backdrop.ts`'s exported `sandTopAt(x)`), parking for a few seconds up to ~a minute with the **arms held still**; between rests it hops a short way along the sand, **swaying the arm loop only while moving** (per-creature phase offset; curl pose flashed on a turn); and now and then it pushes off into a short pulse-glide swim (gather → thrust → glide → settle) before settling back onto the substrate.
+- **The octopus is the most complex creature — pose-driven, not deformed.** It comes from its own atlas (`art/octopus-atlas-128.png` + `.json`), a side-view left-facing octopus, 4 cols × 6 rows on a transparent background. The first three rows are component layers (body / back tentacles / front tentacles), but they do **not** overlay into a clean creature in code — stacking all three doubles the arms into a tangle, and one or two layers is incomplete — so `tools/gen-octopus-atlas.ts` uses the last three rows, the artist's twelve pre-composited **"assembled" poses** (idle_hover, swim_pulse, glide_streaming, curled_turn; resting_on_sand, low_crawl_reach, low_crawl_push, settled_curled_rest; the four `active_*` variants). It **bakes them into a clean sheet** (`src/octopusAtlas.ts`): each pose is flood-extracted as a connected blob, clamped to its own cell band so a tightly-packed neighbour can't bleed in (the mantle dome that overflows its source cell is kept, not clipped), then re-centred in a uniform square frame (poses vary in arm reach — centring keeps the mass put as frames swap). The idle_hover pose is expanded into a short **arm-sway loop** (whole-pixel horizontal travelling wave, jellyfish-style, mantle rigid) for the in-place hover; `OCTOPUS_POSE` exports each remaining pose's frame index by name. The crawl/swim state machine in `cephalopod.ts` then selects one frame per update, driving all twelve. Behaviour is benthic: it **rests on the sand** (its body centre rides `OCTO_SIT` px above the dune contour from `backdrop.ts`'s exported `sandTopAt(x)`), parking for a few seconds up to ~a minute with the **arms held still** (resting_on_sand for short parks, the curled settled_curled_rest for long ones); between rests it hops a short way along the sand with a **2-frame reach↔push crawl gait** (per-creature phase offset; curled_turn flashed on a heading change); and now and then it pushes off into a short pulse-glide swim (reach push-off → pulse → glide → hover-down settle, the energetic `active_*` poses on multi-pulse bouts) before settling back onto the substrate.
 - **Crisp pixels.** Keep nearest-neighbor scaling on; never enable smoothing.
 - **One pixel grid.** The game renders at a fixed virtual resolution and scales to the window (whole-number when it fits, else a fractional fill), so fish and the procedural background share one pixel density. That resolution is the 640×360 **design space** multiplied by `RES` (`src/res.ts`) — currently 3 → 1920×1080. Author scene sizes in the 640×360 design space and multiply absolute px sizes/speeds by `RES`; angles, normalized fractions, and decay rates stay unscaled. Fish sprites are drawn at their authored pixel size, so increasing `RES` makes 128px fish occupy less of the tank while preserving their source resolution. Draw sprites at scale 1 — scaling a sprite up would make its texels coarser than the rest of the scene and break the consistency.
 - **Ambient, not interactive.** No input handling, menus, or UI chrome. The scene should look good left alone for hours and stay cheap on CPU.
