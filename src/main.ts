@@ -13,7 +13,7 @@ import { OCTOPUS_ATLAS, OCTOPUS_FRAMES } from "./octopusAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 10;
+const FISH_COUNT = 15;
 const BACKDROP_SEED = 1;
 
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
