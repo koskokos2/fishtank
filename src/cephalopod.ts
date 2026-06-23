@@ -42,6 +42,8 @@ const S = RES;
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle hover)
 const OCTO_STRIDE = 9 * S; // px of horizontal travel per reach<->push gait step
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
+const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent push-pulses quit
+const OCTO_LAND_POSE = 6 * S; // height above the sand where it braces into the landing pose
 const BURY_DEPTH = 4 * S; // px the body presses into the sand on touchdown
 const BURY_DUR = 0.35; // s for the landing press-in to ease back out
 // Sand grain tints for the landing puff, matching backdrop.ts SAND (shadow/body/lit).
@@ -411,6 +413,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let swimSub: "gather" | "thrust" | "glide" | "settle" = "gather";
   let subTimer = 0;
   let pulsesLeft = 0;
+  let descending = false; // pulses spent → stroking down toward the sand (mirrors the sideways push)
   let swimDir = facing;
   let curlTimer = 0; // briefly show the curled "turn" pose after a turn
   // Per-octopus tempo so two on screen don't fall into lockstep: one is durably
@@ -526,6 +529,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             octoMode = "swim";
             swimSub = "gather";
             subTimer = cr.gather;
+            descending = false;
             pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
             swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
             swimRoamLeft = swimRoaming ? k.rand(cr.roamSecs[0], cr.roamSecs[1]) : 0;
@@ -561,11 +565,17 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             swimSub = "thrust";
             subTimer = cr.thrust;
             vx += swimDir * cr.impulse; // forward power stroke
-            // A roamer only lifts until it reaches its hover line above the sand,
-            // then strokes are horizontal (no gravity here, so altitude holds).
-            const hoverY = groundY(px) - swimHover;
-            const climb = swimRoaming ? clamp((py - hoverY) / (30 * S), 0, 1) : 1;
-            vy -= cr.impulse * cr.vert * climb;
+            if (descending) {
+              // Stroking back down to the sand: the power stroke now drives the
+              // body downward, the mirror of the lift below.
+              vy += cr.impulse * cr.vert;
+            } else {
+              // A roamer only lifts until it reaches its hover line above the sand,
+              // then strokes are horizontal (no gravity here, so altitude holds).
+              const hoverY = groundY(px) - swimHover;
+              const climb = swimRoaming ? clamp((py - hoverY) / (30 * S), 0, 1) : 1;
+              vy -= cr.impulse * cr.vert * climb;
+            }
           }
         } else if (swimSub === "thrust") {
           if (subTimer <= 0) {
@@ -574,26 +584,40 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           }
         } else if (swimSub === "glide") {
           if (subTimer <= 0) {
-            pulsesLeft -= 1;
-            if (pulsesLeft > 0) {
-              swimSub = "gather";
-              subTimer = cr.gather;
-            } else if (swimRoaming && swimRoamLeft > 0) {
-              // keep roaming: a short bout in a fresh inward direction
-              pulsesLeft = Math.round(k.rand(1, 2));
-              swimSub = "gather";
-              subTimer = cr.gather;
-              const dir =
-                px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
-              if (dir !== swimDir) curlTimer = 0.4; // curl through the turn
-              swimDir = dir;
-              beginTurn(dir);
-            } else swimSub = "settle";
+            if (descending) {
+              // Keep bunching and stroking down until close to the sand; only then
+              // stop pushing and let it settle the last stretch.
+              if (py < groundY(px) - OCTO_DESCEND_STOP) {
+                swimSub = "gather";
+                subTimer = cr.gather;
+              } else swimSub = "settle";
+            } else {
+              pulsesLeft -= 1;
+              if (pulsesLeft > 0) {
+                swimSub = "gather";
+                subTimer = cr.gather;
+              } else if (swimRoaming && swimRoamLeft > 0) {
+                // keep roaming: a short bout in a fresh inward direction
+                pulsesLeft = Math.round(k.rand(1, 2));
+                swimSub = "gather";
+                subTimer = cr.gather;
+                const dir =
+                  px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+                if (dir !== swimDir) curlTimer = 0.4; // curl through the turn
+                swimDir = dir;
+                beginTurn(dir);
+              } else if (py < groundY(px) - OCTO_DESCEND_STOP) {
+                // still high above the sand → descend with downward push-pulses
+                descending = true;
+                swimSub = "gather";
+                subTimer = cr.gather;
+              } else swimSub = "settle";
+            }
           }
         } else {
-          // GLIDE-DOWN: keep a little forward speed while sinking, so it descends
-          // on a shallow glide from whatever height it reached instead of stalling
-          // and dropping straight down to the sand.
+          // SETTLE: very close to the sand now (the push-pulses quit above it).
+          // Stop stroking, keep a little forward glide while sinking the last bit,
+          // and touch down.
           const inwardDir =
             px < mX + 18 * S ? 1 : px > k.width() - mX - 18 * S ? -1 : swimDir;
           if (inwardDir !== swimDir) {
@@ -604,6 +628,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           vy += cr.sink * dt;
           if (py >= groundY(px) - 4 * S && vy >= 0) {
             octoMode = "crawl";
+            descending = false;
             // touchdown: kick up a puff of sand and press the body into it
             spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)), 2, 2, 2);
             buryTimer = BURY_DUR;
@@ -747,9 +772,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         else if (swimSub === "gather") frame = P.activeCrawlReach; // reaching push-off
         else if (swimSub === "thrust") frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
         else if (swimSub === "glide") frame = swimVigorous ? P.activeGlide : P.glide;
-        // settle: keep the glide pose through the descent, then brace with the
-        // second crawl pose right before touchdown.
-        else if (py < groundY(px) - 15 * S) frame = swimVigorous ? P.activeGlide : P.glide;
+        // settle: hold the glide pose through the final sink, then brace with the
+        // second crawl pose only very-very close to touchdown.
+        else if (py < groundY(px) - OCTO_LAND_POSE) frame = swimVigorous ? P.activeGlide : P.glide;
         else frame = P.crawlPush;
       } else if (restTimer > 0) {
         frame = restLong ? P.settledRest : P.rest; // parked & resting (arms held still)
