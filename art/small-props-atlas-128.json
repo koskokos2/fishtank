@@ -1,0 +1,24 @@
+{
+  "image": "small-props-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "spiral_shell", "row": 0, "col": 0, "category": "shell", "role": "naturalProp" },
+    { "name": "open_clam_shell", "row": 0, "col": 1, "category": "shell", "role": "naturalProp" },
+    { "name": "scallop_shell", "row": 0, "col": 2, "category": "shell", "role": "naturalProp" },
+    { "name": "small_pearl_cluster", "row": 0, "col": 3, "category": "shell", "role": "accent" },
+    { "name": "small_driftwood_branch", "row": 1, "col": 0, "category": "woodBone", "role": "driftwood" },
+    { "name": "driftwood_plank_fragment", "row": 1, "col": 1, "category": "woodBone", "role": "driftwood" },
+    { "name": "fish_skeleton_side", "row": 1, "col": 2, "category": "woodBone", "role": "boneProp" },
+    { "name": "scattered_tiny_bones", "row": 1, "col": 3, "category": "woodBone", "role": "floorDetail" },
+    { "name": "broken_amphora", "row": 2, "col": 0, "category": "pottery", "role": "largeProp" },
+    { "name": "pottery_shard_pile", "row": 2, "col": 1, "category": "pottery", "role": "floorDetail" },
+    { "name": "cracked_ceramic_pot_fragment", "row": 2, "col": 2, "category": "pottery", "role": "hideFragment" },
+    { "name": "carved_stone_token", "row": 2, "col": 3, "category": "pottery", "role": "ruinDetail" },
+    { "name": "old_coin_stack", "row": 3, "col": 0, "category": "treasure", "role": "coin" },
+    { "name": "single_large_coin", "row": 3, "col": 1, "category": "treasure", "role": "coin" },
+    { "name": "tiny_glass_bottle", "row": 3, "col": 2, "category": "treasure", "role": "bottle" },
+    { "name": "mixed_micro_props_pile", "row": 3, "col": 3, "category": "treasure", "role": "mixedPile" }
+  ]
+}

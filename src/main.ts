@@ -3,14 +3,13 @@ import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS } from "./fish";
 import { SWIM_FRAMES } from "./fishbake";
 import {
-  makeOctopus,
   makeNautilusSprite,
   NAUTILUS_FRAMES,
   makeJellyfishSprite,
   JELLYFISH_FRAMES,
   spawnCephalopod,
-  setupCephalopodArms,
 } from "./cephalopod";
+import { OCTOPUS_ATLAS, OCTOPUS_FRAMES } from "./octopusAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -73,7 +72,9 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  k.loadSprite("octopus", makeOctopus());
+  // The octopus is a clean 4-frame sheet (the "assembled" poses); the spawn rig
+  // shows one frame per the crawl/swim state machine.
+  k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
   k.loadSprite("nautilus", nautilusSheet, {
     sliceX: NAUTILUS_FRAMES,
     anims: { idle: { from: 0, to: NAUTILUS_FRAMES - 1, loop: true, speed: 1 } },
@@ -84,7 +85,6 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
   });
 
   setupTank(k);
-  setupCephalopodArms(k);
 
   k.onLoad(() => {
     fishPicks.forEach((kind, i) =>

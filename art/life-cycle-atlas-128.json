@@ -1,0 +1,24 @@
+{
+  "image": "life-cycle-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "fish_eggs_on_broad_leaf", "row": 0, "col": 0, "category": "eggs", "role": "leafEggs" },
+    { "name": "fish_eggs_on_rock", "row": 0, "col": 1, "category": "eggs", "role": "rockEggs" },
+    { "name": "snail_egg_jelly_patch", "row": 0, "col": 2, "category": "eggs", "role": "snailEggs" },
+    { "name": "tiny_egg_string_on_stem", "row": 0, "col": 3, "category": "eggs", "role": "stemEggs" },
+    { "name": "gravel_nest_depression", "row": 1, "col": 0, "category": "nest", "role": "gravelNest" },
+    { "name": "bubble_nest_cluster", "row": 1, "col": 1, "category": "nest", "role": "bubbleNest" },
+    { "name": "plant_nursery_with_eggs", "row": 1, "col": 2, "category": "nest", "role": "plantNursery" },
+    { "name": "cave_mouth_nest_with_eggs", "row": 1, "col": 3, "category": "nest", "role": "caveNest" },
+    { "name": "tiny_fry_silhouette_group", "row": 2, "col": 0, "category": "fry", "role": "group" },
+    { "name": "larger_fry_pair", "row": 2, "col": 1, "category": "fry", "role": "pair" },
+    { "name": "hiding_fry_behind_plant", "row": 2, "col": 2, "category": "fry", "role": "hidden" },
+    { "name": "transparent_larvae_cluster", "row": 2, "col": 3, "category": "fry", "role": "larvae" },
+    { "name": "empty_egg_shells", "row": 3, "col": 0, "category": "marker", "role": "shells" },
+    { "name": "hatched_egg_cluster", "row": 3, "col": 1, "category": "marker", "role": "hatched" },
+    { "name": "protected_moss_nursery", "row": 3, "col": 2, "category": "marker", "role": "nursery" },
+    { "name": "mixed_lifecycle_patch", "row": 3, "col": 3, "category": "marker", "role": "mixedPatch" }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "image": "plant-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "eelgrass_tall_ribbon_clump", "row": 0, "col": 0, "category": "background", "role": "tallGrass" },
+    { "name": "vallisneria_swaying_ribbons", "row": 0, "col": 1, "category": "background", "role": "tallGrass" },
+    { "name": "kelp_broad_frond_stem", "row": 0, "col": 2, "category": "background", "role": "broadFrond" },
+    { "name": "hornwort_feathery_stem_cluster", "row": 0, "col": 3, "category": "background", "role": "featheryStem" },
+    { "name": "anubias_broad_leaf_rock", "row": 1, "col": 0, "category": "midground", "role": "broadLeaf" },
+    { "name": "java_fern_jagged_cluster", "row": 1, "col": 1, "category": "midground", "role": "fern" },
+    { "name": "amazon_sword_radial_leaves", "row": 1, "col": 2, "category": "midground", "role": "radialPlant" },
+    { "name": "red_ludwigia_stem_cluster", "row": 1, "col": 3, "category": "midground", "role": "colorAccent" },
+    { "name": "small_moss_tuft", "row": 2, "col": 0, "category": "foreground", "role": "tuft" },
+    { "name": "wide_moss_carpet_patch", "row": 2, "col": 1, "category": "foreground", "role": "carpet" },
+    { "name": "marimo_moss_ball", "row": 2, "col": 2, "category": "foreground", "role": "roundProp" },
+    { "name": "low_crypt_leafy_cluster", "row": 2, "col": 3, "category": "foreground", "role": "lowLeafCluster" },
+    { "name": "floating_duckweed_frogbit_cluster", "row": 3, "col": 0, "category": "detail", "role": "surfaceFloater" },
+    { "name": "small_loose_leaf_sprig", "row": 3, "col": 1, "category": "detail", "role": "sprig" },
+    { "name": "planted_rock_mixed_leaves", "row": 3, "col": 2, "category": "detail", "role": "anchorBase" },
+    { "name": "driftwood_moss_anubias", "row": 3, "col": 3, "category": "detail", "role": "woodAttachment" }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "image": "background-silhouettes-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "distant_eelgrass_silhouette", "row": 0, "col": 0, "category": "distantPlant", "role": "grass" },
+    { "name": "large_ferny_plant_silhouette", "row": 0, "col": 1, "category": "distantPlant", "role": "fern" },
+    { "name": "broad_kelp_frond_silhouette", "row": 0, "col": 2, "category": "distantPlant", "role": "frond" },
+    { "name": "low_mossy_plant_mass", "row": 0, "col": 3, "category": "distantPlant", "role": "lowMass" },
+    { "name": "large_rounded_boulder_silhouette", "row": 1, "col": 0, "category": "distantRock", "role": "boulder" },
+    { "name": "jagged_rock_wall_chunk", "row": 1, "col": 1, "category": "distantRock", "role": "wall" },
+    { "name": "distant_cave_opening", "row": 1, "col": 2, "category": "distantRock", "role": "cave" },
+    { "name": "layered_background_ledge", "row": 1, "col": 3, "category": "distantRock", "role": "ledge" },
+    { "name": "branching_coral_shadow", "row": 2, "col": 0, "category": "distantCoral", "role": "branching" },
+    { "name": "sea_fan_shadow", "row": 2, "col": 1, "category": "distantCoral", "role": "fan" },
+    { "name": "plate_coral_shadow_stack", "row": 2, "col": 2, "category": "distantCoral", "role": "plate" },
+    { "name": "mixed_reef_silhouette", "row": 2, "col": 3, "category": "distantCoral", "role": "mixedReef" },
+    { "name": "broken_column_silhouette", "row": 3, "col": 0, "category": "distantRuins", "role": "column" },
+    { "name": "faint_arch_silhouette", "row": 3, "col": 1, "category": "distantRuins", "role": "arch" },
+    { "name": "far_wall_block_silhouette", "row": 3, "col": 2, "category": "distantRuins", "role": "wallBlock" },
+    { "name": "mixed_reef_ruin_backdrop", "row": 3, "col": 3, "category": "distantRuins", "role": "mixedBackdrop" }
+  ]
+}

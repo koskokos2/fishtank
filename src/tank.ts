@@ -7,7 +7,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // The static scene (dithered water, ruins, coral, sand) is baked once into the
 // backdrop sprite (see backdrop.ts). setupTank places that sprite at the back
 // and adds the *animated* layers over it: caustics, swaying plants, motes, and
-// bubbles. Depth is faked with z-ordering.
+// source-based bubbles. Depth is faked with z-ordering.
 export function setupTank(k: KAPLAYCtx) {
   const floorY = () => k.height() * 0.85;
 
@@ -16,12 +16,12 @@ export function setupTank(k: KAPLAYCtx) {
 
   // Scenery layout is randomised once at startup; x positions are stored as
   // fractions of width so the scene still fills a resized window.
-  const midPlants = Array.from({ length: 7 }, () => ({
+  const midPlants: Plant[] = Array.from({ length: 7 }, () => ({
     fx: k.rand(0.04, 0.96),
     segs: k.randi(8, 12),
     phase: k.rand(0, Math.PI * 2),
   }));
-  const foreKelp = Array.from({ length: 3 }, () => ({
+  const foreKelp: Plant[] = Array.from({ length: 3 }, () => ({
     fx: k.choose([0.03, 0.08, 0.92, 0.97]),
     segs: k.randi(12, 16),
     phase: k.rand(0, Math.PI * 2),
@@ -84,6 +84,9 @@ export function setupTank(k: KAPLAYCtx) {
   ]);
 
   spawnMotes(k, 30);
+  spawnPlantPearling(k, midPlants, floorY);
+  spawnSubstrateSeeps(k, floorY);
+  spawnRuinLeaks(k);
 
   // Foreground kelp — large, dark, near-silhouette blades for depth.
   k.add([
@@ -107,9 +110,13 @@ export function setupTank(k: KAPLAYCtx) {
       },
     },
   ]);
-
-  spawnBubbles(k, 26);
 }
+
+type Plant = {
+  fx: number;
+  segs: number;
+  phase: number;
+};
 
 type StrandOpts = {
   baseX: number;
@@ -167,24 +174,163 @@ function spawnMotes(k: KAPLAYCtx, count: number) {
   }
 }
 
-function spawnBubbles(k: KAPLAYCtx, count: number) {
-  for (let i = 0; i < count; i++) {
-    const bubble = k.add([
-      k.circle(k.rand(1, 2.5) * S),
-      k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
-      k.color(200, 230, 255),
-      k.opacity(k.rand(0.2, 0.5)),
-      k.z(30),
-    ]);
-    const rise = k.rand(12, 28) * S;
-    const phase = k.rand(0, Math.PI * 2);
+type BubbleOpts = {
+  radius: [number, number];
+  rise: [number, number];
+  drift: [number, number];
+  wobble: number;
+  opacity: [number, number];
+  z: number;
+  life?: number;
+};
 
-    bubble.onUpdate(() => {
-      bubble.pos.y -= rise * k.dt();
-      bubble.pos.x += Math.sin(k.time() * 2 + phase) * 0.3 * S;
-      if (bubble.pos.y < -10 * S) {
-        bubble.pos.y = k.height() + 10 * S;
-        bubble.pos.x = k.rand(0, k.width());
+const PEARL: BubbleOpts = {
+  radius: [0.45, 0.9],
+  rise: [8, 15],
+  drift: [-1.2, 1.2],
+  wobble: 2.2,
+  opacity: [0.22, 0.4],
+  z: 19,
+};
+
+const SEEP: BubbleOpts = {
+  radius: [0.8, 1.8],
+  rise: [11, 22],
+  drift: [-2.5, 2.5],
+  wobble: 4,
+  opacity: [0.22, 0.48],
+  z: 24,
+};
+
+const RUSTLE: BubbleOpts = {
+  radius: [0.55, 1.2],
+  rise: [10, 18],
+  drift: [-1.8, 1.8],
+  wobble: 3.2,
+  opacity: [0.18, 0.36],
+  z: 18,
+};
+
+function plantPoint(
+  k: KAPLAYCtx,
+  p: Plant,
+  baseY: number,
+  segH: number,
+  sway: number,
+  seg: number,
+) {
+  const t = seg / p.segs;
+  return {
+    x: p.fx * k.width() + Math.sin(k.time() * 1.1 + seg * 0.45 + p.phase) * sway * t,
+    y: baseY - seg * segH,
+  };
+}
+
+function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
+  const radius = k.rand(o.radius[0], o.radius[1]) * S;
+  const bubble = k.add([
+    k.circle(radius),
+    k.pos(x, y),
+    k.color(210, 235, 255),
+    k.opacity(k.rand(o.opacity[0], o.opacity[1])),
+    k.z(o.z),
+  ]);
+  const rise = k.rand(o.rise[0], o.rise[1]) * S;
+  const drift = k.rand(o.drift[0], o.drift[1]) * S;
+  const wobble = o.wobble * S;
+  const phase = k.rand(0, Math.PI * 2);
+  const freq = k.rand(1.1, 2.4);
+  let age = 0;
+  const life = o.life ?? 12;
+
+  bubble.onUpdate(() => {
+    const dt = k.dt();
+    age += dt;
+    bubble.pos.y -= rise * dt;
+    bubble.pos.x += (drift + Math.sin(k.time() * freq + phase) * wobble) * dt;
+    if (age > life || bubble.pos.y < -radius * 3) bubble.destroy();
+  });
+}
+
+function spawnPlantPearling(
+  k: KAPLAYCtx,
+  plants: Plant[],
+  floorY: () => number,
+) {
+  for (const p of plants) {
+    const controller = k.add([k.pos(0, 0)]);
+    let timer = k.rand(3, 13);
+
+    controller.onUpdate(() => {
+      timer -= k.dt();
+      if (timer > 0) return;
+
+      timer = k.rand(8, 24);
+      const count = k.randi(1, 3);
+      for (let i = 0; i < count; i++) {
+        const seg = k.randi(Math.floor(p.segs * 0.55), p.segs - 1);
+        const pt = plantPoint(k, p, floorY() + 3 * S, 4 * S, 5 * S, seg);
+        emitBubble(
+          k,
+          pt.x + k.rand(-0.8, 0.8) * S,
+          pt.y + k.rand(-0.8, 0.8) * S,
+          PEARL,
+        );
+      }
+    });
+  }
+}
+
+function spawnSubstrateSeeps(k: KAPLAYCtx, floorY: () => number) {
+  const seepPoints = [0.18, 0.34, 0.66, 0.86];
+  for (const fx of seepPoints) {
+    const controller = k.add([k.pos(0, 0)]);
+    let timer = k.rand(12, 55);
+
+    controller.onUpdate(() => {
+      timer -= k.dt();
+      if (timer > 0) return;
+
+      timer = k.rand(30, 95);
+      const large = k.chance(0.25);
+      const count = large ? k.randi(1, 2) : k.randi(3, 7);
+      for (let i = 0; i < count; i++) {
+        emitBubble(
+          k,
+          fx * k.width() + k.rand(-3, 3) * S,
+          floorY() + k.rand(-6, 3) * S,
+          large ? { ...SEEP, radius: [1.4, 2.6], rise: [15, 25] } : SEEP,
+        );
+      }
+    });
+  }
+}
+
+function spawnRuinLeaks(k: KAPLAYCtx) {
+  const leaks = [
+    { fx: 280 / 640, fy: 160 / 360 },
+    { fx: 250 / 640, fy: 158 / 360 },
+    { fx: 357 / 640, fy: 93 / 360 },
+    { fx: 392 / 640, fy: 214 / 360 },
+  ];
+
+  for (const src of leaks) {
+    const controller = k.add([k.pos(0, 0)]);
+    let timer = k.rand(8, 45);
+
+    controller.onUpdate(() => {
+      timer -= k.dt();
+      if (timer > 0) return;
+
+      timer = k.rand(24, 80);
+      const count = k.randi(2, 8);
+      for (let i = 0; i < count; i++) {
+        emitBubble(
+          k,
+          src.fx * k.width() + k.rand(-2, 2) * S,
+          src.fy * k.height() + k.rand(-2, 2) * S,
+          RUSTLE,
+        );
       }
     });
   }

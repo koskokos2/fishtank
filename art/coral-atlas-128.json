@@ -1,0 +1,24 @@
+{
+  "image": "coral-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "branch_base_rock_foot", "row": 0, "col": 0, "category": "branchingHardCoral", "role": "base" },
+    { "name": "branch_vertical_trunk", "row": 0, "col": 1, "category": "branchingHardCoral", "role": "segment" },
+    { "name": "branch_y_junction", "row": 0, "col": 2, "category": "branchingHardCoral", "role": "junction" },
+    { "name": "branch_curved_side_segment", "row": 0, "col": 3, "category": "branchingHardCoral", "role": "segment" },
+    { "name": "branch_small_forked_tip", "row": 1, "col": 0, "category": "branchingHardCoral", "role": "ending" },
+    { "name": "branch_rounded_bulb_cluster", "row": 1, "col": 1, "category": "branchingHardCoral", "role": "ending" },
+    { "name": "branch_left_elbow_connector", "row": 1, "col": 2, "category": "branchingHardCoral", "role": "connector" },
+    { "name": "branch_right_elbow_connector", "row": 1, "col": 3, "category": "branchingHardCoral", "role": "connector" },
+    { "name": "sea_fan_small_purple", "row": 2, "col": 0, "category": "seaFan", "role": "accent" },
+    { "name": "sea_fan_large_purple", "row": 2, "col": 1, "category": "seaFan", "role": "backdrop" },
+    { "name": "plate_coral_shelf_green", "row": 2, "col": 2, "category": "plateCoral", "role": "shelf" },
+    { "name": "plate_coral_stacked_cluster", "row": 2, "col": 3, "category": "plateCoral", "role": "cluster" },
+    { "name": "low_pink_coral_mound", "row": 3, "col": 0, "category": "filler", "role": "foregroundMound" },
+    { "name": "blue_green_polyp_cluster", "row": 3, "col": 1, "category": "filler", "role": "foregroundCluster" },
+    { "name": "tan_sponge_tube_cluster", "row": 3, "col": 2, "category": "filler", "role": "verticalAccent" },
+    { "name": "mixed_rock_coral_base", "row": 3, "col": 3, "category": "filler", "role": "anchorBase" }
+  ]
+}
