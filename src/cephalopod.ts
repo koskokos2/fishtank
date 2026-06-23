@@ -40,7 +40,17 @@ const S = RES;
 // single crawl/rest/swim poses, indexed by name via OCTOPUS_POSE. The crawl/swim machine
 // below selects the frame per state.
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle hover)
-const OCTO_STRIDE = 9 * S; // px of horizontal travel per reach<->push gait step
+const OCTO_STRIDE = 4 * S; // px of horizontal travel per crawl-gait pose step
+// The benthic crawl gait: a 3-phase reach-and-pull cycle through the baked low-crawl
+// poses, advanced by distance travelled. The octopus gathers (push), reaches its arms
+// forward (reach), then stretches to full forward extension (active reach); wrapping
+// back to the gathered pose reads as the body pulling up to its planted arms — the
+// power phase of an octopus arm-crawl — so it walks instead of stiffly toggling.
+const CRAWL_GAIT = [
+  OCTOPUS_POSE.crawlPush,
+  OCTOPUS_POSE.crawlReach,
+  OCTOPUS_POSE.activeCrawlReach,
+] as const;
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
 const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent push-pulses quit
 const OCTO_LAND_POSE = 6 * S; // height above the sand where it braces into the landing pose
@@ -759,7 +769,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
 
     // Octopus: pick the pose for the current state, driving all twelve baked poses.
     //  - parked: resting_on_sand (short) or curled-up settled_curled_rest (long park);
-    //  - crawling: a 2-frame reach<->push gait, curled_turn flashed through a heading change;
+    //  - crawling: a 3-phase reach-and-pull gait (gather → reach → full stretch),
+    //    curled_turn flashed through a heading change;
     //  - swimming: reach push-off (gather) → swim_pulse (thrust) → glide_streaming → hover
     //    down (settle), using the energetic "active" pose row on multi-pulse bouts.
     if (cfg.motion === "crawl") {
@@ -777,14 +788,17 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         else if (py < groundY(px) - OCTO_LAND_POSE) frame = swimVigorous ? P.activeGlide : P.glide;
         else frame = P.crawlPush;
       } else if (restTimer > 0) {
-        frame = restLong ? P.settledRest : P.rest; // parked & resting (arms held still)
+        // parked & resting (arms held still): a curled-up ball for short rests, the
+        // flat sprawled-out low pose for long settles.
+        frame = restLong ? P.crawlReach : P.settledRest;
       } else if (curlTimer > 0) {
         frame = P.curl; // flash a curl through a crawl turn
       } else {
-        // crawling along the sand: step reach<->push by distance travelled, so it holds
-        // its pose when slow/stopped instead of toggling on the spot
+        // crawling along the sand: a 3-phase reach-and-pull stride (gather → reach →
+        // full stretch) advanced by distance travelled, so it holds its pose when
+        // slow/stopped instead of cycling on the spot.
         gaitPhase += (Math.abs(vx) * dt) / OCTO_STRIDE;
-        frame = Math.floor(gaitPhase) % 2 === 0 ? P.crawlReach : P.crawlPush;
+        frame = CRAWL_GAIT[Math.floor(gaitPhase) % CRAWL_GAIT.length];
       }
       body.frame = frame;
     }
