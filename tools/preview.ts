@@ -7,7 +7,7 @@ import { jellyTentacleSheet, JELLYFISH_FRAMES } from "../src/cephalopod";
 import {
   FISH_ATLAS,
   FISH_ATLAS_CELL,
-  FISH_ATLAS_COLS,
+  FISH_ATLAS_LAYOUT,
 } from "../src/fishAtlas";
 import {
   SEA_CREATURES_ATLAS,
@@ -198,9 +198,7 @@ function renderFishGrid() {
     : FISH_KINDS;
 
   const sheets = kinds.map((k) => {
-    const i = FISH_KINDS.indexOf(k);
-    const col = i % FISH_ATLAS_COLS;
-    const row = Math.floor(i / FISH_ATLAS_COLS);
+    const { row, col } = FISH_ATLAS_LAYOUT[k.name];
     const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
     return shearSheet(copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh));
   });

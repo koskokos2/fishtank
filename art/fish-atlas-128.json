@@ -1,0 +1,20 @@
+{
+  "image": "fish-atlas-128.png",
+  "tileSize": 128,
+  "columns": 3,
+  "rows": 4,
+  "sprites": [
+    { "name": "angelfish", "row": 0, "col": 0, "category": "fish", "role": "tallProfile" },
+    { "name": "red_tailed_black_shark", "row": 0, "col": 1, "category": "fish", "role": "streamlined" },
+    { "name": "discus", "row": 0, "col": 2, "category": "fish", "role": "roundProfile" },
+    { "name": "guppy", "row": 1, "col": 0, "category": "fish", "role": "smallFancyTail" },
+    { "name": "goldfish", "row": 1, "col": 1, "category": "fish", "role": "fancyTail" },
+    { "name": "tiger_barb", "row": 1, "col": 2, "category": "fish", "role": "striped" },
+    { "name": "lionhead_cichlid", "row": 2, "col": 0, "category": "fish", "role": "stocky" },
+    { "name": "neon_tetra", "row": 2, "col": 1, "category": "fish", "role": "smallSchooling" },
+    { "name": "labidochromis_caeruleus", "row": 2, "col": 2, "category": "fish", "role": "smallSchooling" },
+    { "name": "royal_pleco", "row": 3, "col": 0, "category": "fish", "role": "bottomDweller" },
+    { "name": "gourami", "row": 3, "col": 1, "category": "fish", "role": "midwater" },
+    { "name": "koi", "row": 3, "col": 2, "category": "fish", "role": "patterned" }
+  ]
+}

@@ -257,7 +257,7 @@ const KINDS: Record<string, KindCfg> = {
     crawl: {
       speed: 16 * S, // slow omnidirectional drift
       hop: 200 * S, // hops a moderate distance, then parks and rests
-      rest: { secs: [3, 8], longSecs: [12, 60], longChance: 0.3 },
+      rest: { secs: [5, 20], longSecs: [20, 80], longChance: 0.3 },
       swimEvery: [6, 12], // occasionally push off for a swim
       gather: 0.16, // bunch up
       thrust: 0.12, // power-stroke hold
