@@ -1,4 +1,4 @@
-import type { KAPLAYCtx } from "kaplay";
+import type { GameObj, KAPLAYCtx } from "kaplay";
 import {
   FISH_ATLAS,
   FISH_ATLAS_CELL,
@@ -10,6 +10,9 @@ import {
   FISH_EXTRA_ATLAS_LAYOUT,
 } from "./fishExtraAtlas";
 import { cellBBox, copyRect, shearSheet } from "./fishbake";
+import { sandTopAt } from "./backdrop";
+import { spawnSandPuff } from "./cephalopod";
+import { spawnBubble } from "./tank";
 import { RES } from "./res";
 
 const clamp = (v: number, lo: number, hi: number) =>
@@ -135,6 +138,18 @@ const BODY_OFF = 8 * RES; // head/tail separation points sit this far from the c
 const PAIR_DIST = 12 * RES; // min spacing kept between any two body points
 const SEPARATION = 0.25; // share of the overlap each fish resolves per frame
 
+// Occasional ambient actions: now and then a fish breaks its burst/coast routine
+// for a short, self-contained behaviour (nose the sand, gulp at the surface, dart,
+// hover, rest on the bottom, chase a neighbour), then returns to normal swimming.
+// ACTION_EVERY is the per-fish gap between actions (seconds, unitless — wall-clock).
+const ACTION_EVERY: [number, number] = [20, 60];
+const NOSE_GAP = 10 * RES; // body-centre height above the sand when nosing/resting
+const DART_IMPULSE = 230 * RES; // one-shot startle kick (several times a normal burst)
+const CHASE_RANGE = 180 * RES; // a chase only starts if another fish is within this
+const BENTHIC_MAX = 0.92; // species with level.max at/above this rest on the bottom
+
+type FishAction = "none" | "sift" | "gulp" | "dart" | "hover" | "rest" | "chase";
+
 export function spawnFish(
   k: KAPLAYCtx,
   spriteName: string,
@@ -181,6 +196,142 @@ export function spawnFish(
   let timer = k.rand(0.3, 0.8);
   let beat = 3;
 
+  // Occasional-action state: most of the time `action` is "none" and the routine
+  // above runs; otherwise the action layer drives `depth`/`heading`/`phase` for a
+  // few seconds, then hands back. `benthic` species (bottom band) can rest on the
+  // sand; surface-reaching species can gulp; bottom-reaching species sift.
+  let action: FishAction = "none";
+  let actSub = "";
+  let actTimer = 0;
+  let actCooldown = k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
+  let chaseTarget: GameObj | null = null;
+  const benthic = level.max >= BENTHIC_MAX;
+  const canSift = level.max >= 0.5; // band reaches low enough to nose the sand
+  const canGulp = level.min <= 0.4; // band reaches high enough to gulp at the top
+  const inBand = () => k.rand(bandTop(), bandBot());
+
+  // Pick a feasible action (light weighting; no config table) and arm its first
+  // sub-phase. Bottom species lean toward sifting/resting; chase needs a neighbour.
+  const pickAction = () => {
+    const choices: FishAction[] = ["dart", "hover"];
+    if (canSift) choices.push("sift");
+    if (canGulp) choices.push("gulp");
+    if (benthic) choices.push("sift", "rest"); // nose/rest more on the bottom
+
+    let target: GameObj | null = null;
+    let best = CHASE_RANGE;
+    for (const o of k.get("fish")) {
+      if (o === fish) continue;
+      const d = Math.hypot(o.pos.x - px, o.pos.y - py);
+      if (d < best) {
+        best = d;
+        target = o;
+      }
+    }
+    if (target) choices.push("chase");
+
+    action = k.choose(choices);
+    actSub = "descend";
+    actTimer = 0;
+    phase = "burst";
+    if (action === "gulp") {
+      actSub = "rise";
+      depth = minY;
+    } else if (action === "dart") {
+      const dir = k.chance(0.6) ? -heading : heading; // often spook into a reversal
+      heading = dir;
+      vx += dir * DART_IMPULSE;
+      vy += k.rand(-0.35, 0.35) * DART_IMPULSE;
+      actTimer = k.rand(0.4, 0.8);
+    } else if (action === "hover") {
+      depth = py;
+      phase = "coast";
+      actTimer = k.rand(2, 3);
+    } else if (action === "chase") {
+      chaseTarget = target;
+      actTimer = k.rand(1, 2);
+    }
+  };
+
+  const endAction = () => {
+    action = "none";
+    chaseTarget = null;
+    actCooldown = k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
+    depth = inBand();
+    phase = "burst";
+    timer = k.rand(0.4, 0.9);
+  };
+
+  // Per-frame action behaviour: set targets/impulses; effects fire on contact;
+  // each action ends itself. The shared integrator below does the actual moving.
+  const runAction = (dt: number) => {
+    const sandY = sandTopAt(clamp(px, 0, k.width() - 1));
+    const atSand = py >= sandY - NOSE_GAP - 4 * RES;
+    switch (action) {
+      case "sift":
+        if (actSub === "descend") {
+          depth = sandY - NOSE_GAP;
+          phase = "burst";
+          if (atSand) {
+            spawnSandPuff(k, fish.headX, sandY, 0.5);
+            actSub = "rise";
+            actTimer = k.rand(0.2, 0.5);
+            depth = inBand();
+          }
+        } else if ((actTimer -= dt) <= 0) endAction();
+        break;
+      case "rest":
+        if (actSub === "descend") {
+          depth = sandY - NOSE_GAP;
+          phase = "burst";
+          if (atSand) {
+            spawnSandPuff(k, fish.headX, sandY, 0.35);
+            actSub = "hold";
+            actTimer = k.rand(3, 8);
+          }
+        } else {
+          depth = sandY - NOSE_GAP;
+          phase = "coast";
+          vx += (0 - vx) * 5 * dt; // settle near-still on the substrate
+          vy += (0 - vy) * 5 * dt;
+          if ((actTimer -= dt) <= 0) endAction();
+        }
+        break;
+      case "gulp":
+        if (actSub === "rise") {
+          depth = minY;
+          phase = "burst";
+          if (py <= minY + 6 * RES) {
+            spawnBubble(k, fish.headX, py - 4 * RES, k.randi(1, 3));
+            actSub = "linger";
+            actTimer = k.rand(0.3, 0.7);
+          }
+        } else if ((actTimer -= dt) <= 0) endAction();
+        break;
+      case "dart":
+        phase = "burst";
+        if ((actTimer -= dt) <= 0) endAction();
+        break;
+      case "hover":
+        phase = "coast";
+        depth = py;
+        vx += (0 - vx) * 4 * dt;
+        vy += (0 - vy) * 4 * dt;
+        if ((actTimer -= dt) <= 0) endAction();
+        break;
+      case "chase":
+        if (!chaseTarget || !chaseTarget.exists()) {
+          endAction();
+          return;
+        }
+        heading = Math.sign(chaseTarget.pos.x - px) || heading;
+        depth = chaseTarget.pos.y;
+        phase = "burst";
+        if ((actTimer -= dt) <= 0) endAction();
+        break;
+    }
+  };
+
   fish.flipX = facingRight;
 
   // Separation: while another fish is within sensor range, accelerate away from
@@ -223,16 +374,29 @@ export function spawnFish(
     const dt = k.dt();
     const w = k.width();
 
-    timer -= dt;
-    if (timer <= 0) {
-      if (phase === "burst") {
-        phase = "coast";
-        timer = k.rand(0.6, 1.7);
-      } else {
-        phase = "burst";
-        timer = k.rand(0.4, 0.9);
-        if (k.rand() < 0.12) heading *= -1; // occasional wander turn
-        if (k.rand() < 0.5) depth = k.rand(bandTop(), bandBot());
+    // Action layer: count down to the next action while idle, otherwise drive the
+    // current one. An action owns `phase`/`depth`/`heading` while it runs, so the
+    // routine burst/coast machine below is paused until it ends.
+    if (action === "none") {
+      actCooldown -= dt;
+      if (actCooldown <= 0) pickAction();
+    } else {
+      runAction(dt);
+    }
+
+    // Routine burst/coast (paused during an action, which sets its own phase).
+    if (action === "none") {
+      timer -= dt;
+      if (timer <= 0) {
+        if (phase === "burst") {
+          phase = "coast";
+          timer = k.rand(0.6, 1.7);
+        } else {
+          phase = "burst";
+          timer = k.rand(0.4, 0.9);
+          if (k.rand() < 0.12) heading *= -1; // occasional wander turn
+          if (k.rand() < 0.5) depth = k.rand(bandTop(), bandBot());
+        }
       }
     }
 
@@ -254,11 +418,18 @@ export function spawnFish(
     px += vx * dt;
     py += vy * dt;
 
+    // Sift/rest dive onto the dune (below the normal band floor); the relaxed floor
+    // also stays in effect while the fish is still below maxY after one, so it eases
+    // back up instead of snapping at the band edge.
+    const floor =
+      action === "sift" || action === "rest" || py > maxY()
+        ? sandTopAt(clamp(px, 0, w - 1)) - NOSE_GAP
+        : maxY();
     if (py < minY) {
       py = minY;
       vy = Math.abs(vy) * 0.3;
-    } else if (py > maxY()) {
-      py = maxY();
+    } else if (py > floor) {
+      py = floor;
       vy = -Math.abs(vy) * 0.3;
     }
 

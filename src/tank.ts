@@ -226,6 +226,14 @@ function plantPoint(
   };
 }
 
+// A few small bubbles released at a point — used by a fish's surface gulp. Reuses
+// the same bubble physics as the ambient sources so they rise and wobble alike.
+export function spawnBubble(k: KAPLAYCtx, x: number, y: number, count = 1) {
+  for (let i = 0; i < count; i++) {
+    emitBubble(k, x + k.rand(-2, 2) * S, y + k.rand(-2, 2) * S, PEARL);
+  }
+}
+
 function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
   const radius = k.rand(o.radius[0], o.radius[1]) * S;
   const bubble = k.add([
