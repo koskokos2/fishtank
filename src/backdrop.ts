@@ -314,25 +314,6 @@ function stack(cx: number, yShift: number, ...names: string[]): CoralBlit[] {
 
 export function coralBlits(): CoralBlit[] {
   return [
-    // Composed tall corals
-    ...stack(90,  8,   // foreground — base buried a little, reads close
-      "branch_base_rock_foot",
-      "branch_vertical_trunk",
-      "branch_y_junction",
-      "branch_small_forked_tip",
-    ),
-    ...stack(430, 0,
-      "branch_base_rock_foot",
-      "branch_vertical_trunk",
-      "branch_rounded_bulb_cluster",
-    ),
-    ...stack(580, 5,
-      "branch_base_rock_foot",
-      "branch_curved_side_segment",
-      "branch_left_elbow_connector",
-      "branch_small_forked_tip",
-    ),
-
     // Small items — 0 = flush with sand, larger = closer/more buried
     ...stack(50,  10, "plate_coral_stacked_cluster"),  // close, half-buried
     ...stack(150,  0, "sea_fan_small_purple"),          // background, sits on sand line
