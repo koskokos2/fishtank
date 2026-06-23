@@ -1,0 +1,24 @@
+{
+  "image": "ruins-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "carved_square_stone_block", "row": 0, "col": 0, "category": "architecture", "role": "block" },
+    { "name": "cracked_rectangular_wall_segment", "row": 0, "col": 1, "category": "architecture", "role": "wall" },
+    { "name": "broken_column_base", "row": 0, "col": 2, "category": "architecture", "role": "columnBase" },
+    { "name": "short_intact_column_segment", "row": 0, "col": 3, "category": "architecture", "role": "columnSegment" },
+    { "name": "broken_column_capital", "row": 1, "col": 0, "category": "architecture", "role": "columnTop" },
+    { "name": "tall_cracked_pillar", "row": 1, "col": 1, "category": "architecture", "role": "pillar" },
+    { "name": "half_arch_left", "row": 1, "col": 2, "category": "architecture", "role": "archLeft" },
+    { "name": "half_arch_right", "row": 1, "col": 3, "category": "architecture", "role": "archRight" },
+    { "name": "carved_wave_glyph_slab", "row": 2, "col": 0, "category": "decorative", "role": "slab" },
+    { "name": "small_idol_head_fragment", "row": 2, "col": 1, "category": "decorative", "role": "fragment" },
+    { "name": "broken_stair_step_stack", "row": 2, "col": 2, "category": "decorative", "role": "stairs" },
+    { "name": "toppled_column_horizontal", "row": 2, "col": 3, "category": "decorative", "role": "toppledColumn" },
+    { "name": "small_rubble_pile", "row": 3, "col": 0, "category": "rubble", "role": "smallPile" },
+    { "name": "large_algae_rubble_pile", "row": 3, "col": 1, "category": "rubble", "role": "largePile" },
+    { "name": "stone_base_with_coral", "row": 3, "col": 2, "category": "integration", "role": "coralAnchor" },
+    { "name": "stone_base_with_plants_moss", "row": 3, "col": 3, "category": "integration", "role": "plantAnchor" }
+  ]
+}

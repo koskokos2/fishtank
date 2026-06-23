@@ -1,15 +1,9 @@
 // Headless sprite previewer. Bakes the procedural fish straight to a PNG so the
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
-import { deflateSync, inflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
+import { decodePng, encodePng, dataUrlToBuffer } from "./png";
 import { BW, BH, backdropPixels } from "../src/backdrop";
-import {
-  OCTO_W,
-  OCTO_H,
-  octopusPixels,
-  jellyTentacleSheet,
-  JELLYFISH_FRAMES,
-} from "../src/cephalopod";
+import { jellyTentacleSheet, JELLYFISH_FRAMES } from "../src/cephalopod";
 import {
   FISH_ATLAS,
   FISH_ATLAS_CELL,
@@ -21,6 +15,11 @@ import {
   SEA_CREATURES_ATLAS_COLS,
   SEA_CREATURE_JELLYFISH_INDEX,
 } from "../src/seaCreaturesAtlas";
+import {
+  OCTOPUS_ATLAS,
+  OCTOPUS_FRAMES,
+  OCTOPUS_FRAME_W,
+} from "../src/octopusAtlas";
 import { FISH_KINDS } from "../src/fish";
 import {
   cellBBox,
@@ -42,19 +41,69 @@ const argv = Object.fromEntries(
 const opt = (k: string) => argv[k] ?? process.env[k];
 
 // MODE=fish (default) bakes every fish's swim sheet from the atlas; MODE=backdrop
-// bakes the static scene to backdrop.png; MODE=octopus bakes the octopus body
-// (its arms are per-frame so they only show in `bun run dev`); MODE=jellyfish bakes
-// the jellyfish tentacle-sway frames (its bell pulse is a runtime squash, so it only
-// shows in `bun run dev`). The nautilus is cropped from the sea-creature atlas and
-// animated in-browser at load.
+// bakes the static scene to backdrop.png; MODE=octopus composites the layered
+// octopus atlas into sample poses (the live pose-swapping state machine only shows
+// in `bun run dev`); MODE=jellyfish bakes the jellyfish tentacle-sway frames (its
+// bell pulse is a runtime squash, so it only shows in `bun run dev`). The nautilus
+// is cropped from the sea-creature atlas and animated in-browser at load.
 const MODE = opt("MODE") ?? "fish";
 const S = Number(opt("S") ?? (MODE === "backdrop" ? 1 : 6)); // upscale factor
 
 if (MODE === "backdrop") renderBackdrop();
-else if (MODE === "octopus")
-  renderCreature(octopusPixels(), OCTO_W, OCTO_H, "octopus.png");
+else if (MODE === "octopus") renderOctopus();
 else if (MODE === "jellyfish") renderJellyfish();
 else renderFishGrid();
+
+// Lays out the baked octopus frames — the idle-pose arm-sway loop followed by the
+// swim_pulse, glide_streaming and curled_turn poses — so the keyed art and the
+// gentle sway can be checked without a browser. The live pose-swapping state
+// machine (and the sway playing in motion) still needs `bun run dev`.
+function renderOctopus() {
+  const atlas = decodePng(dataUrlToBuffer(OCTOPUS_ATLAS));
+  const fw = OCTOPUS_FRAME_W;
+  const frames = Array.from({ length: OCTOPUS_FRAMES }, (_, i) =>
+    copyRect(atlas.rgba, atlas.w, i * fw, 0, fw, atlas.h),
+  );
+  renderFrames(frames, "octopus.png");
+}
+
+// Lay several full-cell Bufs side by side, upscaled over the tank ground.
+function renderFrames(frames: Buf[], name: string) {
+  const pad = 8;
+  const fw = frames[0].w;
+  const fh = frames[0].h;
+  const cw = pad + frames.length * (fw * S + pad);
+  const ch = pad + fh * S + pad;
+  const out = new Uint8Array(cw * ch * 4);
+  for (let i = 0; i < cw * ch; i++) {
+    out[i * 4] = 14;
+    out[i * 4 + 1] = 40;
+    out[i * 4 + 2] = 58;
+    out[i * 4 + 3] = 255;
+  }
+  frames.forEach((f, fi) => {
+    const ox = pad + fi * (fw * S + pad);
+    for (let y = 0; y < fh; y++) {
+      for (let x = 0; x < fw; x++) {
+        const si = (y * fw + x) * 4;
+        const a = f.data[si + 3];
+        if (a === 0) continue;
+        const af = a / 255;
+        for (let sy = 0; sy < S; sy++) {
+          for (let sx = 0; sx < S; sx++) {
+            const i = ((pad + y * S + sy) * cw + (ox + x * S + sx)) * 4;
+            out[i] = f.data[si] * af + out[i] * (1 - af);
+            out[i + 1] = f.data[si + 1] * af + out[i + 1] * (1 - af);
+            out[i + 2] = f.data[si + 2] * af + out[i + 2] * (1 - af);
+            out[i + 3] = 255;
+          }
+        }
+      }
+    }
+  });
+  writeFileSync(name, encodePng(out, cw, ch));
+  console.log(`wrote ${name} (${cw}x${ch}) — ${frames.length} octopus poses`);
+}
 
 // Bakes the jellyfish tentacle frames exactly as the app does — crop atlas cell 0,
 // then the same horizontal-sway sheet — so the tentacle motion can be reviewed
@@ -109,38 +158,6 @@ function renderSheet(s: Buf, name: string, frames: number) {
   }
   writeFileSync(name, encodePng(out, cw, ch));
   console.log(`wrote ${name} (${cw}x${ch}) — ${frames} tentacle frames`);
-}
-
-// One cephalopod body, upscaled over a dark tank-blue ground (alpha-composited).
-function renderCreature(px: number[][], w: number, h: number, name: string) {
-  const pad = 8;
-  const cw = (w + pad * 2) * S;
-  const ch = (h + pad * 2) * S;
-  const out = new Uint8Array(cw * ch * 4);
-  for (let i = 0; i < cw * ch; i++) {
-    out[i * 4] = 14;
-    out[i * 4 + 1] = 40;
-    out[i * 4 + 2] = 58;
-    out[i * 4 + 3] = 255;
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const [r, g, b, a] = px[y * w + x];
-      if (!a) continue;
-      const af = a / 255;
-      for (let sy = 0; sy < S; sy++) {
-        for (let sx = 0; sx < S; sx++) {
-          const i = (((pad + y) * S + sy) * cw + ((pad + x) * S + sx)) * 4;
-          out[i] = r * af + out[i] * (1 - af);
-          out[i + 1] = g * af + out[i + 1] * (1 - af);
-          out[i + 2] = b * af + out[i + 2] * (1 - af);
-          out[i + 3] = 255;
-        }
-      }
-    }
-  }
-  writeFileSync(name, encodePng(out, cw, ch));
-  console.log(`wrote ${name} (${cw}x${ch})`);
 }
 
 function renderBackdrop() {
@@ -233,99 +250,3 @@ function renderFishGrid() {
   );
 }
 
-function dataUrlToBuffer(url: string): Buffer {
-  return Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
-}
-
-// --- minimal PNG decode (8-bit, color type 6 RGBA, no interlace) ---
-function decodePng(buf: Buffer): { rgba: Uint8Array; w: number; h: number } {
-  let p = 8;
-  let w = 0, h = 0, bitDepth = 0, colorType = 0;
-  const idat: Buffer[] = [];
-  while (p < buf.length) {
-    const len = buf.readUInt32BE(p);
-    const type = buf.toString("ascii", p + 4, p + 8);
-    const data = buf.subarray(p + 8, p + 8 + len);
-    if (type === "IHDR") {
-      w = data.readUInt32BE(0);
-      h = data.readUInt32BE(4);
-      bitDepth = data[8];
-      colorType = data[9];
-    } else if (type === "IDAT") idat.push(data);
-    else if (type === "IEND") break;
-    p += 12 + len;
-  }
-  if (bitDepth !== 8 || colorType !== 6)
-    throw new Error(`unsupported PNG: depth ${bitDepth} colorType ${colorType}`);
-  const raw = inflateSync(Buffer.concat(idat));
-  const bpp = 4;
-  const stride = w * bpp;
-  const rgba = new Uint8Array(w * h * bpp);
-  let rp = 0;
-  for (let y = 0; y < h; y++) {
-    const filter = raw[rp++];
-    for (let x = 0; x < stride; x++) {
-      const v = raw[rp++];
-      const a = x >= bpp ? rgba[y * stride + x - bpp] : 0;
-      const b = y > 0 ? rgba[(y - 1) * stride + x] : 0;
-      const c = x >= bpp && y > 0 ? rgba[(y - 1) * stride + x - bpp] : 0;
-      let recon: number;
-      switch (filter) {
-        case 0: recon = v; break;
-        case 1: recon = v + a; break;
-        case 2: recon = v + b; break;
-        case 3: recon = v + ((a + b) >> 1); break;
-        case 4: {
-          const pp = a + b - c;
-          const pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
-          recon = v + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);
-          break;
-        }
-        default: throw new Error(`bad filter ${filter}`);
-      }
-      rgba[y * stride + x] = recon & 0xff;
-    }
-  }
-  return { rgba, w, h };
-}
-
-// --- minimal PNG (RGBA, 8-bit, no interlace) ---
-function encodePng(rgba: Uint8Array, w: number, h: number): Buffer {
-  const raw = Buffer.alloc(h * (1 + w * 4));
-  for (let y = 0; y < h; y++) {
-    raw[y * (1 + w * 4)] = 0; // filter: none
-    rgba.subarray(y * w * 4, (y + 1) * w * 4).forEach((v, i) => {
-      raw[y * (1 + w * 4) + 1 + i] = v;
-    });
-  }
-  const idat = deflateSync(raw);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 6; // color type RGBA
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", idat),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-function chunk(type: string, data: Buffer): Buffer {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length, 0);
-  const td = Buffer.concat([Buffer.from(type, "ascii"), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(td) >>> 0, 0);
-  return Buffer.concat([len, td, crc]);
-}
-
-function crc32(buf: Buffer): number {
-  let c = ~0;
-  for (let i = 0; i < buf.length; i++) {
-    c ^= buf[i];
-    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-  }
-  return ~c;
-}

@@ -1,0 +1,24 @@
+{
+  "image": "rock-terrain-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "single_medium_rounded_stone", "row": 0, "col": 0, "category": "stackableRock", "role": "singleStone" },
+    { "name": "stacked_two_stones", "row": 0, "col": 1, "category": "stackableRock", "role": "stoneStack" },
+    { "name": "flat_topped_ledge_stone", "row": 0, "col": 2, "category": "stackableRock", "role": "ledge" },
+    { "name": "tall_vertical_boulder_pillar", "row": 0, "col": 3, "category": "stackableRock", "role": "verticalBoulder" },
+    { "name": "small_cave_mouth", "row": 1, "col": 0, "category": "hideout", "role": "smallCave" },
+    { "name": "wide_cave_under_rock_shelf", "row": 1, "col": 1, "category": "hideout", "role": "wideCave" },
+    { "name": "hollow_stone_tunnel", "row": 1, "col": 2, "category": "hideout", "role": "tunnel" },
+    { "name": "overhang_ledge_shadow", "row": 1, "col": 3, "category": "hideout", "role": "overhang" },
+    { "name": "low_gravel_patch", "row": 2, "col": 0, "category": "floor", "role": "gravelPatch" },
+    { "name": "wide_gravel_mound", "row": 2, "col": 1, "category": "floor", "role": "mound" },
+    { "name": "mixed_pebble_strip", "row": 2, "col": 2, "category": "floor", "role": "seamCover" },
+    { "name": "sloped_rock_ramp", "row": 2, "col": 3, "category": "floor", "role": "ramp" },
+    { "name": "large_background_boulder", "row": 3, "col": 0, "category": "background", "role": "boulder" },
+    { "name": "distant_rock_wall_chunk", "row": 3, "col": 1, "category": "background", "role": "wallChunk" },
+    { "name": "algae_covered_rock_cluster", "row": 3, "col": 2, "category": "background", "role": "algaeCluster" },
+    { "name": "rock_base_coral_plant_sprouts", "row": 3, "col": 3, "category": "integration", "role": "anchorBase" }
+  ]
+}

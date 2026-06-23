@@ -1,0 +1,24 @@
+{
+  "image": "octopus-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "body_neutral_glide", "row": 0, "col": 0, "layer": "body" },
+    { "name": "body_compressed_pulse", "row": 0, "col": 1, "layer": "body" },
+    { "name": "body_stretched_forward", "row": 0, "col": 2, "layer": "body" },
+    { "name": "body_curled_tucked", "row": 0, "col": 3, "layer": "body" },
+    { "name": "back_tentacles_relaxed_drift", "row": 1, "col": 0, "layer": "backTentacles" },
+    { "name": "back_tentacles_s_curve_wave", "row": 1, "col": 1, "layer": "backTentacles" },
+    { "name": "back_tentacles_compressed_push", "row": 1, "col": 2, "layer": "backTentacles" },
+    { "name": "back_tentacles_long_propulsion", "row": 1, "col": 3, "layer": "backTentacles" },
+    { "name": "front_tentacles_gentle_curl", "row": 2, "col": 0, "layer": "frontTentacles" },
+    { "name": "front_tentacles_reaching_forward", "row": 2, "col": 1, "layer": "frontTentacles" },
+    { "name": "front_tentacles_tucked_under", "row": 2, "col": 2, "layer": "frontTentacles" },
+    { "name": "front_tentacles_wide_swimming_fan", "row": 2, "col": 3, "layer": "frontTentacles" },
+    { "name": "assembled_idle_hover", "row": 3, "col": 0, "layer": "assembled" },
+    { "name": "assembled_swim_pulse", "row": 3, "col": 1, "layer": "assembled" },
+    { "name": "assembled_glide_streaming", "row": 3, "col": 2, "layer": "assembled" },
+    { "name": "assembled_curled_turn", "row": 3, "col": 3, "layer": "assembled" }
+  ]
+}

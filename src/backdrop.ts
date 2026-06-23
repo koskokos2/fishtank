@@ -1,13 +1,14 @@
 // Procedural static backdrop, baked once into a single BW x BH sprite. Generated
 // as a raw RGBA buffer (headlessly previewable), then painted to an offscreen
-// canvas for kaplay. A warm tropical reef: a dithered water gradient, ruined
-// columns + a stone arch, and coral, over the warm gold sand. Ordered (Bayer)
-// dithering gives the gradients pixel texture instead of flat bands.
+// canvas for kaplay. A warm tropical reef: a smooth water gradient, ruined
+// columns + a stone arch, and coral, over the warm gold sand. Organic ordered
+// dithering gives the solid materials pixel texture without filling the water
+// with a high-resolution dot mesh.
 //
 // Authored in 640x360 design space and scaled by RES: macro features (columns,
-// arch, coral, sand height) multiply by S so the composition is unchanged, while
-// the noise frequencies and the Bayer/grain patterns are left alone so they get
-// finer at higher RES — the denser pixel texture is the whole point.
+// arch, coral, sand height) multiply by S so the composition is unchanged. Broad
+// water gradients stay smooth at high RES; harder materials keep a broken-up
+// ordered dither for pixel texture.
 
 import { type RGBA, lerp, clamp01 } from "./color";
 import { RES } from "./res";
@@ -79,11 +80,29 @@ const BAYER8 = [
   [10, 58, 6, 54, 9, 57, 5, 53],
   [42, 26, 38, 22, 41, 25, 37, 21],
 ];
-const bayer = (x: number, y: number) => BAYER8[y & 7][x & 7] / 64;
+
+function orderedGrain(x: number, y: number) {
+  const tx = Math.floor(x / 8);
+  const ty = Math.floor(y / 8);
+  const mode = Math.floor(hash2(tx, ty, 91) * 8);
+  let lx = x & 7;
+  let ly = y & 7;
+
+  // Keep the useful local Bayer distribution, but vary orientation per tile so
+  // the high-resolution backdrop does not expose one endless 8x8 lattice.
+  if (mode & 1) lx = 7 - lx;
+  if (mode & 2) ly = 7 - ly;
+  if (mode & 4) [lx, ly] = [ly, lx];
+
+  const ordered = (BAYER8[ly][lx] + 0.5) / 64;
+  const pixel = hash2(x, y, 93) - 0.5;
+  const tile = hash2(tx, ty, 95) - 0.5;
+  return clamp01(ordered + pixel * 0.22 + tile * 0.08);
+}
 
 // Pick between two colors by an ordered threshold — the core of every gradient.
 const dither = (c0: RGBA, c1: RGBA, t: number, x: number, y: number): RGBA =>
-  t > bayer(x, y) ? c1 : c0;
+  t > orderedGrain(x, y) ? c1 : c0;
 
 // Dither across an ordered ramp of >=2 stops by t in [0,1].
 function ditherRamp(stops: RGBA[], t: number, x: number, y: number): RGBA {
@@ -93,11 +112,26 @@ function ditherRamp(stops: RGBA[], t: number, x: number, y: number): RGBA {
   return dither(stops[i0], stops[i1], f - i0, x, y);
 }
 
+function mixColor(c0: RGBA, c1: RGBA, t: number): RGBA {
+  return [
+    Math.round(lerp(c0[0], c1[0], t)),
+    Math.round(lerp(c0[1], c1[1], t)),
+    Math.round(lerp(c0[2], c1[2], t)),
+    Math.round(lerp(c0[3], c1[3], t)),
+  ];
+}
+
+function smoothRamp(stops: RGBA[], t: number): RGBA {
+  const f = clamp01(t) * (stops.length - 1);
+  const i0 = Math.min(stops.length - 1, Math.floor(f));
+  const i1 = Math.min(stops.length - 1, i0 + 1);
+  return mixColor(stops[i0], stops[i1], f - i0);
+}
+
 // --- warm palette ------------------------------------------------------------
 
-// Water, top (aqua) -> bottom (deep warm navy). Many closely-spaced stops keep
-// the ordered dither low-contrast (fine grain, not a loud checker), and the ramp
-// is weighted deep so the mid swimming zone is dark enough for fish to pop.
+// Water, top (aqua) -> bottom (deep warm navy). The ramp is weighted deep so the
+// mid swimming zone is dark enough for fish to pop.
 const WATER: RGBA[] = [
   [96, 178, 190, 255],
   [66, 150, 166, 255],
@@ -137,8 +171,46 @@ const setPx = (buf: Buf, x: number, y: number, c: RGBA) => {
   if (x >= 0 && x < BW && y >= 0 && y < BH) buf[(y | 0) * BW + (x | 0)] = c;
 };
 
-const sandTopAt = (x: number) =>
-  BH - SAND_H + Math.round((fbm(x * 0.025, 0, 21) - 0.5) * 12 * S);
+const sandTopAt = (x: number) => {
+  const u = x / Math.max(1, BW - 1);
+  const slope = lerp(-13 * S, 11 * S, u);
+  const swell =
+    Math.sin(u * Math.PI * 2 - 0.6) * 8 * S +
+    Math.sin(u * Math.PI * 4 + 1.2) * 4 * S;
+  const g0 = (u - 0.18) / 0.12;
+  const g1 = (u - 0.62) / 0.16;
+  const g2 = (u - 0.9) / 0.1;
+  const mound =
+    -Math.exp(-(g0 * g0)) * 9 * S +
+    Math.exp(-(g1 * g1)) * 7 * S -
+    Math.exp(-(g2 * g2)) * 6 * S;
+  const chop = (fbm(x * 0.025, 0, 21) - 0.5) * 6 * S;
+  return BH - SAND_H + Math.round(slope + swell + mound + chop);
+};
+
+function sandShadow(x: number, y: number, top: number) {
+  const d = y - top;
+  let shade = 0;
+  const add = (cx: number, cy: number, rx: number, ry: number, strength: number) => {
+    const nx = (x - cx) / rx;
+    const ny = (y - cy) / ry;
+    const falloff = 1 - (nx * nx + ny * ny);
+    if (falloff > 0) shade += falloff * strength;
+  };
+
+  // Broad contact shadows where heavy scenery sinks into the sand.
+  add(248 * S, top + 2 * S, 18 * S, 8 * S, 0.18);
+  add(392 * S, top + 2 * S, 16 * S, 7 * S, 0.14);
+  add(120 * S, sandTopAt(120 * S) + 10 * S, 38 * S, 15 * S, 0.22);
+  add(250 * S, sandTopAt(250 * S) + 6 * S, 25 * S, 10 * S, 0.18);
+  add(470 * S, sandTopAt(470 * S) + 7 * S, 30 * S, 12 * S, 0.18);
+  add(545 * S, sandTopAt(545 * S) + 10 * S, 43 * S, 15 * S, 0.24);
+
+  // The first few pixels below the waterline are slightly darker: loose silt and
+  // grains slope away from the lit crest instead of forming a flat yellow band.
+  shade += Math.max(0, 1 - d / (10 * S)) * 0.08;
+  return shade;
+}
 
 // --- painters (back to front) ------------------------------------------------
 
@@ -149,7 +221,7 @@ function paintWater(buf: Buf) {
       // zone is darker (more fish contrast); tiny wobble so stops aren't flat.
       let g = Math.pow(y / (BH - 1), 0.82);
       g += (fbm(x * 0.012, y * 0.02, 11) - 0.5) * 0.03;
-      setPx(buf, x, y, ditherRamp(WATER, clamp01(g), x, y));
+      setPx(buf, x, y, smoothRamp(WATER, clamp01(g)));
     }
   }
 }
@@ -312,13 +384,27 @@ function paintSand(buf: Buf) {
     const top = sandTopAt(x);
     for (let y = top; y < BH; y++) {
       const depth = (y - top) / Math.max(1, BH - top);
-      let L = lerp(1, 0.4, depth) + (hash2(x, y, 7) - 0.5) * 0.1;
+      const rippleY = y / S + fbm(x * 0.006, y * 0.01, 31) * 9;
+      const ripple = Math.sin(rippleY * 0.48 + x * 0.012) * 0.5 + 0.5;
+      const rippleLine = Math.pow(ripple, 9) * (1 - depth) * 0.13;
+      const trough = Math.pow(1 - ripple, 7) * (1 - depth) * 0.06;
+      const fine = (hash2(x, y, 7) - 0.5) * 0.08;
+      const coarse = (fbm(x * 0.09, y * 0.08, 37, 3) - 0.5) * 0.12;
+      const fleck = hash2(Math.floor(x / S), Math.floor(y / S), 43) > 0.985 ? -0.18 : 0;
+      let L =
+        lerp(0.94, 0.36, depth) +
+        rippleLine -
+        trough +
+        fine +
+        coarse +
+        fleck -
+        sandShadow(x, y, top);
       setPx(buf, x, y, ditherRamp(SAND, clamp01(L), x, y));
     }
-    setPx(buf, x, top, SAND[2]); // sunlit crest
+    if (x % (3 * S) < S) setPx(buf, x, top, SAND[2]); // broken sunlit crest
     // Dithered silt fading up into the water.
     for (let y = top - 6 * S; y < top; y++) {
-      if ((top - y) / (6 * S) < bayer(x, y)) setPx(buf, x, y, SAND[1]);
+      if ((top - y) / (6 * S) < orderedGrain(x, y)) setPx(buf, x, y, SAND[1]);
     }
   }
 }

@@ -1,0 +1,24 @@
+{
+  "image": "cleanup-crew-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "ramshorn_snail_side", "row": 0, "col": 0, "category": "snail", "role": "ramshorn" },
+    { "name": "nerite_snail_side", "row": 0, "col": 1, "category": "snail", "role": "nerite" },
+    { "name": "mystery_snail_side", "row": 0, "col": 2, "category": "snail", "role": "mystery" },
+    { "name": "tiny_snail_crawling", "row": 0, "col": 3, "category": "snail", "role": "tiny" },
+    { "name": "red_cherry_shrimp_side", "row": 1, "col": 0, "category": "shrimp", "role": "cherry" },
+    { "name": "ghost_shrimp_side", "row": 1, "col": 1, "category": "shrimp", "role": "ghost" },
+    { "name": "amano_shrimp_side", "row": 1, "col": 2, "category": "shrimp", "role": "amano" },
+    { "name": "tiny_shrimp_curled", "row": 1, "col": 3, "category": "shrimp", "role": "resting" },
+    { "name": "small_otocinclus_side", "row": 2, "col": 0, "category": "bottomFish", "role": "otocinclus" },
+    { "name": "tiny_cory_bottom_fish", "row": 2, "col": 1, "category": "bottomFish", "role": "cory" },
+    { "name": "small_pleco_suckerfish", "row": 2, "col": 2, "category": "bottomFish", "role": "pleco" },
+    { "name": "loach_bottom_swimmer", "row": 2, "col": 3, "category": "bottomFish", "role": "loach" },
+    { "name": "micro_copepod_specks", "row": 3, "col": 0, "category": "microLife", "role": "specks" },
+    { "name": "freshwater_limpet_on_rock", "row": 3, "col": 1, "category": "microLife", "role": "limpet" },
+    { "name": "snail_eggs_baby_snail", "row": 3, "col": 2, "category": "microLife", "role": "babySnail" },
+    { "name": "mixed_cleanup_mini_group", "row": 3, "col": 3, "category": "microLife", "role": "mixedGroup" }
+  ]
+}
