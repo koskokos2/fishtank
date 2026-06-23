@@ -72,8 +72,9 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  // The octopus is a clean 4-frame sheet (the "assembled" poses); the spawn rig
-  // shows one frame per the crawl/swim state machine.
+  // The octopus is a clean multi-frame sheet (the idle-hover sway loop plus the
+  // "assembled" crawl/rest/swim poses); the spawn rig shows one frame per the
+  // crawl/swim state machine.
   k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
   k.loadSprite("nautilus", nautilusSheet, {
     sliceX: NAUTILUS_FRAMES,
