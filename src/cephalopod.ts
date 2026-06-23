@@ -1,11 +1,11 @@
 // Cephalopods: a second creature family alongside the fish, sharing one spawn +
 // motion scaffold. Three kinds, each driven by its `motion` and pose config:
-//  - Octopus: a 4-pose atlas creature baked to a sprite sheet by
-//    tools/gen-octopus-atlas.ts. The crawl/swim state machine swaps frames: a
-//    short arm-sway loop while it drifts (idle), plus single pulse/glide/curl
-//    poses for swim bouts and turns. It mostly crawls low and omnidirectionally
-//    (orientation decoupled from travel), and now and then pushes off into a short
-//    pulse-glide swim before resettling.
+//    - Octopus: a benthic, atlas-based creature whose poses are baked to a sprite
+//    sheet by tools/gen-octopus-atlas.ts. It rests ON the sand (riding the dune
+//    contour from backdrop's sandTopAt) for a few seconds up to ~a minute, arms
+//    held still; between rests it hops a short way, cycling a baked arm-sway loop
+//    only while moving; and now and then pushes off into a short pulse-glide swim
+//    (single pulse/glide poses), then settles back onto the substrate.
 //  - Nautilus: one sea-creature atlas cell with a baked tentacle-wiggle sheet
 //    (like the fish tail-swish). Pulsatile jet — posterior-first most of the time,
 //    occasional anterior-first amble, with a squash-flip turnaround.
@@ -21,6 +21,7 @@ import {
   SEA_CREATURE_JELLYFISH_INDEX,
 } from "./seaCreaturesAtlas";
 import { OCTOPUS_IDLE_FRAMES } from "./octopusAtlas";
+import { sandTopAt } from "./backdrop";
 import {
   type Buf,
   SWIM_FRAMES,
@@ -38,6 +39,7 @@ const S = RES;
 // idle pose with its arms gently swaying (cycled while drifting); then the three
 // single swim/turn poses. The crawl/swim machine selects the frame per state.
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle)
+const OCTO_SIT = 24; // body-centre height (px) above the sand so the arms rest on it
 const OCTO_POSE = {
   idleFrames: OCTOPUS_IDLE_FRAMES, // 0 .. n-1 : arm-sway loop (drifting)
   pulse: OCTOPUS_IDLE_FRAMES, //            swim_pulse — gathered for a power stroke
@@ -213,8 +215,12 @@ type KindCfg = {
   // pushes off into a short pulse-glide swim bout, then resettles low.
   crawl?: {
     speed: number; // crawl drift speed
-    roam: [number, number]; // how often it repicks a crawl target (s)
-    swimEvery: [number, number]; // cooldown between swim bouts (s)
+    hop: number; // max horizontal distance of one crawl hop between rests
+    // On arriving at a hop it parks and rests: usually `secs`, but with `longChance`
+    // a longer `longSecs` rest. A resting octopus holds still (arms still sway) and
+    // won't push off for a swim, so long rests actually last.
+    rest: { secs: [number, number]; longSecs: [number, number]; longChance: number };
+    swimEvery: [number, number]; // cooldown between swim bouts (s), accrued while moving
     gather: number; // wind-up (bunch) duration (s)
     thrust: number; // power-stroke pose hold (s)
     glide: [number, number]; // coast duration per pulse (s)
@@ -250,7 +256,8 @@ const KINDS: Record<string, KindCfg> = {
     motion: "crawl",
     crawl: {
       speed: 16 * S, // slow omnidirectional drift
-      roam: [1.4, 3.0],
+      hop: 200 * S, // hops a moderate distance, then parks and rests
+      rest: { secs: [3, 8], longSecs: [12, 60], longChance: 0.3 },
       swimEvery: [6, 12], // occasionally push off for a swim
       gather: 0.16, // bunch up
       thrust: 0.12, // power-stroke hold
@@ -309,6 +316,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const maxY = () => k.height() * 0.78;
   const bandTop = () => minY + (maxY() - minY) * cfg.level.min;
   const bandBot = () => minY + (maxY() - minY) * cfg.level.max;
+  // Octopus only: the seated height on the sand contour at column x — its body
+  // centre rides OCTO_SIT above the dune so the arms drape onto the ground.
+  const groundY = (x: number) => sandTopAt(clamp(x, 0, k.width() - 1)) - OCTO_SIT;
 
   const body = k.add([
     k.sprite(cfg.sprite),
@@ -322,7 +332,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let vx = 0;
   let vy = 0;
   let px = body.pos.x;
-  let py = body.pos.y;
+  let py = cfg.motion === "crawl" ? groundY(px) : body.pos.y; // octopus spawns on the sand
   let ang = 0;
   let facing = k.choose([-1, 1]); // head/eye direction (left-facing sprite)
   const swayPhase = k.rand(0, OCTO_POSE.idleFrames); // desync the idle arm-sway loop
@@ -337,7 +347,6 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   // crawl-kind (octopus) state: a crawl target, and a swim sub-machine for the
   // occasional pulse-glide bout.
   let tx = px;
-  let ty = py;
   let roamTimer = 0;
   let octoMode: "crawl" | "swim" = "crawl";
   let swimSub: "gather" | "thrust" | "glide" | "settle" = "gather";
@@ -345,6 +354,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let pulsesLeft = 0;
   let swimDir = facing;
   let curlTimer = 0; // briefly show the curled "turn" pose after a crawl turn
+  let restTimer = k.rand(2, 6); // octopus: time left parked-and-resting on the ground
   let swimCooldown = k.rand(
     cfg.crawl?.swimEvery[0] ?? 6,
     cfg.crawl?.swimEvery[1] ?? 12,
@@ -390,53 +400,64 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     let allowPitch = true; // crawl forces this off; swim turns it back on
 
     if (cfg.motion === "crawl") {
-      // OCTOPUS: a benthic creature. It mostly crawls slowly and omnidirectionally
-      // toward a roving in-band target (body level), and now and then pushes off
-      // into a short pulse-glide swim bout (gather → thrust → glide → settle)
-      // before sinking back to the substrate.
+      // OCTOPUS: a benthic crawler. It hops a short way along the sand, then parks
+      // and rests ON the ground (usually a few seconds, sometimes much longer),
+      // arms gently swaying — and now and then pushes off into a short pulse-glide
+      // swim bout before settling back onto the substrate. Its vertical rides the
+      // sand contour (groundY) while crawling/resting; swim bouts lift it off.
       const cr = cfg.crawl!;
-      // A benthic octopus rests in the lower part of its band; swim bouts lift it
-      // out and it sinks back down to here.
-      const lowBand = () => bandTop() + (bandBot() - bandTop()) * 0.5;
       curlTimer -= dt;
       if (octoMode === "crawl") {
-        roamTimer -= dt;
-        if (roamTimer <= 0) {
-          roamTimer = k.rand(cr.roam[0], cr.roam[1]);
-          tx = k.rand(mX, k.width() - mX);
-          ty = k.rand(lowBand(), bandBot());
-          const nf = tx > px ? 1 : -1;
-          if (nf !== facing) curlTimer = 0.5; // curl its arms through the turn
-          beginTurn(nf);
+        if (restTimer > 0) {
+          // PARKED & RESTING: hold still; a swim never interrupts a rest, so the
+          // long rests actually last.
+          restTimer -= dt;
+          vx += (0 - vx) * 4 * dt;
+          if (restTimer <= 0) {
+            // rest over → hop a moderate way along the sand (biased off the walls)
+            const dir =
+              px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+            tx = clamp(px + dir * k.rand(60 * S, cr.hop), mX, k.width() - mX);
+            if (dir !== facing) curlTimer = 0.5; // curl its arms through the turn
+            beginTurn(dir);
+          }
+        } else {
+          // crawling toward the hop; close enough → settle and rest a while
+          const dx = tx - px;
+          if (Math.abs(dx) < 12 * S) {
+            restTimer = k.chance(cr.rest.longChance)
+              ? k.rand(cr.rest.longSecs[0], cr.rest.longSecs[1])
+              : k.rand(cr.rest.secs[0], cr.rest.secs[1]);
+            vx += (0 - vx) * 4 * dt;
+          } else {
+            const sp = cr.speed * Math.min(1, Math.abs(dx) / (12 * S));
+            vx += (Math.sign(dx) * sp - vx) * 4 * dt;
+          }
+          // only push off for a swim while actively moving (rests are protected)
+          swimCooldown -= dt;
+          if (swimCooldown <= 0) {
+            octoMode = "swim";
+            swimSub = "gather";
+            subTimer = cr.gather;
+            pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
+            swimDir =
+              px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+            beginTurn(swimDir);
+          }
         }
-        const dx = tx - px;
-        const dy = ty - py;
-        const d = Math.hypot(dx, dy) || 1;
-        const sp = cr.speed * Math.min(1, d / (12 * S)); // ease off near the target
-        vx += ((dx / d) * sp - vx) * 4 * dt;
-        vy += ((dy / d) * sp - vy) * 4 * dt;
-
-        swimCooldown -= dt;
-        if (swimCooldown <= 0) {
-          octoMode = "swim"; // push off
-          swimSub = "gather";
-          subTimer = cr.gather;
-          pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
-          swimDir =
-            px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
-          beginTurn(swimDir); // glide the way it faces
-        }
+        // ride the sand contour: a P-controller eases py to the seated ground height
+        vy = clamp((groundY(px) - py) * 8, -cr.speed * 4, cr.speed * 4);
       } else {
-        // SWIM bout sub-machine. Each pulse: bunch (gather) → power stroke
-        // (thrust, the impulse) → coast (glide). After the last pulse, settle:
-        // sink back toward the band and resume crawling once low and slow.
+        // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
+        // (glide). After the last pulse, settle: fall back onto the sand and resume
+        // crawling on contact.
         subTimer -= dt;
         if (swimSub === "gather") {
           if (subTimer <= 0) {
             swimSub = "thrust";
             subTimer = cr.thrust;
             vx += swimDir * cr.impulse; // forward power stroke
-            vy -= cr.impulse * cr.vert; // and up, lifting off the bottom
+            vy -= cr.impulse * cr.vert; // and up, lifting off the ground
           }
         } else if (swimSub === "thrust") {
           if (subTimer <= 0) {
@@ -452,13 +473,11 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             } else swimSub = "settle";
           }
         } else {
-          vy += cr.sink * dt; // negative buoyancy carries it back down
-          // Resume crawling once it has crested the arc (vy ≥ 0, descending) and
-          // sunk back into the low band — not by speed, or the steady sink would
-          // hold it pinned against the floor.
-          if (py >= lowBand() && vy >= 0) {
+          vy += cr.sink * dt; // sink back toward the sand
+          if (py >= groundY(px) - 4 * S && vy >= 0) {
             octoMode = "crawl";
-            roamTimer = 0; // pick a fresh crawl target where it touched down
+            restTimer = k.rand(2, 5); // rest a moment after touching down
+            tx = px; // hop afresh from where it landed
             swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]);
           }
         }
@@ -532,7 +551,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     vy -= vy * drag * dt;
     px += vx * dt;
     py += vy * dt;
-    py = clamp(py, minY, maxY());
+    // The octopus's floor is the sand it sits on; others use the generic low band.
+    const floorY = cfg.motion === "crawl" ? groundY(px) : maxY();
+    py = clamp(py, minY, floorY);
 
     // Keep inside the tank; the jet kind retargets a fresh inward segment on
     // contact, a swimming octopus cuts the bout short to settle, the crawl kind
@@ -571,12 +592,15 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       : Math.round(ang / TILT_STEP) * TILT_STEP;
     if (cfg.motion === "pulse") body.scale.y = bellSquash; // the bell pump
 
-    // Octopus: pick the pose for the current state. Crawling cycles the arms-down
-    // idle-sway loop, flashing the curled "turn" pose as it changes heading; a swim
-    // bout gathers (pulse) then streams back (glide) before settling to idle.
+    // Octopus: pick the pose for the current state. While actually crawling it
+    // cycles the arm-sway loop (flashing the curled "turn" pose on a heading
+    // change); while parked-and-resting the arms hold still on the neutral frame;
+    // a swim bout gathers (pulse) then streams back (glide) before settling.
     if (cfg.motion === "crawl") {
-      const idleFrame =
-        Math.floor(k.time() * OCTO_IDLE_FPS + swayPhase) % OCTO_POSE.idleFrames;
+      const moving = octoMode === "crawl" && restTimer <= 0; // crawling, not parked
+      const idleFrame = moving
+        ? Math.floor(k.time() * OCTO_IDLE_FPS + swayPhase) % OCTO_POSE.idleFrames
+        : 0; // rest still on the neutral idle frame — no sway
       body.frame =
         octoMode === "swim"
           ? swimSub === "gather"

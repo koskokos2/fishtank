@@ -171,7 +171,9 @@ const setPx = (buf: Buf, x: number, y: number, c: RGBA) => {
   if (x >= 0 && x < BW && y >= 0 && y < BH) buf[(y | 0) * BW + (x | 0)] = c;
 };
 
-const sandTopAt = (x: number) => {
+// The sand surface height (buffer y) at column x — the dune contour. Exported so
+// benthic creatures (the octopus) can rest on the ground instead of floating.
+export const sandTopAt = (x: number) => {
   const u = x / Math.max(1, BW - 1);
   const slope = lerp(-13 * S, 11 * S, u);
   const swell =

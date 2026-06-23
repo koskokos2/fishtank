@@ -27,9 +27,9 @@ const CELL = 128; // source cell size (art/octopus-atlas-128.json tileSize)
 const COLS = 4; // atlas columns
 const ASSEMBLED_ROW = 3; // the row of whole-octopus poses
 const TOP_MARGIN = 8; // shift each pose down this many px so the dome clears the top
-const SWAY_FRAMES = 6; // idle-pose arm-sway loop length
-const SWAY_AMP = 2; // peak sideways arm-tip shift, px (subtle)
-const SWAY_ARM_TOP = 0.45; // fraction down the octopus where the arms start swaying
+const SWAY_FRAMES = 8; // idle-pose arm-sway loop length
+const SWAY_AMP = 5; // peak sideways arm-tip shift, px
+const SWAY_ARM_TOP = 0.4; // fraction down the octopus where the arms start swaying
 
 const { rgba, w, h } = decodePng(readFileSync(SRC));
 const isBlack = (p: number) =>
