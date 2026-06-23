@@ -2,7 +2,8 @@
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
 import { writeFileSync } from "node:fs";
 import { decodePng, encodePng, dataUrlToBuffer } from "./png";
-import { BW, BH, backdropPixels } from "../src/backdrop";
+import { BW, BH, backdropPixels, coralBlits } from "../src/backdrop";
+import { CORAL_ATLAS, CORAL_ATLAS_CELL, CORAL_ATLAS_LAYOUT } from "../src/coralsAtlas";
 import { jellyTentacleSheet, JELLYFISH_FRAMES } from "../src/cephalopod";
 import {
   FISH_ATLAS,
@@ -167,6 +168,35 @@ function renderSheet(s: Buf, name: string, frames: number) {
 
 function renderBackdrop() {
   const buf = backdropPixels(Number(opt("SEED") ?? 1));
+
+  // Blit coral atlas cells into the raw buffer (alpha compositing).
+  const atlas = decodePng(dataUrlToBuffer(CORAL_ATLAS));
+  const CELL = CORAL_ATLAS_CELL;
+  for (const { name, x: dx, y: dy } of coralBlits()) {
+    const { col, row } = CORAL_ATLAS_LAYOUT[name];
+    const sx0 = col * CELL;
+    const sy0 = row * CELL;
+    for (let cy = 0; cy < CELL; cy++) {
+      for (let cx = 0; cx < CELL; cx++) {
+        const bx = dx + cx;
+        const by = dy + cy;
+        if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
+        const si = ((sy0 + cy) * atlas.w + (sx0 + cx)) * 4;
+        const a = atlas.rgba[si + 3];
+        if (a === 0) continue;
+        const af = a / 255;
+        const bi = by * BW + bx;
+        const [br, bg, bb] = buf[bi];
+        buf[bi] = [
+          Math.round(atlas.rgba[si] * af + br * (1 - af)),
+          Math.round(atlas.rgba[si + 1] * af + bg * (1 - af)),
+          Math.round(atlas.rgba[si + 2] * af + bb * (1 - af)),
+          255,
+        ];
+      }
+    }
+  }
+
   const cw = BW * S;
   const ch = BH * S;
   const out = new Uint8Array(cw * ch * 4);

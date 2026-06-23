@@ -1,9 +1,9 @@
 // Procedural static backdrop, baked once into a single BW x BH sprite. Generated
 // as a raw RGBA buffer (headlessly previewable), then painted to an offscreen
 // canvas for kaplay. A warm tropical reef: a smooth water gradient, ruined
-// columns + a stone arch, and coral, over the warm gold sand. Organic ordered
-// dithering gives the solid materials pixel texture without filling the water
-// with a high-resolution dot mesh.
+// columns + a stone arch, and atlas-based coral sprites, over the warm gold sand.
+// Organic ordered dithering gives the solid materials pixel texture without
+// filling the water with a high-resolution dot mesh.
 //
 // Authored in 640x360 design space and scaled by RES: macro features (columns,
 // arch, coral, sand height) multiply by S so the composition is unchanged. Broad
@@ -12,6 +12,7 @@
 
 import { type RGBA, lerp, clamp01 } from "./color";
 import { RES } from "./res";
+import { CORAL_ATLAS, CORAL_ATLAS_CELL, CORAL_ATLAS_LAYOUT } from "./coralsAtlas";
 
 const S = RES;
 export const BW = 640 * S;
@@ -153,17 +154,6 @@ const STONE: RGBA[] = [
   [138, 126, 100, 255], // mid
   [184, 172, 144, 255], // lit sandstone
 ];
-const CORAL = {
-  dark: [96, 58, 60, 255] as RGBA,
-  mid: [168, 104, 80, 255] as RGBA,
-  lit: [208, 152, 112, 255] as RGBA,
-};
-const CORAL_ROSE = {
-  dark: [92, 60, 90, 255] as RGBA,
-  mid: [150, 100, 130, 255] as RGBA,
-  lit: [198, 150, 172, 255] as RGBA,
-};
-
 // --- buffer helpers ----------------------------------------------------------
 
 type Buf = RGBA[];
@@ -200,13 +190,9 @@ function sandShadow(x: number, y: number, top: number) {
     if (falloff > 0) shade += falloff * strength;
   };
 
-  // Broad contact shadows where heavy scenery sinks into the sand.
+  // Contact shadows under the ruins columns.
   add(248 * S, top + 2 * S, 18 * S, 8 * S, 0.18);
   add(392 * S, top + 2 * S, 16 * S, 7 * S, 0.14);
-  add(120 * S, sandTopAt(120 * S) + 10 * S, 38 * S, 15 * S, 0.22);
-  add(250 * S, sandTopAt(250 * S) + 6 * S, 25 * S, 10 * S, 0.18);
-  add(470 * S, sandTopAt(470 * S) + 7 * S, 30 * S, 12 * S, 0.18);
-  add(545 * S, sandTopAt(545 * S) + 10 * S, 43 * S, 15 * S, 0.24);
 
   // The first few pixels below the waterline are slightly darker: loose silt and
   // grains slope away from the lit crest instead of forming a flat yellow band.
@@ -299,86 +285,64 @@ function paintRuins(buf: Buf) {
   arch(buf, (cxL + cxR) / 2, springline, (cxR - cxL) / 2, (cxR - cxL) / 2 + 12 * S, new Set([0, 1, 2]));
 }
 
-function disc(buf: Buf, cx: number, cy: number, r: number, col: RGBA) {
-  for (let y = -r; y <= r; y++)
-    for (let x = -r; x <= r; x++)
-      if (x * x + y * y <= r * r) setPx(buf, cx + x, cy + y, col);
+// --- coral placement ---------------------------------------------------------
+
+// Each entry positions one atlas cell in the backdrop buffer. x,y are the
+// top-left corner of the 128px cell in buffer space.
+export type CoralBlit = { name: string; x: number; y: number };
+
+// Stack one or more named building-block pieces so they visually sit on the
+// sand and touch each other — no gaps, no floating. Uses the per-sprite
+// tight bounding box (top/bottom offsets within the 128px cell) baked into
+// CORAL_ATLAS_LAYOUT by the generator.
+// yShift nudges the whole stack up (negative, further back) or down (positive,
+// foreground / partially buried). Units are design-space pixels × S.
+function stack(cx: number, yShift: number, ...names: string[]): CoralBlit[] {
+  const CELL = CORAL_ATLAS_CELL;
+  const bx = Math.round(cx * S) - CELL / 2;
+  const result: CoralBlit[] = [];
+  let floor = sandTopAt(cx * S) + Math.round(yShift * S);
+  for (const name of names) {
+    const { bottom } = CORAL_ATLAS_LAYOUT[name];
+    const cellY = floor - bottom - 1;
+    result.push({ name, x: bx, y: cellY });
+    const { top } = CORAL_ATLAS_LAYOUT[name];
+    floor = cellY + top;
+  }
+  return result;
 }
 
-type CoralPal = { dark: RGBA; mid: RGBA; lit: RGBA };
+export function coralBlits(): CoralBlit[] {
+  return [
+    // Composed tall corals
+    ...stack(90,  8,   // foreground — base buried a little, reads close
+      "branch_base_rock_foot",
+      "branch_vertical_trunk",
+      "branch_y_junction",
+      "branch_small_forked_tip",
+    ),
+    ...stack(430, 0,
+      "branch_base_rock_foot",
+      "branch_vertical_trunk",
+      "branch_rounded_bulb_cluster",
+    ),
+    ...stack(580, 5,
+      "branch_base_rock_foot",
+      "branch_curved_side_segment",
+      "branch_left_elbow_connector",
+      "branch_small_forked_tip",
+    ),
 
-function brainMound(buf: Buf, cx: number, cy: number, R: number, pal: CoralPal) {
-  const lobes: [number, number, number][] = [
-    [cx, cy, R],
-    [cx - R * 0.6, cy + R * 0.2, R * 0.7],
-    [cx + R * 0.55, cy + R * 0.18, R * 0.72],
-    [cx, cy - R * 0.45, R * 0.62],
+    // Small items — 0 = flush with sand, larger = closer/more buried
+    ...stack(50,  10, "plate_coral_stacked_cluster"),  // close, half-buried
+    ...stack(150,  0, "sea_fan_small_purple"),          // background, sits on sand line
+    ...stack(200,  6, "mixed_rock_coral_base"),
+    ...stack(300,  0, "plate_coral_shelf_green"),
+    ...stack(360, 12, "low_pink_coral_mound"),          // closest, most buried
+    ...stack(490,  0, "blue_green_polyp_cluster"),
+    ...stack(540,  8, "tan_sponge_tube_cluster"),
+    ...stack(620,  0, "sea_fan_large_purple"),
   ];
-  for (let y = Math.floor(cy - R * 1.6); y <= cy + R; y++) {
-    for (let x = Math.floor(cx - R * 1.7); x <= cx + R * 1.7; x++) {
-      let h = -1;
-      for (const [lx, ly, lr] of lobes) {
-        const dd = Math.hypot(x - lx, y - ly) / lr;
-        if (dd <= 1) h = Math.max(h, 1 - dd);
-      }
-      if (h < 0) continue;
-      const m = Math.sin(
-        fbm(x * 0.18, y * 0.18, 51) * 6.283 + fbm(x * 0.05, y * 0.05, 53) * 9,
-      );
-      const groove = Math.abs(m) < 0.22;
-      const L = (0.45 + 0.55 * h) * (groove ? 0.6 : 1);
-      let col = ditherRamp([pal.dark, pal.mid, pal.lit], clamp01(L), x, y);
-      if (h < 0.2 && y < cy) col = dither(pal.mid, pal.lit, 0.7, x, y); // rim
-      setPx(buf, x, y, col);
-    }
-  }
-}
-
-function branch(
-  buf: Buf,
-  x: number,
-  y: number,
-  angle: number,
-  len: number,
-  th: number,
-  depth: number,
-  pal: CoralPal,
-  rng: () => number,
-) {
-  if (depth <= 0 || len < 2) return;
-  const steps = Math.max(2, Math.round(len));
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const bx = x + Math.cos(angle) * len * t;
-    const by = y + Math.sin(angle) * len * t;
-    const w = Math.max(1, Math.round(th * (1 - 0.5 * t)));
-    const col = ditherRamp(
-      [pal.dark, pal.mid, pal.lit],
-      0.4 + 0.4 * t,
-      Math.round(bx),
-      Math.round(by),
-    );
-    disc(buf, Math.round(bx), Math.round(by), w, col);
-  }
-  const ex = x + Math.cos(angle) * len;
-  const ey = y + Math.sin(angle) * len;
-  const spread = 0.4 + 0.35 * rng();
-  branch(buf, ex, ey, angle - spread, len * 0.72, th * 0.7, depth - 1, pal, rng);
-  branch(buf, ex, ey, angle + spread, len * 0.72, th * 0.7, depth - 1, pal, rng);
-  if (rng() < 0.3)
-    branch(buf, ex, ey, angle + (rng() - 0.5), len * 0.6, th * 0.6, depth - 1, pal, rng);
-}
-
-function paintCoral(buf: Buf, rng: () => number) {
-  // Brain-coral mounds along the sand and at a column base.
-  brainMound(buf, 120 * S, sandTopAt(120 * S) - 6 * S, 22 * S, CORAL);
-  brainMound(buf, 470 * S, sandTopAt(470 * S) - 4 * S, 18 * S, CORAL_ROSE);
-  brainMound(buf, 545 * S, sandTopAt(545 * S) - 8 * S, 26 * S, CORAL);
-  brainMound(buf, 250 * S, sandTopAt(250 * S) - 4 * S, 14 * S, CORAL_ROSE);
-  // Branching coral rising from the sand.
-  branch(buf, 90 * S, sandTopAt(90 * S), -Math.PI / 2 - 0.1, 16 * S, 3 * S, 5, CORAL_ROSE, rng);
-  branch(buf, 580 * S, sandTopAt(580 * S), -Math.PI / 2 + 0.15, 18 * S, 3 * S, 5, CORAL, rng);
-  branch(buf, 430 * S, sandTopAt(430 * S), -Math.PI / 2, 14 * S, 2 * S, 4, CORAL, rng);
 }
 
 function paintSand(buf: Buf) {
@@ -414,17 +378,16 @@ function paintSand(buf: Buf) {
 // --- assembly ----------------------------------------------------------------
 
 export function backdropPixels(seed = 1): RGBA[] {
-  const rng = mulberry32(seed);
   const buf: Buf = new Array(BW * BH);
   paintWater(buf);
   paintRuins(buf);
   paintSand(buf);
-  paintCoral(buf, rng);
   return buf;
 }
 
-// DOM bake -> data URL for kaplay's loadSprite (mirrors makeFishSheet).
-export function makeBackdrop(seed = 1): string {
+// DOM bake -> data URL for kaplay's loadSprite. Async because the coral atlas
+// is loaded via HTMLImageElement to get alpha-composited drawImage blitting.
+export async function makeBackdrop(seed = 1): Promise<string> {
   const buf = backdropPixels(seed);
   const canvas = document.createElement("canvas");
   canvas.width = BW;
@@ -440,5 +403,23 @@ export function makeBackdrop(seed = 1): string {
     img.data[p + 3] = a;
   }
   ctx.putImageData(img, 0, 0);
+  await blitCoralAtlas(ctx);
   return canvas.toDataURL();
+}
+
+function blitCoralAtlas(ctx: CanvasRenderingContext2D): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      const CELL = CORAL_ATLAS_CELL;
+      for (const { name, x, y } of coralBlits()) {
+        const { col, row } = CORAL_ATLAS_LAYOUT[name];
+        ctx.drawImage(img, col * CELL, row * CELL, CELL, CELL, x, y, CELL, CELL);
+      }
+      resolve();
+    };
+    img.onerror = reject;
+    img.src = CORAL_ATLAS;
+  });
 }
