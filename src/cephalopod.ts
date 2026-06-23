@@ -327,8 +327,17 @@ const TILT_STEP = 7;
 // + destroy), not Kaplay's particles(), so the grains stay crisp and cheap. Each
 // grain pops up from the sand surface beneath the octopus, then falls back under
 // gravity and fades as it settles.
-function spawnSandPuff(k: KAPLAYCtx, x: number, sandY: number) {
-  const n = k.randi(112, 176);
+function spawnSandPuff(
+  k: KAPLAYCtx,
+  x: number,
+  sandY: number,
+  scale = 1,
+  riseMul = 1,
+  settleMul = 1,
+) {
+  const minN = Math.max(2, Math.round(112 * scale));
+  const maxN = Math.max(minN + 1, Math.round(176 * scale));
+  const n = k.randi(minN, maxN);
   for (let i = 0; i < n; i++) {
     const sz = k.randi(1, 3); // fine 1-2px specks (intentionally sub-grid — sand dust)
     const tone = k.choose(SAND_PUFF);
@@ -340,8 +349,8 @@ function spawnSandPuff(k: KAPLAYCtx, x: number, sandY: number) {
       k.z(19), // in front of the octopus body (z 18) so the puff isn't occluded
     ]);
     let vx = k.rand(-14, 14) * S;
-    let vy = -k.rand(16, 34) * S; // gentle pop upward
-    const grav = k.rand(34, 54) * S; // weak — water buoyancy holds the grains up
+    let vy = -k.rand(16, 34) * S * riseMul; // gentle pop upward
+    const grav = (k.rand(34, 54) * S) / Math.max(0.01, settleMul); // weaker gravity settles slower
     const drag = 2.6; // water resistance: grains decelerate and drift, not plummet
     const originY = g.pos.y;
     let age = 0;
@@ -353,8 +362,8 @@ function spawnSandPuff(k: KAPLAYCtx, x: number, sandY: number) {
       vy -= vy * drag * dt;
       g.pos.x += vx * dt;
       g.pos.y += vy * dt;
-      if (age > 0.6) g.opacity -= dt * 0.7; // hold, then fade as it settles
-      if ((vy > 0 && g.pos.y >= originY) || age > 2.4 || g.opacity <= 0) g.destroy();
+      if (age > 0.6 * settleMul) g.opacity -= dt * (0.7 / Math.max(0.01, settleMul)); // hold, then fade as it settles
+      if ((vy > 0 && g.pos.y >= originY) || age > 2.4 * settleMul || g.opacity <= 0) g.destroy();
     });
   }
 }
@@ -416,6 +425,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let swimHover = 0; // target clearance above the sand while roaming
   let swimCooldown =
     k.rand(cfg.crawl?.swimEvery[0] ?? 6, cfg.crawl?.swimEvery[1] ?? 12) * tempo;
+  let crawlPuffTimer = k.rand(0.12, 0.25);
 
   // pulse-kind (jellyfish) state: a 3-phase bell-pump cycle and the live bell
   // squash it drives.
@@ -494,6 +504,21 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           } else {
             const sp = cr.speed * Math.min(1, Math.abs(dx) / (12 * S));
             vx += (Math.sign(dx) * sp - vx) * 4 * dt;
+
+            // While crawling over the substrate, kick up small periodic puffs so
+            // movement reads as contact with the sand instead of gliding over it.
+            crawlPuffTimer -= dt;
+            if (crawlPuffTimer <= 0 && Math.abs(vx) > cr.speed * 0.35) {
+              spawnSandPuff(
+                k,
+                px + facing * 8 * S,
+                sandTopAt(clamp(px, 0, k.width() - 1)),
+                0.32,
+                1,
+                2,
+              );
+              crawlPuffTimer = k.rand(0.12, 0.28);
+            }
           }
           // only push off for a swim while actively moving (rests are protected)
           swimCooldown -= dt;
@@ -580,7 +605,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           if (py >= groundY(px) - 4 * S && vy >= 0) {
             octoMode = "crawl";
             // touchdown: kick up a puff of sand and press the body into it
-            spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)));
+            spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)), 2, 2, 2);
             buryTimer = BURY_DUR;
             restLong = false;
             restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
@@ -722,10 +747,10 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         else if (swimSub === "gather") frame = P.activeCrawlReach; // reaching push-off
         else if (swimSub === "thrust") frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
         else if (swimSub === "glide") frame = swimVigorous ? P.activeGlide : P.glide;
-        // settle: keep the glide pose through the descent, easing to the swaying
-        // hover only in the last stretch before it touches the sand.
-        else if (py < groundY(px) - 30 * S) frame = swimVigorous ? P.activeGlide : P.glide;
-        else frame = idleFrame;
+        // settle: keep the glide pose through the descent, then brace with the
+        // second crawl pose right before touchdown.
+        else if (py < groundY(px) - 15 * S) frame = swimVigorous ? P.activeGlide : P.glide;
+        else frame = P.crawlPush;
       } else if (restTimer > 0) {
         frame = restLong ? P.settledRest : P.rest; // parked & resting (arms held still)
       } else if (curlTimer > 0) {
