@@ -429,6 +429,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   // Per-octopus tempo so two on screen don't fall into lockstep: one is durably
   // lazier — longer rests, slower to push off, bigger but rarer hops.
   const tempo = k.rand(0.8, 1.25);
+  // Personality: each octopus is either mostly-short or mostly-long resting — a coin
+  // flip picks which way its rests lean (30/70 long-to-short, or the reverse).
+  const longRestChance = k.chance(0.5) ? 0.3 : 0.7;
   let restTimer = k.rand(1, 9) * tempo; // octopus: time left parked-and-resting on the ground
   let buryTimer = 0; // octopus: time left in the press-into-sand dip after a landing
   let restLong = false; // this rest is a long park → curl up (settled) rather than spread
@@ -508,7 +511,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           // crawling toward the hop; close enough → settle and rest a while
           const dx = tx - px;
           if (Math.abs(dx) < 12 * S) {
-            restLong = k.chance(cr.rest.longChance);
+            restLong = k.chance(longRestChance);
             restTimer =
               (restLong
                 ? k.rand(cr.rest.longSecs[0], cr.rest.longSecs[1])
