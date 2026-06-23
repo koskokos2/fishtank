@@ -40,16 +40,17 @@ const S = RES;
 // single crawl/rest/swim poses, indexed by name via OCTOPUS_POSE. The crawl/swim machine
 // below selects the frame per state.
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle hover)
-const OCTO_STRIDE = 4 * S; // px of horizontal travel per crawl-gait pose step
-// The benthic crawl gait: a 3-phase reach-and-pull cycle through the baked low-crawl
-// poses, advanced by distance travelled. The octopus gathers (push), reaches its arms
-// forward (reach), then stretches to full forward extension (active reach); wrapping
-// back to the gathered pose reads as the body pulling up to its planted arms — the
-// power phase of an octopus arm-crawl — so it walks instead of stiffly toggling.
+const OCTO_STRIDE = 7 * S; // px of horizontal travel per crawl-gait pose step
+// The benthic crawl gait: a reach-and-pull cycle through the baked low-crawl poses,
+// advanced by distance travelled and played as a ping-pong (forward then backward).
+// The poses are ordered by rising body posture — flat-on-sand → sprawled → reaching →
+// fully gathered/compressed — so playing up then back down reads as the octopus humping
+// its body along (gather up, then push down and forward), with no snap at the loop seam.
 const CRAWL_GAIT = [
+  OCTOPUS_POSE.rest,
+  OCTOPUS_POSE.settledRest,
+  OCTOPUS_POSE.activeSwimPulse,
   OCTOPUS_POSE.crawlPush,
-  OCTOPUS_POSE.crawlReach,
-  OCTOPUS_POSE.activeCrawlReach,
 ] as const;
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
 const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent push-pulses quit
@@ -797,11 +798,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       } else if (curlTimer > 0) {
         frame = P.curl; // flash a curl through a crawl turn
       } else {
-        // crawling along the sand: a 3-phase reach-and-pull stride (gather → reach →
-        // full stretch) advanced by distance travelled, so it holds its pose when
-        // slow/stopped instead of cycling on the spot.
+        // crawling along the sand: a ping-pong through the gait poses (up then back
+        // down) advanced by distance travelled, so it holds its pose when slow/stopped
+        // instead of cycling on the spot.
         gaitPhase += (Math.abs(vx) * dt) / OCTO_STRIDE;
-        frame = CRAWL_GAIT[Math.floor(gaitPhase) % CRAWL_GAIT.length];
+        const period = 2 * (CRAWL_GAIT.length - 1); // forward then backward
+        const t = Math.floor(gaitPhase) % period;
+        frame = CRAWL_GAIT[t < CRAWL_GAIT.length ? t : period - t];
       }
       body.frame = frame;
     }
