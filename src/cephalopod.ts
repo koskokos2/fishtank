@@ -465,8 +465,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         vy = clamp((groundY(px) - py) * 8, -cr.speed * 4, cr.speed * 4);
       } else {
         // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
-        // (glide). After the last pulse a single dive settles; a roaming excursion
-        // instead redirects and keeps wandering until its time runs out, then settles.
+        // (glide). After the last pulse a single dive glides back down to the sand;
+        // a roaming excursion instead redirects and keeps wandering until its time
+        // runs out, then glides down.
         if (swimRoaming) swimRoamLeft -= dt;
         subTimer -= dt;
         if (swimSub === "gather") {
@@ -504,7 +505,11 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             } else swimSub = "settle";
           }
         } else {
-          vy += cr.sink * dt; // sink back toward the sand
+          // GLIDE-DOWN: keep a little forward speed while sinking, so it descends
+          // on a shallow glide from whatever height it reached instead of stalling
+          // and dropping straight down to the sand.
+          vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
+          vy += cr.sink * dt;
           if (py >= groundY(px) - 4 * S && vy >= 0) {
             octoMode = "crawl";
             restLong = false;
@@ -645,7 +650,10 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         else if (swimSub === "gather") frame = P.activeCrawlReach; // reaching push-off
         else if (swimSub === "thrust") frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
         else if (swimSub === "glide") frame = swimVigorous ? P.activeGlide : P.glide;
-        else frame = idleFrame; // settle: hover down with gently swaying arms
+        // settle: keep the glide pose through the descent, easing to the swaying
+        // hover only in the last stretch before it touches the sand.
+        else if (py < groundY(px) - 30 * S) frame = swimVigorous ? P.activeGlide : P.glide;
+        else frame = idleFrame;
       } else if (restTimer > 0) {
         frame = restLong ? P.settledRest : P.rest; // parked & resting (arms held still)
       } else if (curlTimer > 0) {
