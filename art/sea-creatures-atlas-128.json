@@ -1,0 +1,14 @@
+{
+  "image": "sea-creatures-atlas-128.png",
+  "tileSize": 128,
+  "columns": 3,
+  "rows": 2,
+  "sprites": [
+    { "name": "jellyfish_blue", "row": 0, "col": 0, "category": "seaCreature", "role": "drifter" },
+    { "name": "orange_starfish", "row": 0, "col": 1, "category": "seaCreature", "role": "crawler" },
+    { "name": "golden_seahorse", "row": 0, "col": 2, "category": "seaCreature", "role": "hoverer" },
+    { "name": "purple_octopus", "row": 1, "col": 0, "category": "seaCreature", "role": "complexCrawler" },
+    { "name": "cream_nautilus", "row": 1, "col": 1, "category": "seaCreature", "role": "slowSwimmer" },
+    { "name": "orange_crab", "row": 1, "col": 2, "category": "seaCreature", "role": "bottomCrawler" }
+  ]
+}

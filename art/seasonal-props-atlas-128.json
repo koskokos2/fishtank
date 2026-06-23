@@ -1,0 +1,24 @@
+{
+  "image": "seasonal-props-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "tiny_pumpkin_cave", "row": 0, "col": 0, "category": "autumn", "role": "cave" },
+    { "name": "pumpkin_ceramic_hide", "row": 0, "col": 1, "category": "autumn", "role": "hide" },
+    { "name": "small_spooky_stone_arch", "row": 0, "col": 2, "category": "autumn", "role": "arch" },
+    { "name": "candy_colored_pebble_cluster", "row": 0, "col": 3, "category": "autumn", "role": "pebbles" },
+    { "name": "small_ornament_cave", "row": 1, "col": 0, "category": "winter", "role": "cave" },
+    { "name": "shell_garland", "row": 1, "col": 1, "category": "winter", "role": "garland" },
+    { "name": "snowflake_crystal_decoration", "row": 1, "col": 2, "category": "winter", "role": "crystal" },
+    { "name": "tiny_gift_box_ornament", "row": 1, "col": 3, "category": "winter", "role": "gift" },
+    { "name": "glowing_pearl_cluster", "row": 2, "col": 0, "category": "celebration", "role": "pearl" },
+    { "name": "lantern_sunken_ornament", "row": 2, "col": 1, "category": "celebration", "role": "lantern" },
+    { "name": "festive_bubble_cluster", "row": 2, "col": 2, "category": "celebration", "role": "bubbles" },
+    { "name": "ribboned_shell_pile", "row": 2, "col": 3, "category": "celebration", "role": "shells" },
+    { "name": "treasure_chest_with_coral", "row": 3, "col": 0, "category": "fantasy", "role": "chest" },
+    { "name": "glowing_rune_stone", "row": 3, "col": 1, "category": "fantasy", "role": "runeStone" },
+    { "name": "starfish_garland_prop", "row": 3, "col": 2, "category": "fantasy", "role": "garland" },
+    { "name": "seasonal_pebble_shell_arrangement", "row": 3, "col": 3, "category": "fantasy", "role": "arrangement" }
+  ]
+}

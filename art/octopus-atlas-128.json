@@ -1,8 +1,11 @@
 {
-  "image": "octopus-atlas-128.png",
-  "tileSize": 128,
+  "image": "octopus-atlas-original-v3.png",
+  "sourceWidth": 1254,
+  "sourceHeight": 1254,
   "columns": 4,
-  "rows": 4,
+  "rows": 6,
+  "layout": "semantic-source-layout",
+  "notes": "Raw generated source kept at native 1254x1254 resolution with opaque black background. Do not infer a 128px runtime tile grid from this file without an explicit crop/remaster step.",
   "sprites": [
     { "name": "body_neutral_glide", "row": 0, "col": 0, "layer": "body" },
     { "name": "body_compressed_pulse", "row": 0, "col": 1, "layer": "body" },
@@ -19,6 +22,14 @@
     { "name": "assembled_idle_hover", "row": 3, "col": 0, "layer": "assembled" },
     { "name": "assembled_swim_pulse", "row": 3, "col": 1, "layer": "assembled" },
     { "name": "assembled_glide_streaming", "row": 3, "col": 2, "layer": "assembled" },
-    { "name": "assembled_curled_turn", "row": 3, "col": 3, "layer": "assembled" }
+    { "name": "assembled_curled_turn", "row": 3, "col": 3, "layer": "assembled" },
+    { "name": "assembled_resting_on_sand", "row": 4, "col": 0, "layer": "assembledRest" },
+    { "name": "assembled_low_crawl_reach", "row": 4, "col": 1, "layer": "assembledRest" },
+    { "name": "assembled_low_crawl_push", "row": 4, "col": 2, "layer": "assembledRest" },
+    { "name": "assembled_settled_curled_rest", "row": 4, "col": 3, "layer": "assembledRest" },
+    { "name": "assembled_active_swim_pulse", "row": 5, "col": 0, "layer": "assembledActive" },
+    { "name": "assembled_active_glide_streaming", "row": 5, "col": 1, "layer": "assembledActive" },
+    { "name": "assembled_active_crawl_reach", "row": 5, "col": 2, "layer": "assembledActive" },
+    { "name": "assembled_active_curled_turn", "row": 5, "col": 3, "layer": "assembledActive" }
   ]
 }

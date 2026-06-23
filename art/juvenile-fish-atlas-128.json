@@ -1,0 +1,24 @@
+{
+  "image": "juvenile-fish-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "tiny_translucent_fry_group", "row": 0, "col": 0, "category": "fry", "role": "group" },
+    { "name": "single_tiny_fry_side", "row": 0, "col": 1, "category": "fry", "role": "single" },
+    { "name": "yolk_sac_larva", "row": 0, "col": 2, "category": "fry", "role": "larva" },
+    { "name": "tiny_schooling_fry_trio", "row": 0, "col": 3, "category": "fry", "role": "trio" },
+    { "name": "juvenile_guppy_like", "row": 1, "col": 0, "category": "earlyJuvenile", "role": "guppy" },
+    { "name": "juvenile_tetra_like", "row": 1, "col": 1, "category": "earlyJuvenile", "role": "tetra" },
+    { "name": "juvenile_goldfish_like", "row": 1, "col": 2, "category": "earlyJuvenile", "role": "goldfish" },
+    { "name": "juvenile_cichlid_like", "row": 1, "col": 3, "category": "earlyJuvenile", "role": "cichlid" },
+    { "name": "juvenile_angelfish_like", "row": 2, "col": 0, "category": "patternedJuvenile", "role": "angelfish" },
+    { "name": "juvenile_striped_barb_like", "row": 2, "col": 1, "category": "patternedJuvenile", "role": "barb" },
+    { "name": "juvenile_spotted_bottom_fish", "row": 2, "col": 2, "category": "patternedJuvenile", "role": "bottomFish" },
+    { "name": "juvenile_yellow_reef_like", "row": 2, "col": 3, "category": "patternedJuvenile", "role": "yellowReef" },
+    { "name": "small_generic_juvenile", "row": 3, "col": 0, "category": "growthVariant", "role": "small" },
+    { "name": "medium_generic_juvenile", "row": 3, "col": 1, "category": "growthVariant", "role": "medium" },
+    { "name": "shy_juvenile_hiding_pose", "row": 3, "col": 2, "category": "growthVariant", "role": "shy" },
+    { "name": "curious_juvenile_upward_pose", "row": 3, "col": 3, "category": "growthVariant", "role": "curious" }
+  ]
+}

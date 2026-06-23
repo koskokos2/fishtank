@@ -1,0 +1,24 @@
+{
+  "image": "microfauna-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "daphnia_cluster", "row": 0, "col": 0, "category": "planktonic", "role": "daphnia" },
+    { "name": "copepod_pair", "row": 0, "col": 1, "category": "planktonic", "role": "copepod" },
+    { "name": "seed_shrimp_cluster", "row": 0, "col": 2, "category": "planktonic", "role": "seedShrimp" },
+    { "name": "tiny_larvae_group", "row": 0, "col": 3, "category": "planktonic", "role": "larvae" },
+    { "name": "detritus_worm_wiggle_group", "row": 1, "col": 0, "category": "crawlingMicroLife", "role": "detritusWorm" },
+    { "name": "planaria_like_flatworm_silhouettes", "row": 1, "col": 1, "category": "crawlingMicroLife", "role": "flatworm" },
+    { "name": "freshwater_limpet_tiny_rock", "row": 1, "col": 2, "category": "crawlingMicroLife", "role": "limpet" },
+    { "name": "micro_snail_hatchlings", "row": 1, "col": 3, "category": "crawlingMicroLife", "role": "snailHatchlings" },
+    { "name": "infusoria_speck_cloud", "row": 2, "col": 0, "category": "particlesColonies", "role": "infusoria" },
+    { "name": "biofilm_grazing_dots", "row": 2, "col": 1, "category": "particlesColonies", "role": "biofilm" },
+    { "name": "egg_larvae_speck_patch", "row": 2, "col": 2, "category": "particlesColonies", "role": "eggSpecks" },
+    { "name": "micro_shrimp_larvae_cluster", "row": 2, "col": 3, "category": "particlesColonies", "role": "shrimpLarvae" },
+    { "name": "drifting_microfauna_trail", "row": 3, "col": 0, "category": "animationGroup", "role": "driftTrail" },
+    { "name": "swarm_cluster", "row": 3, "col": 1, "category": "animationGroup", "role": "swarm" },
+    { "name": "bottom_crawling_mixed_group", "row": 3, "col": 2, "category": "animationGroup", "role": "bottomCrawlers" },
+    { "name": "hiding_microfauna_under_pebble", "row": 3, "col": 3, "category": "animationGroup", "role": "underPebble" }
+  ]
+}

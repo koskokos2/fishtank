@@ -2,7 +2,7 @@ import type { KAPLAYCtx } from "kaplay";
 import {
   FISH_ATLAS,
   FISH_ATLAS_CELL,
-  FISH_ATLAS_COLS,
+  FISH_ATLAS_LAYOUT,
 } from "./fishAtlas";
 import { cellBBox, copyRect, shearSheet } from "./fishbake";
 import { RES } from "./res";
@@ -16,23 +16,23 @@ export type FishKind = {
   speed: number; // multiplier on thrust and initial velocity (1.0 = baseline)
 };
 
-// One entry per atlas cell, row-major (see fishAtlas.ts). Every fish faces left.
+// One entry per fish. Names must match FISH_ATLAS_LAYOUT keys (fishAtlas.ts). Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
 export const FISH_KINDS: FishKind[] = [
-  { name: "angelfish",      level: { min: 0.10, max: 0.42 }, speed: 0.70 }, // slow  — deep laterally-flat body
-  { name: "rainbow-shark",  level: { min: 0.72, max: 0.97 }, speed: 1.25 }, // fast  — burst charges when territorial
-  { name: "discus",         level: { min: 0.28, max: 0.58 }, speed: 0.60 }, // slow  — nearly sedentary, prefers still water
-  { name: "guppy",          level: { min: 0.02, max: 0.26 }, speed: 0.85 }, // med   — burst-escape specialist, large tail
-  { name: "goldfish",       level: { min: 0.22, max: 0.62 }, speed: 1.15 }, // fast  — sustained cruiser, multiple speed modes
-  { name: "clown-loach",    level: { min: 0.68, max: 0.96 }, speed: 1.00 }, // med   — variable; rest-then-dash rhythm
-  { name: "purple-cichlid", level: { min: 0.52, max: 0.86 }, speed: 1.30 }, // fast  — open-water hunter, uses full tank
-  { name: "cardinal-tetra", level: { min: 0.06, max: 0.34 }, speed: 0.80 }, // slow  — schooling fish, slow-current habitat
-  { name: "yellow-lab",     level: { min: 0.58, max: 0.92 }, speed: 1.00 }, // med   — active forager, typical cichlid pace
-  { name: "striped-barb",   level: { min: 0.44, max: 0.76 }, speed: 1.35 }, // fast  — energetic darter, rapid direction changes
-  { name: "congo-tetra",    level: { min: 0.20, max: 0.52 }, speed: 1.20 }, // fast  — strong swimmer, adapted to fast currents
-  { name: "koi",            level: { min: 0.02, max: 0.28 }, speed: 1.40 }, // fast  — largest body, powerful burst-and-coast
+  { name: "angelfish",              level: { min: 0.10, max: 0.42 }, speed: 0.70 }, // slow  — deep laterally-flat body
+  { name: "red_tailed_black_shark", level: { min: 0.72, max: 0.97 }, speed: 1.25 }, // fast  — burst charges when territorial
+  { name: "discus",                 level: { min: 0.28, max: 0.58 }, speed: 0.60 }, // slow  — nearly sedentary, prefers still water
+  { name: "guppy",                  level: { min: 0.02, max: 0.26 }, speed: 0.85 }, // med   — burst-escape specialist, large tail
+  { name: "goldfish",               level: { min: 0.22, max: 0.62 }, speed: 1.15 }, // fast  — sustained cruiser, multiple speed modes
+  { name: "tiger_barb",             level: { min: 0.68, max: 0.96 }, speed: 1.00 }, // med   — variable; rest-then-dash rhythm
+  { name: "lionhead_cichlid",       level: { min: 0.52, max: 0.86 }, speed: 1.30 }, // fast  — open-water hunter, uses full tank
+  { name: "neon_tetra",             level: { min: 0.06, max: 0.34 }, speed: 0.80 }, // slow  — schooling fish, slow-current habitat
+  { name: "labidochromis_caeruleus",level: { min: 0.58, max: 0.92 }, speed: 1.00 }, // med   — active forager, typical cichlid pace
+  { name: "royal_pleco",            level: { min: 0.44, max: 0.76 }, speed: 1.35 }, // fast  — energetic darter, rapid direction changes
+  { name: "gourami",                level: { min: 0.20, max: 0.52 }, speed: 1.20 }, // fast  — strong swimmer, adapted to fast currents
+  { name: "koi",                    level: { min: 0.02, max: 0.28 }, speed: 1.40 }, // fast  — largest body, powerful burst-and-coast
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -55,9 +55,8 @@ export async function makeFishSheets(): Promise<string[]> {
     sctx.getImageData(0, 0, img.width, img.height).data.buffer,
   );
 
-  return FISH_KINDS.map((_, i) => {
-    const col = i % FISH_ATLAS_COLS;
-    const row = Math.floor(i / FISH_ATLAS_COLS);
+  return FISH_KINDS.map((kind) => {
+    const { row, col } = FISH_ATLAS_LAYOUT[kind.name];
     const bb = cellBBox(full, img.width, col * cell, row * cell, cell);
     const fish = copyRect(full, img.width, bb.x, bb.y, bb.bw, bb.bh);
     return bufToDataURL(shearSheet(fish));
