@@ -291,38 +291,44 @@ function paintRuins(buf: Buf) {
 // top-left corner of the 128px cell in buffer space.
 export type CoralBlit = { name: string; x: number; y: number };
 
-// Stack one or more named building-block pieces so they visually sit on the
-// sand and touch each other — no gaps, no floating. Uses the per-sprite
-// tight bounding box (top/bottom offsets within the 128px cell) baked into
-// CORAL_ATLAS_LAYOUT by the generator.
-// yShift nudges the whole stack up (negative, further back) or down (positive,
-// foreground / partially buried). Units are design-space pixels × S.
-function stack(cx: number, yShift: number, ...names: string[]): CoralBlit[] {
-  const CELL = CORAL_ATLAS_CELL;
-  const bx = Math.round(cx * S) - CELL / 2;
-  const result: CoralBlit[] = [];
-  let floor = sandTopAt(cx * S) + Math.round(yShift * S);
-  for (const name of names) {
-    const { bottom } = CORAL_ATLAS_LAYOUT[name];
-    const cellY = floor - bottom - 1;
-    result.push({ name, x: bx, y: cellY });
-    const { top } = CORAL_ATLAS_LAYOUT[name];
-    floor = cellY + top;
-  }
-  return result;
+// Place one coral so its main body rests on the sand at design-space x = cx.
+// yShift (design px) nudges it down into the sand (positive = closer/foreground,
+// foot buried a touch) or up (negative = further back, just kissing the sand).
+// Uses the tight bottom offset baked into CORAL_ATLAS_LAYOUT — which now tracks
+// the coral's real base, ignoring stray atlas-edge pixels — so nothing floats.
+function place(cx: number, yShift: number, name: string): CoralBlit {
+  const { bottom } = CORAL_ATLAS_LAYOUT[name];
+  const bx = Math.round(cx * S) - CORAL_ATLAS_CELL / 2;
+  const floor = sandTopAt(cx * S) + Math.round(yShift * S);
+  return { name, x: bx, y: floor - bottom - 1 };
 }
 
+// A varied scatter of standalone corals across the floor. Rather than a single
+// row hugging the crest, the corals are spread through the sand's full depth in
+// three tiers — a back row kissing the crest, a mid row, and a foreground row
+// sunk well into the bed — so the tall sand band reads as a populated seabed
+// with depth. yShift (design px below the crest) sets each coral's tier; bigger
+// = lower/nearer. Listed back-to-front so foreground corals overlap on top. The
+// cx values keep clear of the ruin columns (design x ~248 / ~392).
 export function coralBlits(): CoralBlit[] {
   return [
-    // Small items — 0 = flush with sand, larger = closer/more buried
-    ...stack(50,  10, "plate_coral_stacked_cluster"),  // close, half-buried
-    ...stack(150,  0, "sea_fan_small_purple"),          // background, sits on sand line
-    ...stack(200,  6, "mixed_rock_coral_base"),
-    ...stack(300,  0, "plate_coral_shelf_green"),
-    ...stack(360, 12, "low_pink_coral_mound"),          // closest, most buried
-    ...stack(490,  0, "blue_green_polyp_cluster"),
-    ...stack(540,  8, "tan_sponge_tube_cluster"),
-    ...stack(620,  0, "sea_fan_large_purple"),
+    // back tier — kissing the crest
+    place(150,  0, "sea_fan_small_purple"),
+    place(300,  2, "orange_open_antler"),
+    place(440,  0, "plate_coral_shelf_green"),
+    place(620,  0, "sea_fan_large_purple"),
+    // mid tier — sunk a little into the bed
+    place(40,  16, "plate_coral_stacked_cluster"),
+    place(110, 14, "orange_dense_antler"),
+    place(350, 18, "orange_low_branch"),
+    place(495, 14, "orange_finger_cluster"),
+    place(545, 16, "tan_sponge_tube_cluster"),
+    // foreground tier — settled deep in the sand, nearest the viewer
+    place(85,  36, "orange_staghorn_bushy"),
+    place(200, 40, "mixed_rock_coral_base"),
+    place(325, 34, "low_pink_coral_mound"),
+    place(470, 42, "blue_green_polyp_cluster"),
+    place(590, 32, "orange_knob_cluster"),
   ];
 }
 
@@ -395,8 +401,11 @@ function blitCoralAtlas(ctx: CanvasRenderingContext2D): Promise<void> {
       ctx.imageSmoothingEnabled = false;
       const CELL = CORAL_ATLAS_CELL;
       for (const { name, x, y } of coralBlits()) {
-        const { col, row } = CORAL_ATLAS_LAYOUT[name];
-        ctx.drawImage(img, col * CELL, row * CELL, CELL, CELL, x, y, CELL, CELL);
+        const { col, row, top, bottom } = CORAL_ATLAS_LAYOUT[name];
+        // Blit only the coral's main-body rows; clipping to [top, bottom] drops
+        // disconnected atlas-edge specks that would otherwise float in the water.
+        const sh = bottom - top + 1;
+        ctx.drawImage(img, col * CELL, row * CELL + top, CELL, sh, x, y + top, CELL, sh);
       }
       resolve();
     };
