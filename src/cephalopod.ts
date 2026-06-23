@@ -42,6 +42,14 @@ const S = RES;
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle hover)
 const OCTO_STRIDE = 9 * S; // px of horizontal travel per reach<->push gait step
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
+const BURY_DEPTH = 4 * S; // px the body presses into the sand on touchdown
+const BURY_DUR = 0.35; // s for the landing press-in to ease back out
+// Sand grain tints for the landing puff, matching backdrop.ts SAND (shadow/body/lit).
+const SAND_PUFF: [number, number, number][] = [
+  [120, 96, 56],
+  [180, 148, 88],
+  [206, 176, 110],
+];
 
 // =========================== NAUTILUS ===========================
 // The nautilus starts as one native 128px atlas cell, then gets the same kind of
@@ -314,6 +322,43 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 const TILT_STEP = 7;
 
+// A short-lived burst of sand grains kicked up where the octopus touches down.
+// Built as lightweight game objects in the tank.ts particle idiom (k.add + onUpdate
+// + destroy), not Kaplay's particles(), so the grains stay crisp and cheap. Each
+// grain pops up from the sand surface beneath the octopus, then falls back under
+// gravity and fades as it settles.
+function spawnSandPuff(k: KAPLAYCtx, x: number, sandY: number) {
+  const n = k.randi(112, 176);
+  for (let i = 0; i < n; i++) {
+    const sz = k.randi(1, 3); // fine 1-2px specks (intentionally sub-grid — sand dust)
+    const tone = k.choose(SAND_PUFF);
+    const g = k.add([
+      k.rect(sz, sz),
+      k.pos(x + k.rand(-16, 16) * S, sandY - k.rand(0, 3) * S),
+      k.color(tone[0], tone[1], tone[2]),
+      k.opacity(k.rand(0.75, 1)),
+      k.z(19), // in front of the octopus body (z 18) so the puff isn't occluded
+    ]);
+    let vx = k.rand(-14, 14) * S;
+    let vy = -k.rand(16, 34) * S; // gentle pop upward
+    const grav = k.rand(34, 54) * S; // weak — water buoyancy holds the grains up
+    const drag = 2.6; // water resistance: grains decelerate and drift, not plummet
+    const originY = g.pos.y;
+    let age = 0;
+    g.onUpdate(() => {
+      const dt = k.dt();
+      age += dt;
+      vy += grav * dt; // sink back down slowly
+      vx -= vx * drag * dt; // water damping
+      vy -= vy * drag * dt;
+      g.pos.x += vx * dt;
+      g.pos.y += vy * dt;
+      if (age > 0.6) g.opacity -= dt * 0.7; // hold, then fade as it settles
+      if ((vy > 0 && g.pos.y >= originY) || age > 2.4 || g.opacity <= 0) g.destroy();
+    });
+  }
+}
+
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
   const minY = 24 * S;
@@ -360,6 +405,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let swimDir = facing;
   let curlTimer = 0; // briefly show the curled "turn" pose after a turn
   let restTimer = k.rand(2, 6); // octopus: time left parked-and-resting on the ground
+  let buryTimer = 0; // octopus: time left in the press-into-sand dip after a landing
   let restLong = false; // this rest is a long park → curl up (settled) rather than spread
   let swimVigorous = false; // this swim bout is multi-pulse → use the energetic pose row
   let swimRoaming = false; // this excursion wanders the water before settling
@@ -408,6 +454,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     const drag = cfg.drag;
     const mX = 40 * S;
     let allowPitch = true; // crawl forces this off; swim turns it back on
+    let buryNow = 0; // octopus: current press-into-sand depth (px), eases to 0
 
     if (cfg.motion === "crawl") {
       // OCTOPUS: a benthic crawler. It hops a short way along the sand, then parks
@@ -417,6 +464,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       // sand contour (groundY) while crawling/resting; swim bouts lift it off.
       const cr = cfg.crawl!;
       curlTimer -= dt;
+      buryTimer = Math.max(0, buryTimer - dt);
+      buryNow = BURY_DEPTH * (buryTimer / BURY_DUR); // sinks on impact, springs back
       if (octoMode === "crawl") {
         if (restTimer > 0) {
           // PARKED & RESTING: hold still; a swim never interrupts a rest, so the
@@ -462,7 +511,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           }
         }
         // ride the sand contour: a P-controller eases py to the seated ground height
-        vy = clamp((groundY(px) - py) * 8, -cr.speed * 4, cr.speed * 4);
+        // (offset down by buryNow right after a landing, so it presses in and recovers)
+        vy = clamp((groundY(px) + buryNow - py) * 8, -cr.speed * 4, cr.speed * 4);
       } else {
         // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
         // (glide). After the last pulse a single dive glides back down to the sand;
@@ -512,6 +562,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           vy += cr.sink * dt;
           if (py >= groundY(px) - 4 * S && vy >= 0) {
             octoMode = "crawl";
+            // touchdown: kick up a puff of sand and press the body into it
+            spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)));
+            buryTimer = BURY_DUR;
             restLong = false;
             restTimer = k.rand(2, 5); // rest a moment after touching down
             tx = px; // hop afresh from where it landed
@@ -589,7 +642,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     px += vx * dt;
     py += vy * dt;
     // The octopus's floor is the sand it sits on; others use the generic low band.
-    const floorY = cfg.motion === "crawl" ? groundY(px) : maxY();
+    const floorY = cfg.motion === "crawl" ? groundY(px) + buryNow : maxY();
     py = clamp(py, minY, floorY);
 
     // Keep inside the tank; the jet kind retargets a fresh inward segment on
