@@ -340,7 +340,7 @@ const TILT_STEP = 7;
 // + destroy), not Kaplay's particles(), so the grains stay crisp and cheap. Each
 // grain pops up from the sand surface beneath the octopus, then falls back under
 // gravity and fades as it settles.
-function spawnSandPuff(
+export function spawnSandPuff(
   k: KAPLAYCtx,
   x: number,
   sandY: number,
