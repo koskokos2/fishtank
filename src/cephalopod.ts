@@ -404,17 +404,18 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let pulsesLeft = 0;
   let swimDir = facing;
   let curlTimer = 0; // briefly show the curled "turn" pose after a turn
-  let restTimer = k.rand(2, 6); // octopus: time left parked-and-resting on the ground
+  // Per-octopus tempo so two on screen don't fall into lockstep: one is durably
+  // lazier — longer rests, slower to push off, bigger but rarer hops.
+  const tempo = k.rand(0.8, 1.25);
+  let restTimer = k.rand(1, 9) * tempo; // octopus: time left parked-and-resting on the ground
   let buryTimer = 0; // octopus: time left in the press-into-sand dip after a landing
   let restLong = false; // this rest is a long park → curl up (settled) rather than spread
   let swimVigorous = false; // this swim bout is multi-pulse → use the energetic pose row
   let swimRoaming = false; // this excursion wanders the water before settling
   let swimRoamLeft = 0; // seconds of roaming left
   let swimHover = 0; // target clearance above the sand while roaming
-  let swimCooldown = k.rand(
-    cfg.crawl?.swimEvery[0] ?? 6,
-    cfg.crawl?.swimEvery[1] ?? 12,
-  );
+  let swimCooldown =
+    k.rand(cfg.crawl?.swimEvery[0] ?? 6, cfg.crawl?.swimEvery[1] ?? 12) * tempo;
 
   // pulse-kind (jellyfish) state: a 3-phase bell-pump cycle and the live bell
   // squash it drives.
@@ -476,7 +477,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             // rest over → hop a moderate way along the sand (biased off the walls)
             const dir =
               px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
-            tx = clamp(px + dir * k.rand(60 * S, cr.hop), mX, k.width() - mX);
+            tx = clamp(px + dir * k.rand(60 * S, cr.hop) * tempo, mX, k.width() - mX);
             if (dir !== facing) curlTimer = 0.5; // curl its arms through the turn
             beginTurn(dir);
           }
@@ -485,9 +486,10 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           const dx = tx - px;
           if (Math.abs(dx) < 12 * S) {
             restLong = k.chance(cr.rest.longChance);
-            restTimer = restLong
-              ? k.rand(cr.rest.longSecs[0], cr.rest.longSecs[1])
-              : k.rand(cr.rest.secs[0], cr.rest.secs[1]);
+            restTimer =
+              (restLong
+                ? k.rand(cr.rest.longSecs[0], cr.rest.longSecs[1])
+                : k.rand(cr.rest.secs[0], cr.rest.secs[1])) * tempo;
             vx += (0 - vx) * 4 * dt;
           } else {
             const sp = cr.speed * Math.min(1, Math.abs(dx) / (12 * S));
@@ -566,9 +568,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)));
             buryTimer = BURY_DUR;
             restLong = false;
-            restTimer = k.rand(2, 5); // rest a moment after touching down
+            restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
             tx = px; // hop afresh from where it landed
-            swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]);
+            swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]) * tempo;
           }
         }
       }
