@@ -59,13 +59,14 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
 // resolve them first, then register every sprite together — that way they're all
 // in the load queue before onLoad fires (no load-order race).
 (async () => {
-  const [fishSheets, nautilusSheet, jellyfishSheet] = await Promise.all([
+  const [fishSheets, nautilusSheet, jellyfishSheet, backdropUrl] = await Promise.all([
     makeFishSheets(),
     makeNautilusSprite(),
     makeJellyfishSprite(),
+    makeBackdrop(BACKDROP_SEED),
   ]);
 
-  k.loadSprite("backdrop", makeBackdrop(BACKDROP_SEED));
+  k.loadSprite("backdrop", backdropUrl);
   fishSheets.forEach((sheet, i) => {
     k.loadSprite(`fish-${i}`, sheet, {
       sliceX: SWIM_FRAMES,
