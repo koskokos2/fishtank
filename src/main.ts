@@ -13,7 +13,7 @@ import { OCTOPUS_ATLAS, OCTOPUS_FRAMES } from "./octopusAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 20;
+const FISH_COUNT = 10;
 const BACKDROP_SEED = 1;
 
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
@@ -59,12 +59,13 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
 // resolve them first, then register every sprite together — that way they're all
 // in the load queue before onLoad fires (no load-order race).
 (async () => {
-  const [fishSheets, nautilusSheet, jellyfishSheet, backdropUrl] = await Promise.all([
-    makeFishSheets(),
-    makeNautilusSprite(),
-    makeJellyfishSprite(),
-    makeBackdrop(BACKDROP_SEED),
-  ]);
+  const [fishSheets, nautilusSheet, jellyfishSheet, backdropUrl] =
+    await Promise.all([
+      makeFishSheets(),
+      makeNautilusSprite(),
+      makeJellyfishSprite(),
+      makeBackdrop(BACKDROP_SEED),
+    ]);
 
   k.loadSprite("backdrop", backdropUrl);
   fishSheets.forEach((sheet, i) => {
@@ -83,7 +84,9 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
   });
   k.loadSprite("jellyfish", jellyfishSheet, {
     sliceX: JELLYFISH_FRAMES,
-    anims: { idle: { from: 0, to: JELLYFISH_FRAMES - 1, loop: true, speed: 1 } },
+    anims: {
+      idle: { from: 0, to: JELLYFISH_FRAMES - 1, loop: true, speed: 1 },
+    },
   });
 
   setupTank(k);
