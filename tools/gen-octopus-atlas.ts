@@ -32,6 +32,7 @@ const DOME_UP = 12; // px a pose's dome may overflow above its cell (kept by the
 const FOOT_DOWN = 8; // px the arms may overflow below its cell
 const SIDE_PAD = 6; // px of horizontal flood slack past the cell edges
 const FRAME_MARGIN = 4; // blank px around the widest pose in the square output frame
+const MANTLE_FRAC = 0.33; // top fraction of a blob treated as the mantle/head (anchor band)
 const SWAY_FRAMES = 8; // idle-pose arm-sway loop length
 const SWAY_AMP = 5; // peak sideways arm-tip shift, px
 const SWAY_ARM_TOP = 0.4; // fraction down the octopus where the arms start swaying
@@ -120,19 +121,40 @@ const bbox = (blob: number[]) => {
   return { minX, minY, maxX, maxY };
 };
 
-// Square output frame sized to the widest/tallest pose plus a margin (even side).
-let maxDim = 0;
+// Mean x of the opaque pixels in the top MANTLE_FRAC of a blob — the mantle/head, the one
+// body part that stays put across poses. Poses are anchored on it horizontally so the body
+// holds still while the arms reach/pull (otherwise a per-bbox centre jerks the body as the
+// arm-reach changes the silhouette width — a crawl-gait wobble).
+function mantleX(blob: number[], bb: ReturnType<typeof bbox>): number {
+  const bandBot = bb.minY + Math.round((bb.maxY - bb.minY) * MANTLE_FRAC);
+  let sum = 0;
+  let n = 0;
+  for (const p of blob)
+    if (((p / w) | 0) <= bandBot) {
+      sum += p % w;
+      n++;
+    }
+  return n ? sum / n : (bb.minX + bb.maxX) / 2;
+}
+
+// Square output frame: wide enough for the most head-offset pose (horizontal anchored on
+// the head) and the tallest pose (vertical bbox-centred), plus a margin (even side). Sizing
+// from the head-centred reach keeps an arms-forward pose from clipping.
+let halfX = 0;
+let maxH = 0;
 for (const b of blobs) {
   const bb = bbox(b);
-  maxDim = Math.max(maxDim, bb.maxX - bb.minX + 1, bb.maxY - bb.minY + 1);
+  const hx = mantleX(b, bb);
+  halfX = Math.max(halfX, hx - bb.minX, bb.maxX - hx);
+  maxH = Math.max(maxH, bb.maxY - bb.minY + 1);
 }
-const FRAME = (maxDim + 2 * FRAME_MARGIN + 1) & ~1;
+const FRAME = (Math.max(2 * Math.ceil(halfX), maxH) + 2 * FRAME_MARGIN + 1) & ~1;
 
-// Render a blob centred (by its bbox) in a fresh FRAME-square buffer; report its content
-// rows so the sway can target the arms.
+// Render a blob into a fresh FRAME-square buffer — head-anchored in x, bbox-centred in y —
+// and report its content rows so the sway can target the arms.
 function centeredBuf(blob: number[]): { buf: Uint8Array; minY: number; maxY: number } {
   const bb = bbox(blob);
-  const offX = Math.round((FRAME - (bb.maxX - bb.minX + 1)) / 2) - bb.minX;
+  const offX = Math.round(FRAME / 2 - mantleX(blob, bb));
   const offY = Math.round((FRAME - (bb.maxY - bb.minY + 1)) / 2) - bb.minY;
   const buf = new Uint8Array(FRAME * FRAME * 4);
   let minY = FRAME, maxY = 0;

@@ -40,7 +40,7 @@ const S = RES;
 // single crawl/rest/swim poses, indexed by name via OCTOPUS_POSE. The crawl/swim machine
 // below selects the frame per state.
 const OCTO_IDLE_FPS = 5; // idle arm-sway loop speed (subtle hover)
-const OCTO_CRAWL_FPS = 3; // reach<->push crawl-gait cadence
+const OCTO_STRIDE = 28 * S; // px of horizontal travel per reach<->push gait step
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
 
 // =========================== NAUTILUS ===========================
@@ -332,6 +332,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let ang = 0;
   let facing = k.choose([-1, 1]); // head/eye direction (left-facing sprite)
   const swayPhase = k.rand(0, OCTOPUS_IDLE_FRAMES); // desync the idle arm-sway loop
+  let gaitPhase = swayPhase; // crawl reach<->push phase, advanced by distance crawled
 
   // jet-kind (nautilus) state
   let heading = facing;
@@ -615,8 +616,10 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       } else if (curlTimer > 0) {
         frame = P.curl; // flash a curl through a crawl turn
       } else {
-        const gait = Math.floor(k.time() * OCTO_CRAWL_FPS + swayPhase) % 2;
-        frame = gait === 0 ? P.crawlReach : P.crawlPush; // crawling along the sand
+        // crawling along the sand: step reach<->push by distance travelled, so it holds
+        // its pose when slow/stopped instead of toggling on the spot
+        gaitPhase += (Math.abs(vx) * dt) / OCTO_STRIDE;
+        frame = Math.floor(gaitPhase) % 2 === 0 ? P.crawlReach : P.crawlPush;
       }
       body.frame = frame;
     }
