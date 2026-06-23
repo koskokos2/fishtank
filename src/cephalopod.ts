@@ -520,6 +520,15 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         // (glide). After the last pulse a single dive glides back down to the sand;
         // a roaming excursion instead redirects and keeps wandering until its time
         // runs out, then glides down.
+        const wallNear = 72 * S;
+        if (px < mX + wallNear && swimDir < 0) {
+          swimDir = 1;
+          beginTurn(1);
+        } else if (px > k.width() - mX - wallNear && swimDir > 0) {
+          swimDir = -1;
+          beginTurn(-1);
+        }
+
         if (swimRoaming) swimRoamLeft -= dt;
         subTimer -= dt;
         if (swimSub === "gather") {
@@ -560,6 +569,12 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           // GLIDE-DOWN: keep a little forward speed while sinking, so it descends
           // on a shallow glide from whatever height it reached instead of stalling
           // and dropping straight down to the sand.
+          const inwardDir =
+            px < mX + 18 * S ? 1 : px > k.width() - mX - 18 * S ? -1 : swimDir;
+          if (inwardDir !== swimDir) {
+            swimDir = inwardDir;
+            beginTurn(inwardDir);
+          }
           vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
           vy += cr.sink * dt;
           if (py >= groundY(px) - 4 * S && vy >= 0) {
@@ -661,11 +676,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     if (hitWall) {
       if (cfg.motion === "jet") segTimer = 0;
       if (octoMode === "swim") {
-        // a roamer bounces off the wall and keeps wandering; a single dive settles
-        if (swimRoaming && swimRoamLeft > 0) {
-          swimDir = px < k.width() / 2 ? 1 : -1;
-          beginTurn(swimDir);
-        } else swimSub = "settle";
+        // Treat wall contact as a turn cue, not a hard dead-end.
+        const inward = px < k.width() / 2 ? 1 : -1;
+        swimDir = inward;
+        beginTurn(inward);
+        vx = inward * Math.max(Math.abs(vx) * 0.35, cfg.crawl!.speed * 0.9);
+        // A roamer keeps wandering; a single dive transitions to glide-down.
+        if (!(swimRoaming && swimRoamLeft > 0)) swimSub = "settle";
       }
     }
 
