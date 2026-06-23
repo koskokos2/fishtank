@@ -1,42 +1,12 @@
 # Building Good Pixel Sprite Atlases
 
-This guide collects practical advice from texture-atlas papers, engine and tool
-documentation, implementation articles, and production-style dev notes. It is
-written for pixel games, where a technically "valid" atlas can still fail if it
-blurs, bleeds, shifts by half a pixel, or makes large composed objects painful to
-author.
+This guide is a practical standard for pixel-game sprite atlases. It uses this
+repo as a case study, not as the definition of best practice: good local patterns
+are called out, and shortcuts become refactor candidates.
 
-The short version: a sprite atlas is not just a packed PNG. It is a rendering
-contract between the artist, the packer, the runtime, and the animation system.
-The image, metadata, pivots, padding, names, source sizes, draw order, and build
-settings all matter.
-
-## How The Sources Are Used
-
-- NVIDIA, Unity, and libGDX inform the batching and texture-switching advice.
-- Jylanki's rectangle-packing work and Blackpawn's packing article inform the
-  packing strategy and the recommendation to use deterministic generated output.
-- TexturePacker, libGDX, Unity, and Godot docs inform padding, extrusion, trim,
-  margin, separation, and filter guidance.
-- Factorio Friday Facts #146, APES, and this repo's coral/ruins/octopus atlases
-  inform the large-object chapter.
-- Pixel-art normal-map research informs the advice to keep secondary maps packed
-  with exactly the same layout as the color atlas.
-
-## Best Practice Versus Current Project
-
-This guide is prescriptive. The current project is used as a case study, not as
-the definition of best practice. When the repo already does something strong,
-the guide says so. When the repo uses a convenient shortcut, the guide treats it
-as an acceptable local tradeoff or a refactor candidate.
-
-Use this vocabulary when applying the guide:
-
-- Good current pattern: keep it unless the project goals change.
-- Acceptable local tradeoff: fine for the current scope, but not a universal
-  recommendation.
-- Refactor candidate: research and tooling practice point to a stronger design
-  than the current implementation.
+A sprite atlas is not just a packed PNG. It is a rendering contract between the
+artist, packer, runtime, and animation system. The image, metadata, pivots,
+padding, names, source sizes, draw order, and build settings all matter.
 
 ## Contents
 
@@ -44,12 +14,9 @@ Use this vocabulary when applying the guide:
 - [Core Principles](#core-principles)
 - [Target Atlas Pipeline](#target-atlas-pipeline)
 - [Packing Strategy](#packing-strategy)
-- [Do's](#dos)
-- [Don'ts](#donts)
 - [Bigger Objects Made From Separate Sprites](#bigger-objects-made-from-separate-sprites)
 - [Quality Checklist](#quality-checklist)
-- [Recommended Defaults For This Project](#recommended-defaults-for-this-project)
-- [Current Project Refactor Candidates](#current-project-refactor-candidates)
+- [Project Defaults and Refactor Candidates](#project-defaults-and-refactor-candidates)
 - [Sources](#sources)
 
 ## Goals
@@ -93,7 +60,7 @@ runtime systems and preview/generation tools.
 Pixel art should normally use nearest-neighbor filtering, whole-pixel source
 regions, and whole-pixel destination positions. Fractional scaling, linear
 filtering, mipmaps, and camera movement at fractional pixels can turn a good
-atlas into shimmering soup.
+atlas into a blurred or unstable image.
 
 Use these defaults unless you have a deliberate exception:
 
@@ -207,24 +174,9 @@ Guillotine, and Skyline approaches. The important production lesson is that
 packing is heuristic: there is no single magic layout. Use a known packer, fix
 its settings, and make the output deterministic so diffs and reviews stay sane.
 
-For small grid-authored pixel art, a fixed grid can be better than a tight pack:
-
-- fixed cells make hand editing and review easy;
-- cell coordinates are stable;
-- runtime crop math is simple;
-- pieces can share a common authored frame.
-
-For many differently sized sprites, a tight pack is usually better:
-
-- less wasted texture area;
-- fewer pages;
-- better batching when page count matters.
-
-This project currently uses a 128 px cell pattern for many atlases. That is a
-good source-art convention as long as the sprites fit the cell and benefit from
-easy manual review. It should not be treated as a permanent runtime requirement.
-For large or irregular props, use generated metadata and consider packing the
-runtime atlas more tightly instead of forcing everything into identical cells.
+Use fixed grids when human review, stable cell coordinates, or a shared authored
+frame matter more than texture area. Use tight packing when sprites vary in size,
+page count matters, or transparent cells waste too much memory.
 
 ### Use padding, edge padding, and extrusion
 
@@ -295,40 +247,10 @@ Keep sprites together when:
 - they share a timeline or animation state;
 - they must sample matching secondary maps.
 
-## Do's
-
-- Do keep source sprites separate from packed output.
-- Do generate atlases from source art and sidecar metadata.
-- Do preserve names, pivots, original sizes, and trim offsets.
-- Do use nearest filtering for pixel art.
-- Do add padding and extruded edge pixels.
-- Do verify atlas output in the actual renderer, not just in an image viewer.
-- Do keep deterministic packing settings.
-- Do group by runtime draw behavior.
-- Do keep related secondary textures in the same layout.
-- Do write small preview tools that render atlas sprites at native size and game
-  scale.
-- Do keep a changelog or review image when changing generated art.
-
-## Don'ts
-
-- Do not hand-pack important runtime atlases without metadata.
-- Do not rely on transparent gutters with random or black RGB values.
-- Do not trim animation frames unless you preserve the original frame offsets.
-- Do not mix point-filtered pixel art and linearly filtered effects on one page
-  if the engine cannot assign sampler state per sprite.
-- Do not rotate packed sprites unless every consumer supports rotated regions.
-- Do not make a giant atlas just because fewer files feels cleaner.
-- Do not put rarely used large art on a page that is always resident.
-- Do not let packer output order change randomly between builds.
-- Do not scale individual sprites independently unless the style calls for it.
-- Do not fix bleeding by shrinking art inward; fix the atlas settings.
-
 ## Bigger Objects Made From Separate Sprites
 
-Large pixel objects are where atlas discipline starts paying rent. A big coral,
-ruin, creature, machine, building, or boss can be one enormous sprite, but often
-it is better as a composed object made from separate parts.
+Large pixel objects can be one enormous sprite, but often they are better as
+composed objects made from separate parts.
 
 Use multiple sprites when the object needs:
 
@@ -571,26 +493,43 @@ For this repo, prefer adding preview modes to `tools/preview.ts` whenever a new
 atlas class gets complex. The existing fish, backdrop, jellyfish, and octopus
 preview flows are the right idea: make the build output visible without guessing.
 
-## Recommended Defaults For This Project
+## Project Defaults and Refactor Candidates
 
-- Keep nearest-neighbor rendering and avoid smoothing.
-- Keep 128 px grid cells for small standalone creatures and simple props.
-- Use tight generated bounds for stackable organic parts, as the coral atlas
-  already does.
-- Use socket metadata and recipes for ruins, plants, and any object assembled
-  from mechanical or architectural pieces.
-- Avoid rotated packing while atlases are still useful as human-readable pixel
-  sheets.
-- Add 2 to 4 px padding plus edge extrusion when moving from hand-authored grids
-  to tight packed pages.
-- Keep big multi-part objects on one atlas page unless a clear memory or loading
-  reason says otherwise.
-- Keep source PNG/JSON in `art/`, generate embedded TypeScript in `src/`, and do
-  not edit generated modules by hand.
-- When a composed object becomes hard to reason about live, bake clean poses from
-  layered source art and drive the runtime by pose index.
+Keep these defaults:
+
+- Use nearest-neighbor rendering and avoid smoothing.
+- Treat 128 px grids as source-art format, not a permanent runtime requirement.
+- Use tight bounds for organic stacks; use sockets and recipes for mechanical,
+  architectural, or reusable modular parts.
+- Avoid rotated packing while atlases are still useful as human-readable sheets.
+- Keep big multi-part objects on one page unless memory or loading behavior says
+  otherwise.
+- Bake clean pose sheets when live part composition creates visual clutter.
+
+Refactor toward these targets as the art set grows:
+
+- Runtime packing: generate packed, padded, extruded pages with explicit region
+  metadata for irregular or mostly transparent sprites.
+- Asset output: replace giant base64 TypeScript modules with atlas assets plus
+  JSON manifests when the zero-file runtime constraint no longer matters.
+- Unified generation: consolidate per-atlas scripts into a configurable
+  generator that handles grids, bounds, sockets, recipes, pose baking, secondary
+  maps, and validation.
+- Recipe data: move hard-coded coral/plant/ruin compositions into atlas sidecars
+  and let a generic assembler produce blits.
+- Octopus layers: mark component rows as source-only, or add real layer metadata
+  with pivots, draw order, and pose transforms.
+- Manifest checks: validate duplicate names, bounds, empty sprites, recipe/socket
+  references, texture page limits, padding/extrusion, and generated-code
+  freshness.
 
 ## Sources
+
+How they were used: NVIDIA, Unity, and libGDX for batching and texture switching;
+Jylanki and Blackpawn for packing; TexturePacker, libGDX, Unity, and Godot for
+padding, extrusion, trim, margin, and separation; Factorio, APES, and this repo
+for large-object composition; pixel-art normal-map research for synchronized
+secondary maps.
 
 - NVIDIA, "Improve Batching Using Texture Atlases":
   https://download.nvidia.com/developer/NVTextureSuite/Atlas_Tools/Texture_Atlas_Whitepaper.pdf
