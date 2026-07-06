@@ -221,7 +221,9 @@ function plantPoint(
 ) {
   const t = seg / p.segs;
   return {
-    x: p.fx * k.width() + Math.sin(k.time() * 1.1 + seg * 0.45 + p.phase) * sway * t,
+    x:
+      p.fx * k.width() +
+      Math.sin(k.time() * 1.1 + seg * 0.45 + p.phase) * sway * t,
     y: baseY - seg * segH,
   };
 }

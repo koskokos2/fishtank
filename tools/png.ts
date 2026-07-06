@@ -7,7 +7,7 @@ export function dataUrlToBuffer(url: string): Buffer {
   return Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
 }
 
-// --- decode (8-bit, color type 6 RGBA, no interlace) ---
+// --- decode (8-bit, color type 2 RGB or 6 RGBA, no interlace) ---
 export function decodePng(buf: Buffer): {
   rgba: Uint8Array;
   w: number;
@@ -29,20 +29,20 @@ export function decodePng(buf: Buffer): {
     else if (type === "IEND") break;
     p += 12 + len;
   }
-  if (bitDepth !== 8 || colorType !== 6)
+  if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6))
     throw new Error(`unsupported PNG: depth ${bitDepth} colorType ${colorType}`);
   const raw = inflateSync(Buffer.concat(idat));
-  const bpp = 4;
+  const bpp = colorType === 6 ? 4 : 3;
   const stride = w * bpp;
-  const rgba = new Uint8Array(w * h * bpp);
+  const decoded = new Uint8Array(w * h * bpp);
   let rp = 0;
   for (let y = 0; y < h; y++) {
     const filter = raw[rp++];
     for (let x = 0; x < stride; x++) {
       const v = raw[rp++];
-      const a = x >= bpp ? rgba[y * stride + x - bpp] : 0;
-      const b = y > 0 ? rgba[(y - 1) * stride + x] : 0;
-      const c = x >= bpp && y > 0 ? rgba[(y - 1) * stride + x - bpp] : 0;
+      const a = x >= bpp ? decoded[y * stride + x - bpp] : 0;
+      const b = y > 0 ? decoded[(y - 1) * stride + x] : 0;
+      const c = x >= bpp && y > 0 ? decoded[(y - 1) * stride + x - bpp] : 0;
       let recon: number;
       switch (filter) {
         case 0: recon = v; break;
@@ -57,8 +57,17 @@ export function decodePng(buf: Buffer): {
         }
         default: throw new Error(`bad filter ${filter}`);
       }
-      rgba[y * stride + x] = recon & 0xff;
+      decoded[y * stride + x] = recon & 0xff;
     }
+  }
+  if (colorType === 6) return { rgba: decoded, w, h };
+
+  const rgba = new Uint8Array(w * h * 4);
+  for (let i = 0, j = 0; i < decoded.length; i += 3, j += 4) {
+    rgba[j] = decoded[i];
+    rgba[j + 1] = decoded[i + 1];
+    rgba[j + 2] = decoded[i + 2];
+    rgba[j + 3] = 255;
   }
   return { rgba, w, h };
 }

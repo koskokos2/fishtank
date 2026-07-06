@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "bun index.html",
     "build": "bun build index.html --outdir dist --minify",
-    "compile": "bun run build && bun build desktop.ts --compile --outfile fishtank"
+    "compile": "bun run build && bun build desktop.ts --compile --outfile fishtank",
+    "atlas:regenerate": "bun tools/regenerate-atlas.ts",
+    "preview:ruins-kit": "bun tools/preview.ts MODE=ruins-kit",
+    "validate:ruins-kit": "bun tools/preview.ts MODE=ruins-kit VALIDATE_ONLY=1"
   },
   "dependencies": {
     "kaplay": "latest"

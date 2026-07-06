@@ -5,8 +5,8 @@
   "columns": 5,
   "rows": 5,
   "layout": "semantic-source-layout",
-  "anchorSpace": "normalizedCell",
-  "notes": "Raw source kept at native 1254x1254 resolution with opaque black background. Rows 1-3 are the regenerated modular kit; rows 4-5 were copied pixel-for-pixel from modular-ruins-map-atlas-original.png to preserve the liked standalone accent/detail props. Anchors use normalized cell coordinates so a later 128px/runtime bake can convert them without relying on this source image's non-integer 250.8px cell size.",
+  "anchorSpace": "normalizedSourceRect",
+  "notes": "Raw source kept at native 1254x1254 resolution with opaque black background. Rows 1-3 are the modular ruins kit; rows 4-5 were copied pixel-for-pixel from modular-ruins-map-atlas-original.png to preserve the liked standalone accent/detail props. Source rectangles are absolute pixel crops because the hand-arranged source sprites intentionally cross the visual 5x5 guide lines. Sockets are normalized within each sourceRect so a later 128px/runtime bake can convert them without relying on the source image's non-integer 250.8px cell size.",
   "socketTypes": {
     "columnShaft": "Vertical column shaft connector; align top/bottom on the shared centerline.",
     "wallHorizontal": "Horizontal wall connector; align left/right edges and matching block courses.",
@@ -19,183 +19,264 @@
       "name": "column_base",
       "row": 0,
       "col": 0,
+      "sourceRect": { "x": 75, "y": 164, "w": 170, "h": 114 },
       "category": "ruins",
-      "role": "columnKit",
+      "role": "columnBase",
       "sockets": {
-        "ground": { "x": 0.5, "y": 0.82, "type": "ground" },
-        "top": { "x": 0.5, "y": 0.51, "type": "columnShaft" }
+        "ground": { "x": 0.5, "y": 1.0, "type": "ground" },
+        "top": { "x": 0.5, "y": 0.0, "type": "columnShaft" }
       }
     },
     {
       "name": "column_middle_straight",
       "row": 0,
       "col": 1,
+      "sourceRect": { "x": 342, "y": 81, "w": 112, "h": 196 },
       "category": "ruins",
       "role": "repeatableColumnMiddle",
       "sockets": {
-        "bottom": { "x": 0.5, "y": 0.80, "type": "columnShaft" },
-        "top": { "x": 0.5, "y": 0.22, "type": "columnShaft" }
+        "bottom": { "x": 0.5, "y": 1.0, "type": "columnShaft" },
+        "top": { "x": 0.5, "y": 0.0, "type": "columnShaft" }
       }
     },
     {
       "name": "column_middle_cracked",
       "row": 0,
       "col": 2,
+      "sourceRect": { "x": 567, "y": 81, "w": 114, "h": 196 },
       "category": "ruins",
       "role": "repeatableColumnMiddle",
       "sockets": {
-        "bottom": { "x": 0.5, "y": 0.80, "type": "columnShaft" },
-        "top": { "x": 0.5, "y": 0.22, "type": "columnShaft" }
+        "bottom": { "x": 0.5, "y": 1.0, "type": "columnShaft" },
+        "top": { "x": 0.5, "y": 0.0, "type": "columnShaft" }
       }
     },
     {
       "name": "column_capital",
       "row": 0,
       "col": 3,
+      "sourceRect": { "x": 775, "y": 81, "w": 173, "h": 197 },
       "category": "ruins",
       "role": "columnTop",
       "sockets": {
-        "bottom": { "x": 0.5, "y": 0.78, "type": "columnShaft" },
-        "top": { "x": 0.5, "y": 0.29, "type": "ground" }
+        "bottom": { "x": 0.5, "y": 1.0, "type": "columnShaft" }
       }
     },
     {
       "name": "broken_column_top",
       "row": 0,
       "col": 4,
+      "sourceRect": { "x": 1015, "y": 72, "w": 155, "h": 206 },
       "category": "ruins",
       "role": "columnTop",
       "sockets": {
-        "bottom": { "x": 0.5, "y": 0.80, "type": "columnShaft" }
+        "bottom": { "x": 0.5, "y": 1.0, "type": "columnShaft" }
       }
     },
     {
       "name": "wall_base_segment",
       "row": 1,
       "col": 0,
+      "sourceRect": { "x": 56, "y": 360, "w": 207, "h": 156 },
       "category": "ruins",
-      "role": "wallKit",
+      "role": "standaloneLowWall",
       "sockets": {
-        "ground": { "x": 0.5, "y": 0.80, "type": "ground" },
-        "top": { "x": 0.5, "y": 0.35, "type": "wallVertical" },
-        "left": { "x": 0.13, "y": 0.58, "type": "wallHorizontal" },
-        "right": { "x": 0.87, "y": 0.58, "type": "wallHorizontal" }
+        "ground": { "x": 0.5, "y": 1.0, "type": "ground" },
+        "left": { "x": 0.02, "y": 0.56, "type": "wallHorizontal" },
+        "right": { "x": 0.98, "y": 0.56, "type": "wallHorizontal" }
       }
     },
     {
       "name": "wall_middle_repeat_segment",
       "row": 1,
       "col": 1,
+      "sourceRect": { "x": 312, "y": 336, "w": 175, "h": 180 },
       "category": "ruins",
       "role": "repeatableWallMiddle",
       "sockets": {
-        "bottom": { "x": 0.5, "y": 0.80, "type": "wallVertical" },
-        "top": { "x": 0.5, "y": 0.30, "type": "wallVertical" },
-        "left": { "x": 0.18, "y": 0.56, "type": "wallHorizontal" },
-        "right": { "x": 0.82, "y": 0.56, "type": "wallHorizontal" }
+        "bottom": { "x": 0.5, "y": 0.98, "type": "wallVertical" },
+        "top": { "x": 0.5, "y": 0.02, "type": "wallVertical" },
+        "left": { "x": 0.02, "y": 0.5, "type": "wallHorizontal" },
+        "right": { "x": 0.98, "y": 0.5, "type": "wallHorizontal" }
       }
     },
     {
       "name": "wall_top_cap_segment",
       "row": 1,
       "col": 2,
+      "sourceRect": { "x": 530, "y": 338, "w": 208, "h": 178 },
       "category": "ruins",
-      "role": "wallKit",
+      "role": "wallTop",
       "sockets": {
-        "bottom": { "x": 0.5, "y": 0.80, "type": "wallVertical" },
-        "left": { "x": 0.13, "y": 0.58, "type": "wallHorizontal" },
-        "right": { "x": 0.87, "y": 0.58, "type": "wallHorizontal" }
+        "bottom": { "x": 0.5, "y": 0.98, "type": "wallVertical" },
+        "left": { "x": 0.02, "y": 0.52, "type": "wallHorizontal" },
+        "right": { "x": 0.98, "y": 0.52, "type": "wallHorizontal" }
       }
     },
     {
       "name": "wall_left_end_corner",
       "row": 1,
       "col": 3,
+      "sourceRect": { "x": 784, "y": 325, "w": 165, "h": 191 },
       "category": "ruins",
       "role": "wallEnd",
       "sockets": {
-        "ground": { "x": 0.5, "y": 0.80, "type": "ground" },
-        "right": { "x": 0.74, "y": 0.56, "type": "wallHorizontal" },
-        "top": { "x": 0.52, "y": 0.31, "type": "wallVertical" }
+        "ground": { "x": 0.5, "y": 1.0, "type": "ground" },
+        "right": { "x": 0.98, "y": 0.52, "type": "wallHorizontal" }
       }
     },
     {
       "name": "wall_right_end_corner",
       "row": 1,
       "col": 4,
+      "sourceRect": { "x": 1017, "y": 326, "w": 149, "h": 190 },
       "category": "ruins",
       "role": "wallEnd",
       "sockets": {
-        "ground": { "x": 0.5, "y": 0.80, "type": "ground" },
-        "left": { "x": 0.26, "y": 0.56, "type": "wallHorizontal" },
-        "top": { "x": 0.48, "y": 0.31, "type": "wallVertical" }
+        "ground": { "x": 0.5, "y": 1.0, "type": "ground" },
+        "left": { "x": 0.02, "y": 0.52, "type": "wallHorizontal" }
       }
     },
     {
       "name": "arch_left_support",
       "row": 2,
       "col": 0,
+      "sourceRect": { "x": 64, "y": 565, "w": 181, "h": 194 },
       "category": "ruins",
       "role": "archKit",
       "sockets": {
-        "ground": { "x": 0.34, "y": 0.84, "type": "ground" },
-        "curve": { "x": 0.72, "y": 0.29, "type": "archCurve" }
+        "ground": { "x": 0.22, "y": 1.0, "type": "ground" },
+        "right": { "x": 0.99, "y": 0.22, "type": "archCurve" }
       }
     },
     {
       "name": "arch_right_support",
       "row": 2,
       "col": 1,
+      "sourceRect": { "x": 314, "y": 565, "w": 160, "h": 194 },
       "category": "ruins",
       "role": "archKit",
       "sockets": {
-        "ground": { "x": 0.66, "y": 0.84, "type": "ground" },
-        "curve": { "x": 0.28, "y": 0.29, "type": "archCurve" }
+        "ground": { "x": 0.78, "y": 1.0, "type": "ground" },
+        "left": { "x": 0.01, "y": 0.22, "type": "archCurve" }
       }
     },
     {
       "name": "arch_curve_left",
       "row": 2,
       "col": 2,
+      "sourceRect": { "x": 523, "y": 589, "w": 159, "h": 162 },
       "category": "ruins",
       "role": "archCurve",
       "sockets": {
-        "left": { "x": 0.28, "y": 0.74, "type": "archCurve" },
-        "right": { "x": 0.72, "y": 0.33, "type": "archCurve" }
+        "left": { "x": 0.02, "y": 0.86, "type": "archCurve" },
+        "right": { "x": 0.98, "y": 0.14, "type": "archCurve" }
       }
     },
     {
       "name": "arch_curve_center_keystone",
       "row": 2,
       "col": 3,
+      "sourceRect": { "x": 672, "y": 587, "w": 287, "h": 163 },
       "category": "ruins",
-      "role": "archCurve",
+      "role": "standaloneArchTop",
       "sockets": {
-        "left": { "x": 0.22, "y": 0.61, "type": "archCurve" },
-        "right": { "x": 0.78, "y": 0.61, "type": "archCurve" }
+        "left": { "x": 0.02, "y": 0.94, "type": "archCurve" },
+        "right": { "x": 0.98, "y": 0.94, "type": "archCurve" }
       }
     },
     {
       "name": "arch_curve_right",
       "row": 2,
       "col": 4,
+      "sourceRect": { "x": 1011, "y": 591, "w": 161, "h": 159 },
       "category": "ruins",
       "role": "archCurve",
       "sockets": {
-        "left": { "x": 0.28, "y": 0.33, "type": "archCurve" },
-        "right": { "x": 0.72, "y": 0.74, "type": "archCurve" }
+        "left": { "x": 0.02, "y": 0.14, "type": "archCurve" },
+        "right": { "x": 0.98, "y": 0.86, "type": "archCurve" }
       }
     },
-    { "name": "broken_tablet", "row": 3, "col": 0, "category": "ruins", "role": "accent" },
-    { "name": "statue_head", "row": 3, "col": 1, "category": "ruins", "role": "accent" },
-    { "name": "broken_column_lying_down", "row": 3, "col": 2, "category": "ruins", "role": "accent" },
-    { "name": "rubble_pile", "row": 3, "col": 3, "category": "ruins", "role": "accent" },
-    { "name": "mossy_stones_cluster", "row": 3, "col": 4, "category": "ruins", "role": "accent" },
-    { "name": "coral_stone_platform", "row": 4, "col": 0, "category": "ruins", "role": "aquariumDetail" },
-    { "name": "plant_stone_platform", "row": 4, "col": 1, "category": "ruins", "role": "aquariumDetail" },
-    { "name": "small_carved_block_filler", "row": 4, "col": 2, "category": "ruins", "role": "filler" },
-    { "name": "narrow_vertical_pillar_filler", "row": 4, "col": 3, "category": "ruins", "role": "filler" },
-    { "name": "tiny_rubble_plant_filler", "row": 4, "col": 4, "category": "ruins", "role": "filler" }
+    {
+      "name": "broken_tablet",
+      "row": 3,
+      "col": 0,
+      "sourceRect": { "x": 60, "y": 794, "w": 170, "h": 194 },
+      "category": "ruins",
+      "role": "accent"
+    },
+    {
+      "name": "statue_head",
+      "row": 3,
+      "col": 1,
+      "sourceRect": { "x": 291, "y": 797, "w": 163, "h": 193 },
+      "category": "ruins",
+      "role": "accent"
+    },
+    {
+      "name": "broken_column_lying_down",
+      "row": 3,
+      "col": 2,
+      "sourceRect": { "x": 510, "y": 842, "w": 218, "h": 137 },
+      "category": "ruins",
+      "role": "accent"
+    },
+    {
+      "name": "rubble_pile",
+      "row": 3,
+      "col": 3,
+      "sourceRect": { "x": 769, "y": 856, "w": 189, "h": 127 },
+      "category": "ruins",
+      "role": "accent"
+    },
+    {
+      "name": "mossy_stones_cluster",
+      "row": 3,
+      "col": 4,
+      "sourceRect": { "x": 1001, "y": 840, "w": 191, "h": 144 },
+      "category": "ruins",
+      "role": "accent"
+    },
+    {
+      "name": "coral_stone_platform",
+      "row": 4,
+      "col": 0,
+      "sourceRect": { "x": 51, "y": 1027, "w": 213, "h": 174 },
+      "category": "ruins",
+      "role": "aquariumDetail"
+    },
+    {
+      "name": "plant_stone_platform",
+      "row": 4,
+      "col": 1,
+      "sourceRect": { "x": 313, "y": 1019, "w": 199, "h": 182 },
+      "category": "ruins",
+      "role": "aquariumDetail"
+    },
+    {
+      "name": "small_carved_block_filler",
+      "row": 4,
+      "col": 2,
+      "sourceRect": { "x": 587, "y": 1073, "w": 120, "h": 126 },
+      "category": "ruins",
+      "role": "filler"
+    },
+    {
+      "name": "narrow_vertical_pillar_filler",
+      "row": 4,
+      "col": 3,
+      "sourceRect": { "x": 829, "y": 1033, "w": 84, "h": 166 },
+      "category": "ruins",
+      "role": "filler"
+    },
+    {
+      "name": "tiny_rubble_plant_filler",
+      "row": 4,
+      "col": 4,
+      "sourceRect": { "x": 1009, "y": 1095, "w": 160, "h": 103 },
+      "category": "ruins",
+      "role": "filler"
+    }
   ],
   "recipes": {
     "column_short": [
@@ -215,7 +296,7 @@
       { "sprite": "broken_column_top", "from": "bottom", "toPrevious": "top" }
     ],
     "wall_stack_plain": [
-      { "sprite": "wall_base_segment", "attach": "top" },
+      { "sprite": "wall_middle_repeat_segment", "attach": "top" },
       { "sprite": "wall_middle_repeat_segment", "from": "bottom", "toPrevious": "top" },
       { "sprite": "wall_top_cap_segment", "from": "bottom", "toPrevious": "top" }
     ],
@@ -224,12 +305,15 @@
       { "sprite": "wall_middle_repeat_segment", "from": "left", "toPrevious": "right" },
       { "sprite": "wall_right_end_corner", "from": "left", "toPrevious": "right" }
     ],
+    "wall_run_long": [
+      { "sprite": "wall_left_end_corner", "attach": "right" },
+      { "sprite": "wall_middle_repeat_segment", "from": "left", "toPrevious": "right" },
+      { "sprite": "wall_middle_repeat_segment", "from": "left", "toPrevious": "right" },
+      { "sprite": "wall_right_end_corner", "from": "left", "toPrevious": "right" }
+    ],
     "arch_full": [
-      { "sprite": "arch_left_support", "attach": "curve" },
-      { "sprite": "arch_curve_left", "from": "left", "toPrevious": "curve" },
-      { "sprite": "arch_curve_center_keystone", "from": "left", "toPrevious": "right" },
-      { "sprite": "arch_curve_right", "from": "left", "toPrevious": "right" },
-      { "sprite": "arch_right_support", "from": "curve", "toPrevious": "right" }
+      { "sprite": "arch_left_support", "attach": "right" },
+      { "sprite": "arch_right_support", "from": "left", "toPrevious": "right" }
     ]
   }
 }

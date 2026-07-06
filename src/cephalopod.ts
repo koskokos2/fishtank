@@ -6,28 +6,19 @@
 //    held still; between rests it hops a short way, cycling a baked arm-sway loop
 //    only while moving; and now and then pushes off into a short pulse-glide swim
 //    (single pulse/glide poses), then settles back onto the substrate.
-//  - Nautilus: one sea-creature atlas cell with a baked tentacle-wiggle sheet
-//    (like the fish tail-swish). Pulsatile jet — posterior-first most of the time,
-//    occasional anterior-first amble, with a squash-flip turnaround.
-//  - Jellyfish: one sea-creature atlas cell with a baked horizontal tentacle sway
-//    plus a runtime bell-pulse squash; rises in pulses and sinks between, upright.
+//  - Nautilus: a baked 16-pose atlas (src/nautilusAtlas.ts). Its rigid shell is
+//    anchor-stable while authored head, siphon, and tentacle poses follow the
+//    arms-first cruise / tail-first jet machine and tuck through turnarounds.
+//  - Jellyfish: a baked 16-pose atlas (src/jellyfishAtlas.ts), octopus-style: the
+//    pulse machine picks a frame per update — the bell-pulse cycle synced to the
+//    thrust, streaming glide poses while fast, hover variety while drifting, turn
+//    rolls through flips, and a rare flare-then-recoil startle.
 
 import type { KAPLAYCtx } from "kaplay";
-import {
-  SEA_CREATURES_ATLAS,
-  SEA_CREATURES_ATLAS_CELL,
-  SEA_CREATURES_ATLAS_COLS,
-  SEA_CREATURE_NAUTILUS_INDEX,
-  SEA_CREATURE_JELLYFISH_INDEX,
-} from "./seaCreaturesAtlas";
 import { OCTOPUS_IDLE_FRAMES, OCTOPUS_POSE } from "./octopusAtlas";
+import { JELLYFISH_POSE } from "./jellyfishAtlas";
+import { NAUTILUS_POSE } from "./nautilusAtlas";
 import { sandTopAt } from "./backdrop";
-import {
-  type Buf,
-  SWIM_FRAMES,
-  cellBBox,
-  copyRect,
-} from "./fishbake";
 import { RES } from "./res";
 
 const S = RES;
@@ -64,154 +55,39 @@ const SAND_PUFF: [number, number, number][] = [
   [206, 176, 110],
 ];
 
-// =========================== NAUTILUS ===========================
-// The nautilus starts as one native 128px atlas cell, then gets the same kind of
-// no-resampling frame bake as fish. Only the lower-left tentacle region flexes;
-// the shell and head remain rigid.
-export const NAUTILUS_FRAMES = SWIM_FRAMES;
-const NAUT_TENTACLE_AMP = 4;
-const NAUT_TENTACLE_PIVOT = 0.46;
-const NAUT_TENTACLE_PAD = NAUT_TENTACLE_AMP;
+// =========================== NAUTILUS ART ===========================
+// The rigid shell is normalized to one anchor in every atlas cell. The motion
+// machine selects authored soft-body poses around it: exploratory hover, extended
+// arms-first cruise, siphon anticipation, power jet, recovery, glide, and tuck.
+const NAUT_IDLE_FPS = 1.35;
+const NAUT_TURN_HOLD = 0.5;
+const NAUT_JET_POWER = 0.18;
+const NAUT_JET_RECOVER = 0.48;
+const NAUT_JET_ANTICIPATE = 0.55;
+const NAUT_GLIDE_REF = 18 * S;
+const NAUT_IDLE_LOOP = [
+  NAUTILUS_POSE.relaxedHover,
+  NAUTILUS_POSE.wideExplore,
+  NAUTILUS_POSE.tentacleCurl,
+  NAUTILUS_POSE.loopReturn,
+] as const;
 
-export async function makeNautilusSprite(): Promise<string> {
-  return bufToDataURL(tentacleSheet(await cropAtlasCell(SEA_CREATURE_NAUTILUS_INDEX)));
-}
-
-// Crop one sea-creature atlas cell to a tight RGBA buffer (no resampling), the
-// shared starting point for the nautilus and jellyfish animation bakes.
-async function cropAtlasCell(index: number): Promise<Buf> {
-  const img = await loadImage(SEA_CREATURES_ATLAS);
-  const cell = SEA_CREATURES_ATLAS_CELL;
-  const col = index % SEA_CREATURES_ATLAS_COLS;
-  const row = Math.floor(index / SEA_CREATURES_ATLAS_COLS);
-
-  const scratch = document.createElement("canvas");
-  scratch.width = img.width;
-  scratch.height = img.height;
-  const sctx = scratch.getContext("2d")!;
-  sctx.drawImage(img, 0, 0);
-  const full = new Uint8Array(
-    sctx.getImageData(0, 0, img.width, img.height).data.buffer,
-  );
-
-  const bb = cellBBox(full, img.width, col * cell, row * cell, cell);
-  return copyRect(full, img.width, bb.x, bb.y, bb.bw, bb.bh);
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const im = new Image();
-    im.onload = () => resolve(im);
-    im.onerror = reject;
-    im.src = src;
-  });
-}
-
-function bufToDataURL(b: Buf): string {
-  const canvas = document.createElement("canvas");
-  canvas.width = b.w;
-  canvas.height = b.h;
-  const ctx = canvas.getContext("2d")!;
-  const id = ctx.createImageData(b.w, b.h);
-  id.data.set(b.data);
-  ctx.putImageData(id, 0, 0);
-  return canvas.toDataURL();
-}
-
-function tentacleShift(x: number, y: number, w: number, h: number, f: number): number {
-  const pivot = w * NAUT_TENTACLE_PIVOT;
-  if (x >= pivot || y < h * 0.36) return 0;
-
-  const front = (pivot - x) / Math.max(1, pivot);
-  const lower = Math.min(1, Math.max(0, (y - h * 0.36) / (h * 0.42)));
-  const phase = (2 * Math.PI * f) / NAUTILUS_FRAMES;
-  return Math.round(
-    NAUT_TENTACLE_AMP *
-      front *
-      lower *
-      Math.sin(phase + Math.PI * front + y * 0.12),
-  );
-}
-
-function tentacleSheet(nautilus: Buf): Buf {
-  const fh = nautilus.h + NAUT_TENTACLE_PAD * 2;
-  const sheetW = nautilus.w * NAUTILUS_FRAMES;
-  const data = new Uint8Array(sheetW * fh * 4);
-
-  for (let f = 0; f < NAUTILUS_FRAMES; f++) {
-    const ox = f * nautilus.w;
-    for (let x = 0; x < nautilus.w; x++) {
-      for (let y = 0; y < nautilus.h; y++) {
-        const si = (y * nautilus.w + x) * 4;
-        if (nautilus.data[si + 3] === 0) continue;
-        const dy =
-          y +
-          NAUT_TENTACLE_PAD +
-          tentacleShift(x, y, nautilus.w, nautilus.h, f);
-        if (dy < 0 || dy >= fh) continue;
-        const di = (dy * sheetW + ox + x) * 4;
-        data[di] = nautilus.data[si];
-        data[di + 1] = nautilus.data[si + 1];
-        data[di + 2] = nautilus.data[si + 2];
-        data[di + 3] = nautilus.data[si + 3];
-      }
-    }
-  }
-
-  return { data, w: sheetW, h: fh };
-}
-
-// =========================== JELLYFISH ===========================
-// One native atlas cell (a translucent bell with tentacles hanging straight down).
-// The rigid bell stays put; the tentacle curtain below the bell margin sways as a
-// full-width travelling wave — whole-pixel horizontal column shifts, so the art
-// stays crisp like the fish/nautilus bakes. The bell *pulse* (the propulsive
-// squash) is not baked: it's a runtime scale.y squash in spawnCephalopod, synced
-// to the thrust so pump and propulsion read as one motion.
-export const JELLYFISH_FRAMES = SWIM_FRAMES;
-const JELLY_TENTACLE_AMP = 4; // peak sideways tip swing, in native sprite pixels
-const JELLY_BELL_MARGIN = 0.42; // body fraction (from the top) where tentacles begin
-const JELLY_TENTACLE_PAD = JELLY_TENTACLE_AMP;
-
-export async function makeJellyfishSprite(): Promise<string> {
-  return bufToDataURL(jellyTentacleSheet(await cropAtlasCell(SEA_CREATURE_JELLYFISH_INDEX)));
-}
-
-// Sideways shift for column `x` at row `y`: zero in the bell, growing toward the
-// tentacle tips, phase lagging with depth so the curtain undulates as it streams.
-function jellyShift(y: number, h: number, f: number): number {
-  if (y < h * JELLY_BELL_MARGIN) return 0;
-  const lower = Math.min(1, (y - h * JELLY_BELL_MARGIN) / (h * (1 - JELLY_BELL_MARGIN)));
-  const phase = (2 * Math.PI * f) / JELLYFISH_FRAMES;
-  return Math.round(JELLY_TENTACLE_AMP * lower * Math.sin(phase - 2.4 * lower));
-}
-
-// Exported so the headless previewer can bake the same tentacle frames the app does.
-export function jellyTentacleSheet(jelly: Buf): Buf {
-  const fw = jelly.w + JELLY_TENTACLE_PAD * 2;
-  const sheetW = fw * JELLYFISH_FRAMES;
-  const data = new Uint8Array(sheetW * jelly.h * 4);
-
-  for (let f = 0; f < JELLYFISH_FRAMES; f++) {
-    const ox = f * fw;
-    for (let y = 0; y < jelly.h; y++) {
-      const shift = jellyShift(y, jelly.h, f);
-      for (let x = 0; x < jelly.w; x++) {
-        const si = (y * jelly.w + x) * 4;
-        if (jelly.data[si + 3] === 0) continue;
-        const dx = x + JELLY_TENTACLE_PAD + shift;
-        if (dx < 0 || dx >= fw) continue;
-        const di = (y * sheetW + ox + dx) * 4;
-        data[di] = jelly.data[si];
-        data[di + 1] = jelly.data[si + 1];
-        data[di + 2] = jelly.data[si + 2];
-        data[di + 3] = jelly.data[si + 3];
-      }
-    }
-  }
-
-  return { data, w: sheetW, h: jelly.h };
-}
+// =========================== JELLYFISH ART ===========================
+// The jellyfish is a baked 16-pose atlas (src/jellyfishAtlas.ts, from
+// art/jellyfish-atlas-128.png): the four-frame bell-pulse cycle, streaming glide
+// poses, hover variety, turn rolls, and a flare/recoil. Like the octopus, the
+// pulse machine below picks one frame per update — no runtime deformation. The
+// art leads right (tentacles trail left), unlike the left-facing fish atlases.
+const JELLY_IDLE_FPS = 0.65; // calm ambient hover-variety loop speed
+const JELLY_TURN_DUR = 0.55; // tuck/roll duration; flip happens halfway through
+const JELLY_FLARE = 0.5; // s the oral-arms flare shows before a startle retreat
+// Closely related upright poses only. This loop runs on a local coast clock, so
+// returning from a pulse always lands on relaxedOpen instead of an arbitrary pose.
+const JELLY_IDLE_LOOP = [
+  JELLYFISH_POSE.relaxedOpen,
+  JELLYFISH_POSE.hoverCenter,
+  JELLYFISH_POSE.loopReturn,
+] as const;
 
 // =========================== ENTITY ===========================
 type KindCfg = {
@@ -219,8 +95,7 @@ type KindCfg = {
   z: number;
   drag: number; // water resistance bleeding every glide
   level: { min: number; max: number }; // preferred vertical band (fractions)
-  anim?: string; // sprite-sheet anim to loop (the nautilus/jellyfish atlas)
-  refSpeed?: number; // speed that fully ramps the looped atlas anim (nautilus/jelly)
+  artDir?: 1 | -1; // native sprite heading; the atlases face left (-1, default)
   motion: "jet" | "crawl" | "pulse";
   // jet kind (nautilus): arms-first cruise + tail-first pulse, weighted by bias.
   cruise?: number;
@@ -236,7 +111,11 @@ type KindCfg = {
     // On arriving at a hop it parks and rests: usually `secs`, but with `longChance`
     // a longer `longSecs` rest. A resting octopus holds still (arms still sway) and
     // won't push off for a swim, so long rests actually last.
-    rest: { secs: [number, number]; longSecs: [number, number]; longChance: number };
+    rest: {
+      secs: [number, number];
+      longSecs: [number, number];
+      longChance: number;
+    };
     swimEvery: [number, number]; // cooldown between swim bouts (s), accrued while moving
     gather: number; // wind-up (bunch) duration (s)
     thrust: number; // power-stroke pose hold (s)
@@ -251,10 +130,10 @@ type KindCfg = {
     roamSecs: [number, number]; // how long it swims around before settling (s)
     roamHover: [number, number]; // px clearance kept above the sand while roaming
   };
-  // pulse kind (jellyfish): rhythmic bell-pump propulsion. Each cycle is
-  // contraction (active power stroke, main thrust) → relaxation (elastic recoil,
-  // a smaller "passive energy recapture" thrust) → interpulse (coast + slow sink).
-  // The bell squashes vertically on the power stroke, synced to the thrust.
+  // pulse kind (jellyfish): rhythmic bell-pump propulsion, shown with the baked
+  // pose frames. Each cycle is contraction (active power stroke, main thrust) →
+  // relaxation (elastic recoil, a smaller "passive energy recapture" thrust) →
+  // interpulse (coast + slow sink).
   pulse?: {
     contract: number; // power-stroke duration (s)
     relax: number; // elastic-recoil duration (s)
@@ -264,8 +143,10 @@ type KindCfg = {
     sink: number; // negative buoyancy — slow drift down between pulses
     drift: number; // gentle sideways sway speed (weak horizontal control)
     driftX?: number; // directed horizontal impulse toward roam target tx
-    squash: number; // bell scale.y at full contraction (≤ 1)
     roam: [number, number]; // how often it picks a new target depth (s)
+    // Rare startle: oral arms flare, then quick recoil pulses drive it up and
+    // away — an occasional accent event, like the octopus's swim bouts.
+    startle: { every: [number, number]; boost: number };
   };
 };
 
@@ -296,10 +177,8 @@ const KINDS: Record<string, KindCfg> = {
   nautilus: {
     sprite: "nautilus",
     z: 16,
-    refSpeed: 18 * S,
     drag: 1.1,
     level: { min: 0.08, max: 0.78 },
-    anim: "idle", // loop the 12-frame atlas; tentacles are baked in
     motion: "jet",
     cruise: 7 * S, // slow anterior-first amble
     segCruise: [5, 9],
@@ -311,22 +190,21 @@ const KINDS: Record<string, KindCfg> = {
   jellyfish: {
     sprite: "jellyfish",
     z: 15,
-    refSpeed: 40 * S, // scales tentacle-anim speed with bell activity
     drag: 1.6,
     level: { min: 0.05, max: 0.7 }, // drifts the mid/upper column
-    anim: "idle", // loop the tentacle-sway frames; the bell pulse is a runtime squash
+    artDir: 1, // the jellyfish atlas leads right — tentacles trail left
     motion: "pulse",
     pulse: {
-      contract: 0.32, // quick active power stroke
-      relax: 0.85, // slower elastic recoil
-      coast: [0.5, 1.4], // pause and coast before the next pump
+      contract: 0.4, // readable active power stroke (two held poses)
+      relax: 1.0, // slower three-pose elastic recoil / follow-through
+      coast: [0.8, 1.7], // unhurried pause before the next pump
       thrust: 34 * S,
       per: 0.32, // passive energy recapture ≈ a third of the active push
       sink: 9 * S, // slowly settles between pulses
       drift: 5 * S, // barely steers sideways
-      driftX: 14 * S, // directed horizontal drift toward roam tx
-      squash: 0.8,
+      driftX: 10 * S, // directed horizontal impulse toward roam target tx
       roam: [4, 8],
+      startle: { every: [30, 90], boost: 1.7 }, // rare flare-then-recoil retreat
     },
   },
 };
@@ -375,8 +253,14 @@ export function spawnSandPuff(
       vy -= vy * drag * dt;
       g.pos.x += vx * dt;
       g.pos.y += vy * dt;
-      if (age > 0.6 * settleMul) g.opacity -= dt * (0.7 / Math.max(0.01, settleMul)); // hold, then fade as it settles
-      if ((vy > 0 && g.pos.y >= originY) || age > 2.4 * settleMul || g.opacity <= 0) g.destroy();
+      if (age > 0.6 * settleMul)
+        g.opacity -= dt * (0.7 / Math.max(0.01, settleMul)); // hold, then fade as it settles
+      if (
+        (vy > 0 && g.pos.y >= originY) ||
+        age > 2.4 * settleMul ||
+        g.opacity <= 0
+      )
+        g.destroy();
     });
   }
 }
@@ -389,7 +273,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const bandBot = () => minY + (maxY() - minY) * cfg.level.max;
   // Octopus only: the seated height on the sand contour at column x — its body
   // centre rides OCTO_SIT above the dune so the arms drape onto the ground.
-  const groundY = (x: number) => sandTopAt(clamp(x, 0, k.width() - 1)) - OCTO_SIT;
+  const groundY = (x: number) =>
+    sandTopAt(clamp(x, 0, k.width() - 1)) - OCTO_SIT;
 
   const body = k.add([
     k.sprite(cfg.sprite),
@@ -415,6 +300,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let depth = py;
   let segTimer = k.rand(cfg.segCruise?.[0] ?? 3, cfg.segCruise?.[1] ?? 6);
   let jetTimer = 0;
+  let nautJetAge = Infinity; // seconds since the last impulse (power → recovery)
+  let nautTurnTimer = 0; // tuck the head and arms while flipX changes heading
+  const nautIdlePhase = k.rand(0, NAUT_IDLE_LOOP.length);
 
   // crawl-kind (octopus) state: a crawl target, and a swim sub-machine for the
   // occasional pulse-glide bout.
@@ -444,20 +332,46 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     k.rand(cfg.crawl?.swimEvery[0] ?? 6, cfg.crawl?.swimEvery[1] ?? 12) * tempo;
   let crawlPuffTimer = k.rand(0.12, 0.25);
 
-  // pulse-kind (jellyfish) state: a 3-phase bell-pump cycle and the live bell
-  // squash it drives.
+  // pulse-kind (jellyfish) state: a 3-phase bell-pump cycle plus the pose picks
+  // it drives — dedicated turns, the rare startle, and the ambient hover loop.
   let pulsePhase: 0 | 1 | 2 = 2; // 0 contract, 1 relax, 2 coast
-  let pulseTimer = k.rand(cfg.pulse?.coast[0] ?? 0.5, cfg.pulse?.coast[1] ?? 1.4);
-  let bellSquash = 1; // current scale.y (≤ 1; 1 = relaxed bell)
+  let pulseTimer = k.rand(
+    cfg.pulse?.coast[0] ?? 0.5,
+    cfg.pulse?.coast[1] ?? 1.4,
+  );
+  let pulseStrong = false; // this contraction is a full climbing stroke
+  let jellyTurnTimer = 0; // dedicated turn state; pauses the pump until complete
+  let jellyTurnTarget = facing;
+  let jellyTurnFlipped = false;
+  let jellyIdleClock = 0; // local coast clock; resets after each pulse
+  let flareTimer = 0; // startle wind-up: oral arms flare before the retreat
+  let startlePulses = 0; // quick recoil pulses left in the current startle
+  let recoilNow = false; // the current pulse is a startle recoil
+  let startleTimer = k.rand(
+    cfg.pulse?.startle.every[0] ?? 30,
+    cfg.pulse?.startle.every[1] ?? 90,
+  );
   if (cfg.motion === "pulse") roamTimer = 0; // pick tx and depth on first update
 
-  body.flipX = facing > 0;
-  if (cfg.anim) body.play(cfg.anim); // loop the atlas animation (nautilus)
+  const artDir = cfg.artDir ?? -1;
+  body.flipX = facing !== artDir;
+  if (cfg.motion === "jet") body.frame = NAUTILUS_POSE.relaxedHover;
 
   const beginTurn = (nf: number) => {
     if (nf === facing) return;
     facing = nf;
-    body.flipX = facing > 0;
+    body.flipX = facing !== artDir;
+    if (cfg.motion === "jet") nautTurnTimer = NAUT_TURN_HOLD;
+  };
+
+  // A jellyfish turn is a visible state rather than an immediate flip. The first
+  // half rolls in the old direction, flipX changes at midpoint, and the second
+  // half settles in the new direction. Pulse timing pauses for the whole turn.
+  const requestJellyTurn = (nf: number) => {
+    if (nf === facing || (jellyTurnTimer > 0 && nf === jellyTurnTarget)) return;
+    jellyTurnTarget = nf;
+    jellyTurnTimer = JELLY_TURN_DUR;
+    jellyTurnFlipped = false;
   };
 
   // Nautilus: start a new arms-first cruise or tail-first jet segment. Heading
@@ -473,8 +387,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     segTimer = arms
       ? k.rand(cfg.segCruise![0], cfg.segCruise![1])
       : k.rand(cfg.segJet![0], cfg.segJet![1]);
-    jetTimer = 0;
-    beginTurn(arms ? heading : -heading);
+    const nextFacing = arms ? heading : -heading;
+    const turning = nextFacing !== facing;
+    beginTurn(nextFacing);
+    // Do not spend the first tail-first impulse inside the tucked turn pose. If a
+    // flip is needed, wind up through the turn and fire as it finishes; otherwise
+    // the new segment can pulse immediately.
+    jetTimer = !arms && turning ? NAUT_TURN_HOLD : 0;
   };
 
   body.onUpdate(() => {
@@ -483,6 +402,17 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     const mX = 40 * S;
     let allowPitch = true; // crawl forces this off; swim turns it back on
     let buryNow = 0; // octopus: current press-into-sand depth (px), eases to 0
+    if (cfg.motion === "jet") {
+      nautTurnTimer = Math.max(0, nautTurnTimer - dt);
+      nautJetAge += dt;
+    }
+    if (cfg.motion === "pulse" && jellyTurnTimer > 0) {
+      jellyTurnTimer = Math.max(0, jellyTurnTimer - dt);
+      if (!jellyTurnFlipped && jellyTurnTimer <= JELLY_TURN_DUR * 0.5) {
+        beginTurn(jellyTurnTarget);
+        jellyTurnFlipped = true;
+      }
+    }
 
     if (cfg.motion === "crawl") {
       // OCTOPUS: a benthic crawler. It hops a short way along the sand, then parks
@@ -503,8 +433,16 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           if (restTimer <= 0) {
             // rest over → hop a moderate way along the sand (biased off the walls)
             const dir =
-              px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
-            tx = clamp(px + dir * k.rand(60 * S, cr.hop) * tempo, mX, k.width() - mX);
+              px < mX * 2
+                ? 1
+                : px > k.width() - mX * 2
+                  ? -1
+                  : k.choose([-1, 1]);
+            tx = clamp(
+              px + dir * k.rand(60 * S, cr.hop) * tempo,
+              mX,
+              k.width() - mX,
+            );
             if (dir !== facing) curlTimer = 0.5; // curl its arms through the turn
             beginTurn(dir);
           }
@@ -546,18 +484,28 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             descending = false;
             pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
             swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
-            swimRoamLeft = swimRoaming ? k.rand(cr.roamSecs[0], cr.roamSecs[1]) : 0;
+            swimRoamLeft = swimRoaming
+              ? k.rand(cr.roamSecs[0], cr.roamSecs[1])
+              : 0;
             swimHover = k.rand(cr.roamHover[0], cr.roamHover[1]);
             swimVigorous = swimRoaming || pulsesLeft >= 2; // energetic pose row
             swimDir =
-              px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+              px < mX * 2
+                ? 1
+                : px > k.width() - mX * 2
+                  ? -1
+                  : k.choose([-1, 1]);
             if (swimDir !== facing) curlTimer = 0.4; // curl through the launch turn
             beginTurn(swimDir);
           }
         }
         // ride the sand contour: a P-controller eases py to the seated ground height
         // (offset down by buryNow right after a landing, so it presses in and recovers)
-        vy = clamp((groundY(px) + buryNow - py) * 8, -cr.speed * 4, cr.speed * 4);
+        vy = clamp(
+          (groundY(px) + buryNow - py) * 8,
+          -cr.speed * 4,
+          cr.speed * 4,
+        );
       } else {
         // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
         // (glide). After the last pulse a single dive glides back down to the sand;
@@ -587,7 +535,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
               // A roamer only lifts until it reaches its hover line above the sand,
               // then strokes are horizontal (no gravity here, so altitude holds).
               const hoverY = groundY(px) - swimHover;
-              const climb = swimRoaming ? clamp((py - hoverY) / (30 * S), 0, 1) : 1;
+              const climb = swimRoaming
+                ? clamp((py - hoverY) / (30 * S), 0, 1)
+                : 1;
               vy -= cr.impulse * cr.vert * climb;
             }
           }
@@ -616,7 +566,11 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
                 swimSub = "gather";
                 subTimer = cr.gather;
                 const dir =
-                  px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+                  px < mX * 2
+                    ? 1
+                    : px > k.width() - mX * 2
+                      ? -1
+                      : k.choose([-1, 1]);
                 if (dir !== swimDir) curlTimer = 0.4; // curl through the turn
                 swimDir = dir;
                 beginTurn(dir);
@@ -644,7 +598,14 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             octoMode = "crawl";
             descending = false;
             // touchdown: kick up a puff of sand and press the body into it
-            spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)), 2, 2, 2);
+            spawnSandPuff(
+              k,
+              px,
+              sandTopAt(clamp(px, 0, k.width() - 1)),
+              2,
+              2,
+              2,
+            );
             buryTimer = BURY_DUR;
             restLong = false;
             restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
@@ -657,8 +618,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     } else if (cfg.motion === "pulse") {
       // JELLYFISH: a rhythmic bell-pump. Each cycle is contraction (main upward
       // thrust) → relaxation (a smaller passive-recapture thrust) → coast. Between
-      // pulses it sinks slowly (negative buoyancy); the bell squash tracks the
-      // phase so the pump you see is the push that moves it.
+      // pulses it sinks slowly (negative buoyancy); the baked pulse-cycle frames
+      // track the phase so the pump you see is the push that moves it.
       const p = cfg.pulse!;
       // How much it still needs to climb toward its target depth: 1 = well below
       // (pulse up hard), 0 = at or above it (no lift — just hover and sink). This
@@ -667,35 +628,79 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       const climb = clamp((py - depth) / (40 * S), 0, 1);
 
       roamTimer -= dt;
-      if (roamTimer <= 0) {
+      // Pick a fresh destination on arrival instead of crossing the old target and
+      // reversing thrust while the sprite is still visibly facing the other way.
+      if (Math.abs(tx - px) < 12 * S && jellyTurnTimer <= 0) roamTimer = 0;
+      if (roamTimer <= 0 && jellyTurnTimer <= 0) {
         roamTimer = k.rand(p.roam[0], p.roam[1]);
         depth = k.rand(bandTop(), bandBot()); // roam the column
         tx = k.rand(mX, k.width() - mX); // pick a new horizontal target alongside depth
+        const dir = tx > px ? 1 : -1;
+        if (dir !== facing) requestJellyTurn(dir);
       }
 
-      pulseTimer -= dt;
-      if (pulseTimer <= 0) {
-        if (pulsePhase === 2) {
-          pulsePhase = 0; // coast → contract: the active power stroke
-          pulseTimer = p.contract;
-          vy -= p.thrust * climb; // only push up as much as it needs to climb
-          vx += Math.sign(tx - px) * (p.driftX ?? p.drift); // steer toward horizontal roam target
-        } else if (pulsePhase === 0) {
-          pulsePhase = 1; // contract → relax: the free passive-recapture push
-          pulseTimer = p.relax;
-          vy -= p.thrust * p.per * climb;
-        } else {
-          pulsePhase = 2; // relax → coast — rest longer when it isn't climbing
-          pulseTimer = k.rand(p.coast[0], p.coast[1]) * (1.6 - climb);
+      // Rare startle: flare the oral arms mid-coast, then spring away with quick
+      // boosted recoil pulses. The flare pauses the pump; its expiry zeroes the
+      // coast so the first recoil pulse fires immediately.
+      startleTimer -= dt;
+      if (
+        startleTimer <= 0 &&
+        pulsePhase === 2 &&
+        startlePulses === 0 &&
+        jellyTurnTimer <= 0
+      ) {
+        flareTimer = JELLY_FLARE;
+        startlePulses = 2;
+        startleTimer = k.rand(p.startle.every[0], p.startle.every[1]);
+      }
+
+      if (flareTimer > 0) {
+        flareTimer -= dt;
+        if (flareTimer <= 0) pulseTimer = 0;
+      } else if (jellyTurnTimer <= 0) {
+        pulseTimer -= dt;
+        if (pulseTimer <= 0) {
+          if (pulsePhase === 2) {
+            const willRecoil = startlePulses > 0;
+            const away = px > k.width() / 2 ? -1 : 1; // retreat toward open water
+            // If a startle needs a reversal, finish the visible turn before firing
+            // the recoil. pulseTimer stays at zero and resumes immediately after.
+            if (willRecoil && away !== facing) {
+              requestJellyTurn(away);
+              pulseTimer = 0;
+            } else {
+              pulsePhase = 0; // coast → contract: the active power stroke
+              pulseTimer = p.contract;
+              recoilNow = willRecoil;
+              if (recoilNow) {
+                startlePulses -= 1;
+                vy -= p.thrust * p.startle.boost;
+                vx += away * p.thrust * 0.5;
+                pulseStrong = true;
+              } else {
+                vy -= p.thrust * climb; // only push up as much as it needs to climb
+                vx += facing * (p.driftX ?? p.drift); // steer in the visible direction
+                pulseStrong = climb > 0.7; // reserve the drastic tight pose for a hard climb
+              }
+            }
+          } else if (pulsePhase === 0) {
+            pulsePhase = 1; // contract → relax: the free passive-recapture push
+            pulseTimer = p.relax;
+            vy -= p.thrust * p.per * climb;
+          } else {
+            pulsePhase = 2; // relax → coast — rest longer when it isn't climbing
+            recoilNow = false;
+            jellyIdleClock = 0;
+            pulseTimer =
+              startlePulses > 0
+                ? 0.22 // barely coast between the recoil pulses
+                : k.rand(p.coast[0], p.coast[1]) * (1.6 - climb);
+          }
         }
       }
 
-      // Squash fast on the power stroke, ease back over the relaxation/coast. The
-      // stroke softens when it isn't climbing, so a hovering jelly only breathes.
-      const target =
-        pulsePhase === 0 ? 1 - (1 - p.squash) * Math.max(0.3, climb) : 1;
-      const rate = pulsePhase === 0 ? 18 : 6;
-      bellSquash += (target - bellSquash) * (1 - Math.exp(-rate * dt));
+      if (pulsePhase === 2 && flareTimer <= 0 && jellyTurnTimer <= 0)
+        jellyIdleClock += dt;
 
       vy += p.sink * dt; // always sinking a touch; the pulses fight it
       vx += Math.sign(k.width() / 2 - px) * p.drift * 0.3 * dt; // bias off the walls
@@ -713,6 +718,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           vx += heading * cfg.jet!.impulse;
           const v = cfg.jet!.impulse * cfg.jet!.vert;
           vy += clamp((depth - py) * 1.5, -v, v);
+          nautJetAge = 0;
         }
       }
       vy += clamp((depth - py) * 0.8, -14 * S, 14 * S) * dt;
@@ -753,8 +759,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     // Jellyfish tilts lazily toward its horizontal travel direction; all other
     // creatures either pitch into their travel slope (gliding) or stay level.
     if (cfg.motion === "pulse") {
-      const jellyTilt = clamp(vx / (10 * S), -1, 1) * 12; // ±12° based on lateral speed
-      ang += (jellyTilt - ang) * (1 - Math.exp(-4 * dt)); // responsive lean
+      const jellyTilt = clamp(vx / (12 * S), -1, 1) * 4; // poses already carry directional lean
+      ang += (jellyTilt - ang) * (1 - Math.exp(-2.5 * dt));
     } else {
       const travelDir = vx >= 0 ? 1 : -1;
       const slope = allowPitch
@@ -766,10 +772,82 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
 
     body.pos.x = Math.round(px);
     body.pos.y = Math.round(py);
-    body.angle = cfg.motion === "pulse"
-      ? ang // smooth tilt — no snap; jellyfish is radially symmetric
-      : Math.round(ang / TILT_STEP) * TILT_STEP;
-    if (cfg.motion === "pulse") body.scale.y = bellSquash; // the bell pump
+    body.angle =
+      cfg.motion === "pulse"
+        ? ang // smooth tilt — no snap; jellyfish is radially symmetric
+        : Math.round(ang / TILT_STEP) * TILT_STEP;
+
+    // Jellyfish: phase-driven pose sequence with deliberate holds. Instantaneous
+    // speed can no longer flicker among unrelated silhouettes; turns override and
+    // pause the pump, and each coast begins from one known relaxed pose.
+    if (cfg.motion === "pulse") {
+      const P = JELLYFISH_POSE;
+      const p = cfg.pulse!;
+      let frame: number;
+      if (flareTimer > 0) frame = P.oralArmsFlare;
+      else if (jellyTurnTimer > 0) {
+        const turnT = 1 - jellyTurnTimer / JELLY_TURN_DUR;
+        frame = turnT < 0.5 ? P.bellRoll : P.hoverTurn;
+      } else if (pulsePhase === 0) {
+        const t = 1 - pulseTimer / p.contract;
+        frame = recoilNow
+          ? P.recoil
+          : t >= 0.58 && pulseStrong
+            ? P.contractTight
+            : P.contractEarly;
+      } else if (pulsePhase === 1) {
+        const t = 1 - pulseTimer / p.relax;
+        if (t < 0.34) frame = P.reopen;
+        else if (t < 0.68)
+          frame = recoilNow ? P.tentaclesStream : P.oralArmsFollow;
+        else frame = pulseStrong ? P.glideSweep : P.recover;
+      } else {
+        frame =
+          JELLY_IDLE_LOOP[
+            Math.floor(jellyIdleClock * JELLY_IDLE_FPS) %
+              JELLY_IDLE_LOOP.length
+          ];
+      }
+      body.frame = frame;
+    }
+
+    // Nautilus: select poses from propulsion and steering state rather than
+    // looping the contact sheet. Tail-first jet segments show a visible siphon
+    // wind-up, power plume, and recovery; arms-first segments use exploratory and
+    // streaming poses, while turns tuck the vulnerable head and tentacles.
+    if (cfg.motion === "jet") {
+      const P = NAUTILUS_POSE;
+      const speedN = Math.min(1, Math.hypot(vx, vy) / NAUT_GLIDE_REF);
+      let frame: number;
+      if (nautTurnTimer > 0) {
+        const turnT = nautTurnTimer / NAUT_TURN_HOLD;
+        frame = turnT > 0.55 ? P.defensiveTuck : P.headRetracted;
+      } else if (mode === "jet") {
+        if (nautJetAge < NAUT_JET_POWER) frame = P.powerJet;
+        else if (nautJetAge < NAUT_JET_RECOVER) frame = P.jetRecovery;
+        else if (jetTimer < NAUT_JET_ANTICIPATE * 0.45)
+          frame = P.siphonExtended;
+        else if (jetTimer < NAUT_JET_ANTICIPATE) frame = P.siphonOpen;
+        else if (speedN > 0.68) frame = P.longGlide;
+        else if (speedN > 0.32) frame = P.acceleratedGlide;
+        else frame = P.compactBrake;
+      } else if (vy > 7 * S) {
+        frame = P.downwardPitch;
+      } else if (vy < -7 * S) {
+        frame = P.tentacleFan;
+      } else if (speedN > 0.72) {
+        frame = P.longGlide;
+      } else if (speedN > 0.38) {
+        frame = P.armsFirstCruise;
+      } else {
+        frame =
+          NAUT_IDLE_LOOP[
+            Math.floor(k.time() * NAUT_IDLE_FPS + nautIdlePhase) %
+              NAUT_IDLE_LOOP.length
+          ];
+      }
+      body.frame = frame;
+    }
 
     // Octopus: pick the pose for the current state, driving all twelve baked poses.
     //  - parked: resting_on_sand (short) or curled-up settled_curled_rest (long park);
@@ -784,12 +862,16 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       let frame: number;
       if (octoMode === "swim") {
         if (curlTimer > 0) frame = swimVigorous ? P.activeCurl : P.curl;
-        else if (swimSub === "gather") frame = P.activeCrawlReach; // reaching push-off
-        else if (swimSub === "thrust") frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
-        else if (swimSub === "glide") frame = swimVigorous ? P.activeGlide : P.glide;
+        else if (swimSub === "gather")
+          frame = P.activeCrawlReach; // reaching push-off
+        else if (swimSub === "thrust")
+          frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
+        else if (swimSub === "glide")
+          frame = swimVigorous ? P.activeGlide : P.glide;
         // settle: hold the glide pose through the final sink, then brace with the
         // second crawl pose only very-very close to touchdown.
-        else if (py < groundY(px) - OCTO_LAND_POSE) frame = swimVigorous ? P.activeGlide : P.glide;
+        else if (py < groundY(px) - OCTO_LAND_POSE)
+          frame = swimVigorous ? P.activeGlide : P.glide;
         else frame = P.crawlPush;
       } else if (restTimer > 0) {
         // parked & resting (arms held still): a curled-up ball for short rests, the
@@ -809,13 +891,6 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       body.frame = frame;
     }
 
-    if (cfg.anim) {
-      const speedN = Math.min(1, Math.hypot(vx, vy) / (cfg.refSpeed ?? 1));
-      // The jellyfish tentacles sway gently and quicken just after a pulse; the
-      // nautilus anim ramps harder with speed.
-      body.animSpeed =
-        cfg.motion === "pulse" ? 1 + speedN * 4 : 0.5 + speedN * 9.5;
-    }
   });
 
   return body;

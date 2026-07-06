@@ -1,6 +1,7 @@
 # Project
 .DS_Store
 node_modules/
+.venv/
 dist/
 fishtank
 preview.png

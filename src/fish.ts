@@ -154,6 +154,7 @@ export function spawnFish(
   k: KAPLAYCtx,
   spriteName: string,
   kind: Pick<FishKind, "level" | "speed"> = { level: { min: 0.1, max: 0.9 }, speed: 1 },
+  opts: { enterFromEdge?: boolean; onGone?: () => void } = {},
 ) {
   const { level, speed: sp } = kind;
   const minY = 16 * RES;
@@ -182,7 +183,15 @@ export function spawnFish(
   ]);
   fish.play("swim", { loop: true });
 
-  let vx = k.choose([-1, 1]) * 24 * RES * sp;
+  // Fully-offscreen threshold: half the sprite plus a small pad past the edge.
+  const pad = fish.width / 2 + 2 * RES;
+  const fromLeft = k.chance(0.5);
+  if (opts.enterFromEdge) {
+    fish.pos.x = fromLeft ? -pad : k.width() + pad;
+  }
+
+  const dir0 = opts.enterFromEdge ? (fromLeft ? 1 : -1) : k.choose([-1, 1]);
+  let vx = dir0 * 24 * RES * sp;
   let vy = 0;
   let heading = Math.sign(vx); // intended horizontal travel direction
   let facingRight = vx > 0;
@@ -370,9 +379,23 @@ export function spawnFish(
     }
   });
 
+  // A fish that ends up fully offscreen (a dart can outrun the wall steering) is
+  // gone for good — despawn it and let the caller introduce a replacement. The
+  // guard waits until the fish has actually been in view, so an edge-entering
+  // spawn isn't culled at birth.
+  let hasEntered = false;
+
   fish.onUpdate(() => {
     const dt = k.dt();
     const w = k.width();
+
+    if (!hasEntered) {
+      if (px >= 0 && px <= w) hasEntered = true;
+    } else if (px < -pad || px > w + pad) {
+      fish.destroy();
+      opts.onGone?.();
+      return;
+    }
 
     // Action layer: count down to the next action while idle, otherwise drive the
     // current one. An action owns `phase`/`depth`/`heading` while it runs, so the

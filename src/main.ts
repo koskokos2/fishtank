@@ -2,14 +2,18 @@ import kaplay from "kaplay";
 import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS } from "./fish";
 import { SWIM_FRAMES } from "./fishbake";
-import {
-  makeNautilusSprite,
-  NAUTILUS_FRAMES,
-  makeJellyfishSprite,
-  JELLYFISH_FRAMES,
-  spawnCephalopod,
-} from "./cephalopod";
+import { spawnCephalopod } from "./cephalopod";
 import { OCTOPUS_ATLAS, OCTOPUS_FRAMES } from "./octopusAtlas";
+import {
+  JELLYFISH_ATLAS,
+  JELLYFISH_ATLAS_COLS,
+  JELLYFISH_ATLAS_ROWS,
+} from "./jellyfishAtlas";
+import {
+  NAUTILUS_ATLAS,
+  NAUTILUS_ATLAS_COLS,
+  NAUTILUS_ATLAS_ROWS,
+} from "./nautilusAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -49,23 +53,26 @@ function fitWindow() {
 fitWindow();
 window.addEventListener("resize", fitWindow);
 
-// Which kind each spawned fish is — one random atlas cell per fish.
+// Each fish is a random kind; one that swims fully offscreen (a dart can carry
+// it out) is despawned and replaced by a fresh random fish entering from an edge,
+// so the population holds at FISH_COUNT.
 const fishKindIndices = FISH_KINDS.map((_, i) => i);
-const fishPicks = Array.from({ length: FISH_COUNT }, () =>
-  k.choose(fishKindIndices),
-);
+const spawnRandomFish = (enterFromEdge: boolean) => {
+  const kind = k.choose(fishKindIndices);
+  spawnFish(k, `fish-${kind}`, FISH_KINDS[kind], {
+    enterFromEdge,
+    onGone: () => spawnRandomFish(true),
+  });
+};
 
-// The fish and nautilus sheets are baked on a canvas after async image decode, so
-// resolve them first, then register every sprite together — that way they're all
-// in the load queue before onLoad fires (no load-order race).
+// The fish sheets and backdrop are baked after async image decode, so resolve them
+// first, then register every sprite together — that way they're all in the load
+// queue before onLoad fires (no load-order race).
 (async () => {
-  const [fishSheets, nautilusSheet, jellyfishSheet, backdropUrl] =
-    await Promise.all([
-      makeFishSheets(),
-      makeNautilusSprite(),
-      makeJellyfishSprite(),
-      makeBackdrop(BACKDROP_SEED),
-    ]);
+  const [fishSheets, backdropUrl] = await Promise.all([
+    makeFishSheets(),
+    makeBackdrop(BACKDROP_SEED),
+  ]);
 
   k.loadSprite("backdrop", backdropUrl);
   fishSheets.forEach((sheet, i) => {
@@ -74,27 +81,22 @@ const fishPicks = Array.from({ length: FISH_COUNT }, () =>
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  // The octopus is a clean multi-frame sheet (the idle-hover sway loop plus the
-  // "assembled" crawl/rest/swim poses); the spawn rig shows one frame per the
-  // crawl/swim state machine.
+  // The cephalopods are clean multi-frame pose sheets; their state machines pick
+  // one authored frame at a time (none is a blind looped sprite animation).
   k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
-  k.loadSprite("nautilus", nautilusSheet, {
-    sliceX: NAUTILUS_FRAMES,
-    anims: { idle: { from: 0, to: NAUTILUS_FRAMES - 1, loop: true, speed: 1 } },
+  k.loadSprite("jellyfish", JELLYFISH_ATLAS, {
+    sliceX: JELLYFISH_ATLAS_COLS,
+    sliceY: JELLYFISH_ATLAS_ROWS,
   });
-  k.loadSprite("jellyfish", jellyfishSheet, {
-    sliceX: JELLYFISH_FRAMES,
-    anims: {
-      idle: { from: 0, to: JELLYFISH_FRAMES - 1, loop: true, speed: 1 },
-    },
+  k.loadSprite("nautilus", NAUTILUS_ATLAS, {
+    sliceX: NAUTILUS_ATLAS_COLS,
+    sliceY: NAUTILUS_ATLAS_ROWS,
   });
 
   setupTank(k);
 
   k.onLoad(() => {
-    fishPicks.forEach((kind, i) =>
-      spawnFish(k, `fish-${kind}`, FISH_KINDS[kind]),
-    );
+    for (let i = 0; i < FISH_COUNT; i++) spawnRandomFish(false);
     // A few cephalopods drift among the fish as larger accent creatures.
     spawnCephalopod(k, "nautilus");
     spawnCephalopod(k, "octopus");

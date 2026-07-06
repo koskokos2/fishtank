@@ -300,11 +300,12 @@ A useful sprite-part schema:
 }
 ```
 
-Store sockets in either pixels or normalized cell coordinates. Pixels are simple
-when all sprites share one resolution. Normalized coordinates survive rebakes to a
-new cell size. This repo's `art/modular-ruins-kit-atlas-original.json` uses
-normalized cell sockets, which is a strong pattern for source art that may later
-be rebaked.
+Store sockets in either pixels, normalized cell coordinates, or normalized source
+rect coordinates. Pixels are simple when all sprites share one resolution.
+Normalized coordinates survive rebakes to a new cell size. This repo's
+`art/modular-ruins-kit-atlas-original.json` uses explicit source rectangles with
+normalized source-rect sockets, which is a strong pattern for hand-arranged
+source art that may later be rebaked.
 
 ### Add recipes, not just loose parts
 

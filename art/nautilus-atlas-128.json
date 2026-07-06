@@ -1,0 +1,31 @@
+{
+  "image": "nautilus-atlas-128.png",
+  "sourceImage": "nautilus-atlas-transparent.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "animation": {
+    "name": "jet_swim",
+    "order": "left-to-right, top-to-bottom",
+    "loop": true,
+    "frames": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  },
+  "sprites": [
+    { "name": "relaxed_hover", "frame": 0, "row": 0, "col": 0 },
+    { "name": "arms_first_cruise", "frame": 1, "row": 0, "col": 1 },
+    { "name": "siphon_open", "frame": 2, "row": 0, "col": 2 },
+    { "name": "tentacle_fan", "frame": 3, "row": 0, "col": 3 },
+    { "name": "head_retracted", "frame": 4, "row": 1, "col": 0 },
+    { "name": "power_jet", "frame": 5, "row": 1, "col": 1 },
+    { "name": "accelerated_glide", "frame": 6, "row": 1, "col": 2 },
+    { "name": "compact_brake", "frame": 7, "row": 1, "col": 3 },
+    { "name": "wide_explore", "frame": 8, "row": 2, "col": 0 },
+    { "name": "tentacle_curl", "frame": 9, "row": 2, "col": 1 },
+    { "name": "defensive_tuck", "frame": 10, "row": 2, "col": 2 },
+    { "name": "siphon_extended", "frame": 11, "row": 2, "col": 3 },
+    { "name": "downward_pitch", "frame": 12, "row": 3, "col": 0 },
+    { "name": "long_glide", "frame": 13, "row": 3, "col": 1 },
+    { "name": "jet_recovery", "frame": 14, "row": 3, "col": 2 },
+    { "name": "loop_return", "frame": 15, "row": 3, "col": 3 }
+  ]
+}
