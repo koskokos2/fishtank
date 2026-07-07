@@ -109,16 +109,28 @@ export function shearSheet(
   for (let f = 0; f < SWIM_FRAMES; f++) {
     const ox = f * fish.w;
     for (let x = 0; x < fish.w; x++) {
+      // The flutter term shifts pixels by a y-dependent amount, so a column can be
+      // stretched vertically and a plain scatter would skip destination rows. Track
+      // the previous opaque source row's destination and fill the span between it
+      // and this one — but only across vertically adjacent source pixels, so real
+      // transparent gaps in the fin shape are never bridged.
+      let prevY = -2;
+      let prevDy = 0;
       for (let y = 0; y < fish.h; y++) {
         const si = (y * fish.w + x) * 4;
         if (fish.data[si + 3] === 0) continue;
         const dy = y + PAD + swimShift(x, y, fish.w, fish.h, f, profile);
-        if (dy < 0 || dy >= fh) continue;
-        const di = (dy * sheetW + (ox + x)) * 4;
-        data[di] = fish.data[si];
-        data[di + 1] = fish.data[si + 1];
-        data[di + 2] = fish.data[si + 2];
-        data[di + 3] = fish.data[si + 3];
+        const from = prevY === y - 1 && dy - prevDy > 1 ? prevDy + 1 : dy;
+        for (let dyy = from; dyy <= dy; dyy++) {
+          if (dyy < 0 || dyy >= fh) continue;
+          const di = (dyy * sheetW + (ox + x)) * 4;
+          data[di] = fish.data[si];
+          data[di + 1] = fish.data[si + 1];
+          data[di + 2] = fish.data[si + 2];
+          data[di + 3] = fish.data[si + 3];
+        }
+        prevY = y;
+        prevDy = dy;
       }
     }
   }
