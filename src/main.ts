@@ -81,18 +81,19 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  // The octopus and nautilus use pose sheets. The jellyfish uses the same atlas
-  // three times so its bell, oral arms, and long tendrils can advance separately.
+  // The octopus uses a pose sheet. Jellyfish and nautilus load one atlas through
+  // several sprite names so their anatomical layers can advance independently.
   k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
   for (const layer of ["bell", "arms", "tendrils"])
     k.loadSprite(`jellyfish-${layer}`, JELLYFISH_ATLAS, {
       sliceX: JELLYFISH_ATLAS_COLS,
       sliceY: JELLYFISH_ATLAS_ROWS,
     });
-  k.loadSprite("nautilus", NAUTILUS_ATLAS, {
-    sliceX: NAUTILUS_ATLAS_COLS,
-    sliceY: NAUTILUS_ATLAS_ROWS,
-  });
+  for (const layer of ["body", "tentacles", "siphon", "jet"])
+    k.loadSprite(`nautilus-${layer}`, NAUTILUS_ATLAS, {
+      sliceX: NAUTILUS_ATLAS_COLS,
+      sliceY: NAUTILUS_ATLAS_ROWS,
+    });
 
   setupTank(k);
 

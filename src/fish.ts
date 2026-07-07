@@ -249,6 +249,7 @@ export function spawnFish(
   let action: FishAction = "none";
   let actSub = "";
   let actTimer = 0;
+  let siftPuffTimer = 0; // jittered cadence for the puffs trailed while surfing the sand
   let actCooldown = k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
   let chaseTarget: GameObj | null = null;
   // Flee state: where the pursuer last was, how long that sighting stays fresh,
@@ -344,7 +345,21 @@ export function spawnFish(
           depth = sandY - NOSE_GAP;
           phase = "burst";
           if (atSand) {
-            spawnSandPuff(k, fish.headX, sandY, 0.5);
+            spawnSandPuff(k, fish.headX, sandY, 3, 1.8); // big high burst as it strikes the sand
+            actSub = "surf";
+            actTimer = k.rand(1.2, 2.6); // nose along the bottom for a while
+            siftPuffTimer = k.rand(0.15, 0.35);
+          }
+        } else if (actSub === "surf") {
+          // hug the sand and keep nosing forward, trailing smaller puffs at a
+          // jittered cadence so the disturbance reads natural, not metronomic
+          depth = sandY - NOSE_GAP;
+          phase = "burst";
+          if ((siftPuffTimer -= dt) <= 0 && atSand) {
+            spawnSandPuff(k, fish.headX, sandY, k.rand(0.25, 0.5));
+            siftPuffTimer = k.rand(0.15, 0.4);
+          }
+          if ((actTimer -= dt) <= 0) {
             actSub = "rise";
             actTimer = k.rand(0.2, 0.5);
             depth = inBand();
@@ -356,7 +371,7 @@ export function spawnFish(
           depth = sandY - NOSE_GAP;
           phase = "burst";
           if (atSand) {
-            spawnSandPuff(k, fish.headX, sandY, 0.35);
+            spawnSandPuff(k, fish.headX, sandY, 2.1, 1.8); // big high burst as it drops onto the sand
             actSub = "hold";
             actTimer = k.rand(3, 8);
           }

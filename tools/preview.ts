@@ -30,6 +30,16 @@ import {
   OCTOPUS_FRAMES,
   OCTOPUS_FRAME_W,
 } from "../src/octopusAtlas";
+import {
+  NAUTILUS_ATLAS,
+  NAUTILUS_ATLAS_CELL,
+  NAUTILUS_ATLAS_COLS,
+  NAUTILUS_BODY_START,
+  NAUTILUS_JET_START,
+  NAUTILUS_LAYER_FRAMES,
+  NAUTILUS_SIPHON_START,
+  NAUTILUS_TENTACLES_START,
+} from "../src/nautilusAtlas";
 import { FISH_KINDS } from "../src/fish";
 import {
   cellBBox,
@@ -53,17 +63,17 @@ const opt = (k: string) => argv[k] ?? process.env[k];
 // MODE=fish (default) bakes every fish's swim sheet from the atlas; MODE=backdrop
 // bakes the static scene to backdrop.png; MODE=octopus lays out the baked octopus
 // poses (the live pose-swapping state machine only shows in `bun run dev`);
-// MODE=jellyfish composites the layered bell/arms/tendril loops into sixteen
-// representative frames (their clocks are independent in the live tank);
+// MODE=jellyfish and MODE=nautilus composite their independent layers into
+// representative frames (their clocks/state are independent in the live tank);
 // MODE=ruins-kit validates the modular ruins source sidecar and renders assembled
-// column/wall/arch recipe previews. The nautilus is cropped from the sea-creature
-// atlas and animated in-browser at load.
+// column/wall/arch recipe previews.
 const MODE = opt("MODE") ?? "fish";
 const S = Number(opt("S") ?? (MODE === "backdrop" || MODE === "ruins-kit" ? 1 : 6)); // upscale factor
 
 if (MODE === "backdrop") renderBackdrop();
 else if (MODE === "octopus") renderOctopus();
 else if (MODE === "jellyfish") renderJellyfish();
+else if (MODE === "nautilus") renderNautilus();
 else if (MODE === "ruins-kit") renderRuinsKit();
 else renderFishGrid();
 
@@ -160,6 +170,46 @@ function renderJellyfish() {
     return out;
   });
   renderFrames(frames, "jellyfish.png", "layered jellyfish frames");
+}
+
+// Composite the fixed body with the continuous tentacle loop and the matching
+// siphon/plume progress. The live state machine shows the plume only around an
+// impulse; this contact strip intentionally exposes every generated phase.
+function renderNautilus() {
+  const atlas = decodePng(dataUrlToBuffer(NAUTILUS_ATLAS));
+  const cell = NAUTILUS_ATLAS_CELL;
+  const tile = (i: number) =>
+    copyRect(
+      atlas.rgba,
+      atlas.w,
+      (i % NAUTILUS_ATLAS_COLS) * cell,
+      Math.floor(i / NAUTILUS_ATLAS_COLS) * cell,
+      cell,
+      cell,
+    );
+  const over = (dst: Buf, src: Buf) => {
+    for (let i = 0; i < cell * cell; i++) {
+      const si = i * 4;
+      const sa = src.data[si + 3] / 255;
+      if (!sa) continue;
+      const da = dst.data[si + 3] / 255;
+      const oa = sa + da * (1 - sa);
+      for (let c = 0; c < 3; c++)
+        dst.data[si + c] = Math.round(
+          (src.data[si + c] * sa + dst.data[si + c] * da * (1 - sa)) / oa,
+        );
+      dst.data[si + 3] = Math.round(oa * 255);
+    }
+  };
+  const frames = Array.from({ length: NAUTILUS_LAYER_FRAMES }, (_, i) => {
+    const out: Buf = { data: new Uint8Array(cell * cell * 4), w: cell, h: cell };
+    over(out, tile(NAUTILUS_JET_START + i));
+    over(out, tile(NAUTILUS_SIPHON_START + i));
+    over(out, tile(NAUTILUS_TENTACLES_START + i));
+    over(out, tile(NAUTILUS_BODY_START));
+    return out;
+  });
+  renderFrames(frames, "nautilus.png", "layered nautilus frames");
 }
 
 function renderBackdrop() {
