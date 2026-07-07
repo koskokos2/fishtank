@@ -15,16 +15,13 @@ import {
   NAUTILUS_ATLAS_ROWS,
 } from "./nautilusAtlas";
 import { spawnHermitCrab } from "./hermitCrab";
-import {
-  HERMIT_CRAB_ATLAS,
-  HERMIT_CRAB_FRAMES,
-} from "./hermitCrabAtlas";
+import { HERMIT_CRAB_ATLAS, HERMIT_CRAB_FRAMES } from "./hermitCrabAtlas";
 import { spawnSeaSnail } from "./seaSnail";
 import { SEA_SNAIL_ATLAS, SEA_SNAIL_FRAMES } from "./seaSnailAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 15;
+const FISH_COUNT = 12;
 const BACKDROP_SEED = 1;
 
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
