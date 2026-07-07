@@ -1,5 +1,6 @@
-// Sea snail (nudibranch): a small, slow benthic crawler. The pose cycle advances
-// by distance travelled, so its muscular foot wave cannot slide while stationary.
+// Sea snail (nudibranch): a small, slow benthic crawler. It wanders through the
+// back, middle, and foreground substrate tiers. The pose cycle advances by total
+// distance travelled, so its muscular foot wave cannot slide while stationary.
 import type { KAPLAYCtx } from "kaplay";
 import { sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
@@ -12,25 +13,48 @@ const MIN_TRIP = 35 * S;
 const MAX_TRIP = 125 * S;
 const FRAME_STEP = 1.6 * S;
 const SLOPE_SPAN = 17 * S;
+const DEPTH_TIERS = [2, 17, 38].map((depth) => depth * S);
+const DEPTH_JITTER = 3 * S;
+const MAX_DEPTH = 43 * S;
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
+const chooseOtherDepthTier = (k: KAPLAYCtx, currentDepth: number) => {
+  const alternatives = DEPTH_TIERS.filter(
+    (tier) => Math.abs(tier - currentDepth) > 8 * S,
+  );
+  return clamp(
+    k.choose(alternatives) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
+    0,
+    MAX_DEPTH,
+  );
+};
+
 export function spawnSeaSnail(k: KAPLAYCtx) {
   let x = k.rand(EDGE, k.width() - EDGE);
+  let substrateDepth = clamp(
+    k.choose(DEPTH_TIERS) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
+    0,
+    MAX_DEPTH,
+  );
   let facing = k.choose([-1, 1]);
   let targetX = x;
+  let targetDepth = substrateDepth;
   let rest = k.rand(0.8, 3.5);
   let gaitDistance = k.rand(0, FRAMES * FRAME_STEP);
   let lastX = x;
+  let lastDepth = substrateDepth;
   let angle = 0;
   const speed = k.rand(3.5, 5.5) * S;
 
-  const groundCentreY = (atX: number) =>
-    sandTopAt(clamp(atX, 0, k.width() - 1)) - SEA_SNAIL_GROUND_OFFSET;
+  const groundCentreY = (atX: number, depth: number) =>
+    sandTopAt(clamp(atX, 0, k.width() - 1)) -
+    SEA_SNAIL_GROUND_OFFSET +
+    depth;
 
   const snail = k.add([
     k.sprite("sea-snail"),
-    k.pos(x, groundCentreY(x)),
+    k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),
     k.rotate(0),
     k.z(16.5),
@@ -54,6 +78,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
       EDGE,
       k.width() - EDGE,
     );
+    targetDepth = chooseOtherDepthTier(k, substrateDepth);
   };
 
   snail.onUpdate(() => {
@@ -63,20 +88,29 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
       snail.frame = 0;
       if (rest <= 0) chooseTrip();
     } else {
-      const remaining = targetX - x;
-      x += Math.sign(remaining) * Math.min(Math.abs(remaining), speed * dt);
-      gaitDistance += Math.abs(x - lastX);
+      const remainingX = targetX - x;
+      const remainingDepth = targetDepth - substrateDepth;
+      const remaining = Math.hypot(remainingX, remainingDepth);
+      const step = Math.min(remaining, speed * dt);
+      const ratio = remaining > 0 ? step / remaining : 0;
+      x += remainingX * ratio;
+      substrateDepth += remainingDepth * ratio;
+      gaitDistance += Math.hypot(x - lastX, substrateDepth - lastDepth);
       lastX = x;
+      lastDepth = substrateDepth;
       snail.frame = Math.floor(gaitDistance / FRAME_STEP) % FRAMES;
-      if (Math.abs(targetX - x) < 0.35 * S) {
+      if (remaining <= 0.35 * S) {
         x = targetX;
+        substrateDepth = targetDepth;
+        lastX = x;
+        lastDepth = substrateDepth;
         snail.frame = 0;
         rest = k.chance(0.15) ? k.rand(6, 13) : k.rand(0.8, 3.5);
       }
     }
 
     snail.pos.x = x;
-    snail.pos.y = groundCentreY(x);
+    snail.pos.y = groundCentreY(x, substrateDepth);
     const left = sandTopAt(clamp(x - SLOPE_SPAN, 0, k.width() - 1));
     const right = sandTopAt(clamp(x + SLOPE_SPAN, 0, k.width() - 1));
     const desired = clamp(

@@ -1,7 +1,8 @@
-// Hermit crab: a strictly benthic crawler. Its horizontal travel drives the
-// six-pose gait, while its centre follows the same dune contour used to paint
-// the sand. Stops are real stops (one stable frame), so the legs never paddle
-// while the animal is parked.
+// Hermit crab: a strictly benthic crawler. Its travelled distance drives the
+// six-pose gait, while its centre follows the dune contour plus a changing
+// substrate depth. This lets it wander through the back, middle, and foreground
+// tiers occupied by the corals instead of tracing only the sand crest. Stops are
+// real stops (one stable frame), so the legs never paddle while it is parked.
 import type { KAPLAYCtx } from "kaplay";
 import { sandTopAt } from "./backdrop";
 import { HERMIT_CRAB_GROUND_OFFSET } from "./hermitCrabAtlas";
@@ -15,27 +16,51 @@ const MIN_TRIP = 55 * S;
 const MAX_TRIP = 190 * S;
 const FRAME_STEP = 2.2 * S; // travelled pixels per gait pose
 const SLOPE_SPAN = 20 * S;
+// These match the three coral-placement bands in backdrop.ts. A little jitter
+// prevents the crab from revealing them as three perfectly mechanical lanes.
+const DEPTH_TIERS = [2, 17, 38].map((depth) => depth * S);
+const DEPTH_JITTER = 3 * S;
+const MAX_DEPTH = 43 * S;
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
+const chooseOtherDepthTier = (k: KAPLAYCtx, currentDepth: number) => {
+  const alternatives = DEPTH_TIERS.filter(
+    (tier) => Math.abs(tier - currentDepth) > 8 * S,
+  );
+  return clamp(
+    k.choose(alternatives) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
+    0,
+    MAX_DEPTH,
+  );
+};
+
 export function spawnHermitCrab(k: KAPLAYCtx) {
   let x = k.rand(EDGE, k.width() - EDGE);
+  let substrateDepth = clamp(
+    k.choose(DEPTH_TIERS) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
+    0,
+    MAX_DEPTH,
+  );
   let facing = k.choose([-1, 1]);
   let targetX = x;
+  let targetDepth = substrateDepth;
   let rest = k.rand(1.5, 5);
   let gaitDistance = k.rand(0, FRAMES * FRAME_STEP);
   let lastX = x;
+  let lastDepth = substrateDepth;
   let angle = 0;
   const speed = k.rand(10, 15) * S;
 
-  const groundCentreY = (atX: number) =>
+  const groundCentreY = (atX: number, depth: number) =>
     sandTopAt(clamp(atX, 0, k.width() - 1)) -
-    HERMIT_CRAB_GROUND_OFFSET * CRAB_SCALE;
+    HERMIT_CRAB_GROUND_OFFSET * CRAB_SCALE +
+    depth;
 
   const crab = k.add([
     k.sprite("hermit-crab"),
-    k.pos(x, groundCentreY(x)),
+    k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),
     k.rotate(0),
     k.scale(CRAB_SCALE),
@@ -63,6 +88,7 @@ export function spawnHermitCrab(k: KAPLAYCtx) {
       EDGE,
       k.width() - EDGE,
     );
+    targetDepth = chooseOtherDepthTier(k, substrateDepth);
   };
 
   crab.onUpdate(() => {
@@ -72,15 +98,23 @@ export function spawnHermitCrab(k: KAPLAYCtx) {
       crab.frame = 1;
       if (rest <= 0) chooseTrip();
     } else {
-      const remaining = targetX - x;
-      const step = Math.sign(remaining) * Math.min(Math.abs(remaining), speed * dt);
-      x += step;
-      gaitDistance += Math.abs(x - lastX);
+      const remainingX = targetX - x;
+      const remainingDepth = targetDepth - substrateDepth;
+      const remaining = Math.hypot(remainingX, remainingDepth);
+      const step = Math.min(remaining, speed * dt);
+      const ratio = remaining > 0 ? step / remaining : 0;
+      x += remainingX * ratio;
+      substrateDepth += remainingDepth * ratio;
+      gaitDistance += Math.hypot(x - lastX, substrateDepth - lastDepth);
       lastX = x;
+      lastDepth = substrateDepth;
       crab.frame = Math.floor(gaitDistance / FRAME_STEP) % FRAMES;
 
-      if (Math.abs(targetX - x) < 0.5 * S) {
+      if (remaining <= 0.5 * S) {
         x = targetX;
+        substrateDepth = targetDepth;
+        lastX = x;
+        lastDepth = substrateDepth;
         crab.frame = 1;
         // Most pauses are brief foraging stops; occasionally it settles for a
         // longer spell, which keeps the bottom life from feeling clockwork.
@@ -89,7 +123,7 @@ export function spawnHermitCrab(k: KAPLAYCtx) {
     }
 
     crab.pos.x = x;
-    crab.pos.y = groundCentreY(x);
+    crab.pos.y = groundCentreY(x, substrateDepth);
 
     // Lean very slightly with the broad dune slope. The large sampling span
     // ignores single-pixel sand chop, and easing keeps the heavy shell steady.

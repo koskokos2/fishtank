@@ -116,6 +116,7 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnCephalopod(k, "jellyfish");
     spawnCephalopod(k, "jellyfish");
     spawnHermitCrab(k);
+    spawnHermitCrab(k);
     spawnSeaSnail(k);
   });
 })();
