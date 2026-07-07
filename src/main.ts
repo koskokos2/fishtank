@@ -115,8 +115,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnCephalopod(k, "jellyfish");
     spawnCephalopod(k, "jellyfish");
     spawnCephalopod(k, "jellyfish");
-    spawnHermitCrab(k);
-    spawnHermitCrab(k);
+    // Start the pair far apart so both are immediately readable before their
+    // independent routes eventually carry them around the full substrate.
+    spawnHermitCrab(k, k.width() * 0.24);
+    spawnHermitCrab(k, k.width() * 0.76);
     spawnSeaSnail(k);
   });
 })();

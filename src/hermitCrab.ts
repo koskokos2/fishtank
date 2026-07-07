@@ -7,6 +7,7 @@ import type { KAPLAYCtx } from "kaplay";
 import { sandTopAt } from "./backdrop";
 import { HERMIT_CRAB_GROUND_OFFSET } from "./hermitCrabAtlas";
 import { RES } from "./res";
+import { spawnSandPuff } from "./sandPuff";
 
 const S = RES;
 const FRAMES = 6;
@@ -36,8 +37,8 @@ const chooseOtherDepthTier = (k: KAPLAYCtx, currentDepth: number) => {
   );
 };
 
-export function spawnHermitCrab(k: KAPLAYCtx) {
-  let x = k.rand(EDGE, k.width() - EDGE);
+export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
+  let x = clamp(startX ?? k.rand(EDGE, k.width() - EDGE), EDGE, k.width() - EDGE);
   let substrateDepth = clamp(
     k.choose(DEPTH_TIERS) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
     0,
@@ -50,6 +51,8 @@ export function spawnHermitCrab(k: KAPLAYCtx) {
   let gaitDistance = k.rand(0, FRAMES * FRAME_STEP);
   let lastX = x;
   let lastDepth = substrateDepth;
+  let puffDistance = 0;
+  let nextPuffDistance = k.rand(7, 11) * S;
   let angle = 0;
   const speed = k.rand(10, 15) * S;
 
@@ -105,10 +108,25 @@ export function spawnHermitCrab(k: KAPLAYCtx) {
       const ratio = remaining > 0 ? step / remaining : 0;
       x += remainingX * ratio;
       substrateDepth += remainingDepth * ratio;
-      gaitDistance += Math.hypot(x - lastX, substrateDepth - lastDepth);
+      const travelled = Math.hypot(x - lastX, substrateDepth - lastDepth);
+      gaitDistance += travelled;
+      puffDistance += travelled;
       lastX = x;
       lastDepth = substrateDepth;
       crab.frame = Math.floor(gaitDistance / FRAME_STEP) % FRAMES;
+
+      if (puffDistance >= nextPuffDistance) {
+        spawnSandPuff(
+          k,
+          x - facing * 6 * S,
+          sandTopAt(clamp(x, 0, k.width() - 1)) + substrateDepth,
+          0.28,
+          0.58,
+          2.2,
+        );
+        puffDistance = 0;
+        nextPuffDistance = k.rand(7, 11) * S;
+      }
 
       if (remaining <= 0.5 * S) {
         x = targetX;

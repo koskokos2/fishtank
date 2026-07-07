@@ -5,6 +5,7 @@ import type { KAPLAYCtx } from "kaplay";
 import { sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
 import { RES } from "./res";
+import { spawnSandPuff } from "./sandPuff";
 
 const S = RES;
 const FRAMES = 6;
@@ -44,6 +45,8 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
   let gaitDistance = k.rand(0, FRAMES * FRAME_STEP);
   let lastX = x;
   let lastDepth = substrateDepth;
+  let puffDistance = 0;
+  let nextPuffDistance = k.rand(2.5, 4) * S;
   let angle = 0;
   const speed = k.rand(3.5, 5.5) * S;
 
@@ -95,10 +98,25 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
       const ratio = remaining > 0 ? step / remaining : 0;
       x += remainingX * ratio;
       substrateDepth += remainingDepth * ratio;
-      gaitDistance += Math.hypot(x - lastX, substrateDepth - lastDepth);
+      const travelled = Math.hypot(x - lastX, substrateDepth - lastDepth);
+      gaitDistance += travelled;
+      puffDistance += travelled;
       lastX = x;
       lastDepth = substrateDepth;
       snail.frame = Math.floor(gaitDistance / FRAME_STEP) % FRAMES;
+      if (puffDistance >= nextPuffDistance) {
+        spawnSandPuff(
+          k,
+          x - facing * 8 * S,
+          sandTopAt(clamp(x, 0, k.width() - 1)) + substrateDepth,
+          0.34,
+          0.5,
+          2.8,
+          1,
+        );
+        puffDistance = 0;
+        nextPuffDistance = k.rand(2.5, 4) * S;
+      }
       if (remaining <= 0.35 * S) {
         x = targetX;
         substrateDepth = targetDepth;

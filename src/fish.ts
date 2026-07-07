@@ -17,7 +17,7 @@ import {
   type FishMotionProfile,
 } from "./fishbake";
 import { sandTopAt } from "./backdrop";
-import { spawnSandPuff } from "./cephalopod";
+import { spawnSandPuff } from "./sandPuff";
 import { spawnBubble } from "./tank";
 import { RES } from "./res";
 

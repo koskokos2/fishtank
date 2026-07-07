@@ -31,6 +31,7 @@ import {
   NAUTILUS_TENTACLES_START,
 } from "./nautilusAtlas";
 import { sandTopAt } from "./backdrop";
+import { spawnSandPuff } from "./sandPuff";
 import { RES } from "./res";
 
 const S = RES;
@@ -60,13 +61,6 @@ const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent pus
 const OCTO_LAND_POSE = 6 * S; // height above the sand where it braces into the landing pose
 const BURY_DEPTH = 4 * S; // px the body presses into the sand on touchdown
 const BURY_DUR = 0.35; // s for the landing press-in to ease back out
-// Sand grain tints for the landing puff, matching backdrop.ts SAND (shadow/body/lit).
-const SAND_PUFF: [number, number, number][] = [
-  [120, 96, 56],
-  [180, 148, 88],
-  [206, 176, 110],
-];
-
 // =========================== NAUTILUS ART ===========================
 // The shell/body is one invariant layer. Tentacles wave continuously while the
 // siphon and water plume follow propulsion, so motion never swaps the animal for
@@ -211,58 +205,6 @@ const KINDS: Record<string, KindCfg> = {
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 const TILT_STEP = 7;
-
-// A short-lived burst of sand grains kicked up where the octopus touches down.
-// Built as lightweight game objects in the tank.ts particle idiom (k.add + onUpdate
-// + destroy), not Kaplay's particles(), so the grains stay crisp and cheap. Each
-// grain pops up from the sand surface beneath the octopus, then falls back under
-// gravity and fades as it settles.
-export function spawnSandPuff(
-  k: KAPLAYCtx,
-  x: number,
-  sandY: number,
-  scale = 1,
-  riseMul = 1,
-  settleMul = 1,
-) {
-  const minN = Math.max(2, Math.round(112 * scale));
-  const maxN = Math.max(minN + 1, Math.round(176 * scale));
-  const n = k.randi(minN, maxN);
-  for (let i = 0; i < n; i++) {
-    const sz = k.randi(1, 3); // fine 1-2px specks (intentionally sub-grid — sand dust)
-    const tone = k.choose(SAND_PUFF);
-    const g = k.add([
-      k.rect(sz, sz),
-      k.pos(x + k.rand(-16, 16) * S, sandY - k.rand(0, 3) * S),
-      k.color(tone[0], tone[1], tone[2]),
-      k.opacity(k.rand(0.75, 1)),
-      k.z(19), // in front of the octopus body (z 18) so the puff isn't occluded
-    ]);
-    let vx = k.rand(-14, 14) * S;
-    let vy = -k.rand(16, 34) * S * riseMul; // gentle pop upward
-    const grav = (k.rand(34, 54) * S) / Math.max(0.01, settleMul); // weaker gravity settles slower
-    const drag = 2.6; // water resistance: grains decelerate and drift, not plummet
-    const originY = g.pos.y;
-    let age = 0;
-    g.onUpdate(() => {
-      const dt = k.dt();
-      age += dt;
-      vy += grav * dt; // sink back down slowly
-      vx -= vx * drag * dt; // water damping
-      vy -= vy * drag * dt;
-      g.pos.x += vx * dt;
-      g.pos.y += vy * dt;
-      if (age > 0.6 * settleMul)
-        g.opacity -= dt * (0.7 / Math.max(0.01, settleMul)); // hold, then fade as it settles
-      if (
-        (vy > 0 && g.pos.y >= originY) ||
-        age > 2.4 * settleMul ||
-        g.opacity <= 0
-      )
-        g.destroy();
-    });
-  }
-}
 
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
