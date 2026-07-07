@@ -1,0 +1,17 @@
+{
+  "name": "hermit-crab",
+  "layout": {
+    "columns": 6,
+    "rows": 1,
+    "tile": 128
+  },
+  "animation": {
+    "walk": {
+      "from": 0,
+      "to": 5,
+      "loop": true
+    }
+  },
+  "groundLine": 118,
+  "source": "art/hermit-crab-atlas-transparent.png"
+}

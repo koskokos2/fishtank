@@ -14,6 +14,13 @@ import {
   NAUTILUS_ATLAS_COLS,
   NAUTILUS_ATLAS_ROWS,
 } from "./nautilusAtlas";
+import { spawnHermitCrab } from "./hermitCrab";
+import {
+  HERMIT_CRAB_ATLAS,
+  HERMIT_CRAB_FRAMES,
+} from "./hermitCrabAtlas";
+import { spawnSeaSnail } from "./seaSnail";
+import { SEA_SNAIL_ATLAS, SEA_SNAIL_FRAMES } from "./seaSnailAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -94,6 +101,12 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       sliceX: NAUTILUS_ATLAS_COLS,
       sliceY: NAUTILUS_ATLAS_ROWS,
     });
+  k.loadSprite("hermit-crab", HERMIT_CRAB_ATLAS, {
+    sliceX: HERMIT_CRAB_FRAMES,
+  });
+  k.loadSprite("sea-snail", SEA_SNAIL_ATLAS, {
+    sliceX: SEA_SNAIL_FRAMES,
+  });
 
   setupTank(k);
 
@@ -105,5 +118,7 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnCephalopod(k, "jellyfish");
     spawnCephalopod(k, "jellyfish");
     spawnCephalopod(k, "jellyfish");
+    spawnHermitCrab(k);
+    spawnSeaSnail(k);
   });
 })();
