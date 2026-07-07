@@ -9,14 +9,20 @@
 //  - Nautilus: a baked 16-pose atlas (src/nautilusAtlas.ts). Its rigid shell is
 //    anchor-stable while authored head, siphon, and tentacle poses follow the
 //    arms-first cruise / tail-first jet machine and tuck through turnarounds.
-//  - Jellyfish: a baked 16-pose atlas (src/jellyfishAtlas.ts), octopus-style: the
-//    pulse machine picks a frame per update — the bell-pulse cycle synced to the
-//    thrust, streaming glide poses while fast, hover variety while drifting, turn
-//    rolls through flips, and a rare flare-then-recoil startle.
+//  - Jellyfish: one identity-stable source split into bell, oral-arm, and long-
+//    tendril layers. The bell follows propulsion while both appendage layers keep
+//    flowing on independent clocks through coasts, pulses, and turns.
 
 import type { KAPLAYCtx } from "kaplay";
 import { OCTOPUS_IDLE_FRAMES, OCTOPUS_POSE } from "./octopusAtlas";
-import { JELLYFISH_POSE } from "./jellyfishAtlas";
+import {
+  JELLYFISH_ARMS_START,
+  JELLYFISH_BELL_ATTACH_Y,
+  JELLYFISH_BELL_START,
+  JELLYFISH_LAYER_FRAMES,
+  JELLYFISH_LAYER_ROOT_Y,
+  JELLYFISH_TENDRILS_START,
+} from "./jellyfishAtlas";
 import { NAUTILUS_POSE } from "./nautilusAtlas";
 import { sandTopAt } from "./backdrop";
 import { RES } from "./res";
@@ -73,21 +79,14 @@ const NAUT_IDLE_LOOP = [
 ] as const;
 
 // =========================== JELLYFISH ART ===========================
-// The jellyfish is a baked 16-pose atlas (src/jellyfishAtlas.ts, from
-// art/jellyfish-atlas-128.png): the four-frame bell-pulse cycle, streaming glide
-// poses, hover variety, turn rolls, and a flare/recoil. Like the octopus, the
-// pulse machine below picks one frame per update — no runtime deformation. The
-// art leads right (tentacles trail left), unlike the left-facing fish atlases.
-const JELLY_IDLE_FPS = 0.65; // calm ambient hover-variety loop speed
+// The layered atlas has sixteen deterministic frames per row. The bell row is
+// state-driven; oral arms and tendrils advance continuously at different rates.
+// Because every row comes from one fixed master component, neither body scale nor
+// attachment geometry can jump when a frame changes.
+const JELLY_ARMS_FPS = 8;
+const JELLY_TENDRIL_FPS = 10;
 const JELLY_TURN_DUR = 0.55; // tuck/roll duration; flip happens halfway through
 const JELLY_FLARE = 0.5; // s the oral-arms flare shows before a startle retreat
-// Closely related upright poses only. This loop runs on a local coast clock, so
-// returning from a pulse always lands on relaxedOpen instead of an arbitrary pose.
-const JELLY_IDLE_LOOP = [
-  JELLYFISH_POSE.relaxedOpen,
-  JELLYFISH_POSE.hoverCenter,
-  JELLYFISH_POSE.loopReturn,
-] as const;
 
 // =========================== ENTITY ===========================
 type KindCfg = {
@@ -130,8 +129,8 @@ type KindCfg = {
     roamSecs: [number, number]; // how long it swims around before settling (s)
     roamHover: [number, number]; // px clearance kept above the sand while roaming
   };
-  // pulse kind (jellyfish): rhythmic bell-pump propulsion, shown with the baked
-  // pose frames. Each cycle is contraction (active power stroke, main thrust) →
+  // pulse kind (jellyfish): rhythmic bell-pump propulsion. Each cycle is
+  // contraction (active power stroke, main thrust) →
   // relaxation (elastic recoil, a smaller "passive energy recapture" thrust) →
   // interpulse (coast + slow sink).
   pulse?: {
@@ -188,7 +187,7 @@ const KINDS: Record<string, KindCfg> = {
     armsBias: 0.5, // equal mix of cruise and jet
   },
   jellyfish: {
-    sprite: "jellyfish",
+    sprite: "jellyfish-bell",
     z: 15,
     drag: 1.6,
     level: { min: 0.05, max: 0.7 }, // drifts the mid/upper column
@@ -284,6 +283,30 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     k.scale(1),
     k.z(cfg.z),
   ]);
+  // Jellyfish appendages are separate sprites sharing the bell's transform. They
+  // stay on their own animation clocks instead of being frozen into bell poses.
+  const jellyTendrils =
+    cfg.motion === "pulse"
+      ? k.add([
+          k.sprite("jellyfish-tendrils"),
+          k.pos(body.pos.x, body.pos.y),
+          k.anchor("center"),
+          k.rotate(0),
+          k.scale(1),
+          k.z(cfg.z - 2),
+        ])
+      : null;
+  const jellyArms =
+    cfg.motion === "pulse"
+      ? k.add([
+          k.sprite("jellyfish-arms"),
+          k.pos(body.pos.x, body.pos.y),
+          k.anchor("center"),
+          k.rotate(0),
+          k.scale(1),
+          k.z(cfg.z - 1),
+        ])
+      : null;
 
   let vx = 0;
   let vy = 0;
@@ -332,21 +355,20 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     k.rand(cfg.crawl?.swimEvery[0] ?? 6, cfg.crawl?.swimEvery[1] ?? 12) * tempo;
   let crawlPuffTimer = k.rand(0.12, 0.25);
 
-  // pulse-kind (jellyfish) state: a 3-phase bell-pump cycle plus the pose picks
-  // it drives — dedicated turns, the rare startle, and the ambient hover loop.
+  // pulse-kind (jellyfish) state: a 3-phase bell-pump plus independent appendage
+  // clocks, a dedicated turn, and the rare startle.
   let pulsePhase: 0 | 1 | 2 = 2; // 0 contract, 1 relax, 2 coast
   let pulseTimer = k.rand(
     cfg.pulse?.coast[0] ?? 0.5,
     cfg.pulse?.coast[1] ?? 1.4,
   );
-  let pulseStrong = false; // this contraction is a full climbing stroke
   let jellyTurnTimer = 0; // dedicated turn state; pauses the pump until complete
   let jellyTurnTarget = facing;
   let jellyTurnFlipped = false;
-  let jellyIdleClock = 0; // local coast clock; resets after each pulse
+  let jellyArmsClock = k.rand(0, JELLYFISH_LAYER_FRAMES / JELLY_ARMS_FPS);
+  let jellyTendrilClock = k.rand(0, JELLYFISH_LAYER_FRAMES / JELLY_TENDRIL_FPS);
   let flareTimer = 0; // startle wind-up: oral arms flare before the retreat
   let startlePulses = 0; // quick recoil pulses left in the current startle
-  let recoilNow = false; // the current pulse is a startle recoil
   let startleTimer = k.rand(
     cfg.pulse?.startle.every[0] ?? 30,
     cfg.pulse?.startle.every[1] ?? 90,
@@ -671,16 +693,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             } else {
               pulsePhase = 0; // coast → contract: the active power stroke
               pulseTimer = p.contract;
-              recoilNow = willRecoil;
-              if (recoilNow) {
+              if (willRecoil) {
                 startlePulses -= 1;
                 vy -= p.thrust * p.startle.boost;
                 vx += away * p.thrust * 0.5;
-                pulseStrong = true;
               } else {
                 vy -= p.thrust * climb; // only push up as much as it needs to climb
                 vx += facing * (p.driftX ?? p.drift); // steer in the visible direction
-                pulseStrong = climb > 0.7; // reserve the drastic tight pose for a hard climb
               }
             }
           } else if (pulsePhase === 0) {
@@ -689,8 +708,6 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             vy -= p.thrust * p.per * climb;
           } else {
             pulsePhase = 2; // relax → coast — rest longer when it isn't climbing
-            recoilNow = false;
-            jellyIdleClock = 0;
             pulseTimer =
               startlePulses > 0
                 ? 0.22 // barely coast between the recoil pulses
@@ -698,9 +715,6 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           }
         }
       }
-
-      if (pulsePhase === 2 && flareTimer <= 0 && jellyTurnTimer <= 0)
-        jellyIdleClock += dt;
 
       vy += p.sink * dt; // always sinking a touch; the pulses fight it
       vx += Math.sign(k.width() / 2 - px) * p.drift * 0.3 * dt; // bias off the walls
@@ -777,38 +791,57 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         ? ang // smooth tilt — no snap; jellyfish is radially symmetric
         : Math.round(ang / TILT_STEP) * TILT_STEP;
 
-    // Jellyfish: phase-driven pose sequence with deliberate holds. Instantaneous
-    // speed can no longer flicker among unrelated silhouettes; turns override and
-    // pause the pump, and each coast begins from one known relaxed pose.
+    // Jellyfish: the bell follows the propulsion phase while the two appendage
+    // rows run continuously and independently. All three share one transform;
+    // only the appendage attachment offset follows the bell's lower rim.
     if (cfg.motion === "pulse") {
-      const P = JELLYFISH_POSE;
       const p = cfg.pulse!;
-      let frame: number;
-      if (flareTimer > 0) frame = P.oralArmsFlare;
-      else if (jellyTurnTimer > 0) {
-        const turnT = 1 - jellyTurnTimer / JELLY_TURN_DUR;
-        frame = turnT < 0.5 ? P.bellRoll : P.hoverTurn;
-      } else if (pulsePhase === 0) {
+      const tightFrame = JELLYFISH_LAYER_FRAMES / 2;
+      let bellFrame = 0;
+      if (pulsePhase === 0) {
         const t = 1 - pulseTimer / p.contract;
-        frame = recoilNow
-          ? P.recoil
-          : t >= 0.58 && pulseStrong
-            ? P.contractTight
-            : P.contractEarly;
+        bellFrame = Math.min(
+          tightFrame,
+          Math.floor(clamp(t, 0, 1) * (tightFrame + 1)),
+        );
       } else if (pulsePhase === 1) {
         const t = 1 - pulseTimer / p.relax;
-        if (t < 0.34) frame = P.reopen;
-        else if (t < 0.68)
-          frame = recoilNow ? P.tentaclesStream : P.oralArmsFollow;
-        else frame = pulseStrong ? P.glideSweep : P.recover;
-      } else {
-        frame =
-          JELLY_IDLE_LOOP[
-            Math.floor(jellyIdleClock * JELLY_IDLE_FPS) %
-              JELLY_IDLE_LOOP.length
-          ];
+        bellFrame =
+          tightFrame +
+          Math.min(
+            JELLYFISH_LAYER_FRAMES - tightFrame - 1,
+            Math.floor(clamp(t, 0, 1) * (JELLYFISH_LAYER_FRAMES - tightFrame)),
+          );
       }
-      body.frame = frame;
+      body.frame = JELLYFISH_BELL_START + bellFrame;
+
+      jellyArmsClock += dt;
+      jellyTendrilClock += dt;
+      const armsFrame =
+        Math.floor(jellyArmsClock * JELLY_ARMS_FPS) % JELLYFISH_LAYER_FRAMES;
+      const tendrilFrame =
+        Math.floor(jellyTendrilClock * JELLY_TENDRIL_FPS) % JELLYFISH_LAYER_FRAMES;
+      jellyArms!.frame = JELLYFISH_ARMS_START + armsFrame;
+      jellyTendrils!.frame = JELLYFISH_TENDRILS_START + tendrilFrame;
+      // The startle wind-up spreads only the oral arms; their wave clock keeps
+      // advancing, and the long tendrils remain completely unaffected.
+      jellyArms!.scale.x =
+        1 +
+        (flareTimer > 0
+          ? 0.12 * Math.sin((Math.PI * flareTimer) / JELLY_FLARE)
+          : 0);
+
+      const attachOffset =
+        JELLYFISH_BELL_ATTACH_Y[bellFrame] - JELLYFISH_LAYER_ROOT_Y;
+      const radians = (body.angle * Math.PI) / 180;
+      const ox = -Math.sin(radians) * attachOffset;
+      const oy = Math.cos(radians) * attachOffset;
+      for (const layer of [jellyTendrils!, jellyArms!]) {
+        layer.pos.x = body.pos.x + ox;
+        layer.pos.y = body.pos.y + oy;
+        layer.angle = body.angle;
+        layer.flipX = body.flipX;
+      }
     }
 
     // Nautilus: select poses from propulsion and steering state rather than

@@ -1,31 +1,14 @@
 {
   "image": "jellyfish-atlas-128.png",
-  "sourceImage": "jellyfish-atlas-transparent.png",
+  "sourceImage": "jellyfish-components-transparent.png",
   "tileSize": 128,
-  "columns": 4,
-  "rows": 4,
-  "animation": {
-    "name": "pulse_swim",
-    "order": "left-to-right, top-to-bottom",
-    "loop": true,
-    "frames": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-  },
-  "sprites": [
-    { "name": "relaxed_open", "frame": 0, "row": 0, "col": 0 },
-    { "name": "contract_early", "frame": 1, "row": 0, "col": 1 },
-    { "name": "contract_tight", "frame": 2, "row": 0, "col": 2 },
-    { "name": "reopen", "frame": 3, "row": 0, "col": 3 },
-    { "name": "glide_sweep", "frame": 4, "row": 1, "col": 0 },
-    { "name": "oral_arms_follow", "frame": 5, "row": 1, "col": 1 },
-    { "name": "hover_center", "frame": 6, "row": 1, "col": 2 },
-    { "name": "bell_roll", "frame": 7, "row": 1, "col": 3 },
-    { "name": "tentacles_stream", "frame": 8, "row": 2, "col": 0 },
-    { "name": "oral_arms_flare", "frame": 9, "row": 2, "col": 1 },
-    { "name": "recoil", "frame": 10, "row": 2, "col": 2 },
-    { "name": "hover_turn", "frame": 11, "row": 2, "col": 3 },
-    { "name": "long_glide", "frame": 12, "row": 3, "col": 0 },
-    { "name": "deep_wave", "frame": 13, "row": 3, "col": 1 },
-    { "name": "recover", "frame": 14, "row": 3, "col": 2 },
-    { "name": "loop_return", "frame": 15, "row": 3, "col": 3 }
+  "columns": 16,
+  "rows": 3,
+  "layout": "layered-independent-loops",
+  "notes": "One invariant source identity. Row 0 is the propulsion-synced bell pulse; row 1 is the continuously waving oral-arm loop; row 2 is the independently waving long-tendril loop.",
+  "layers": [
+    { "name": "bell", "row": 0, "frames": 16, "playback": "pulse-state" },
+    { "name": "oralArms", "row": 1, "frames": 16, "playback": "continuous" },
+    { "name": "longTendrils", "row": 2, "frames": 16, "playback": "continuous-independent" }
   ]
 }

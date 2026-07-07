@@ -5,10 +5,15 @@ import { decodePng, encodePng, dataUrlToBuffer } from "./png";
 import { BW, BH, backdropPixels, coralBlits } from "../src/backdrop";
 import { CORAL_ATLAS, CORAL_ATLAS_CELL, CORAL_ATLAS_LAYOUT } from "../src/coralsAtlas";
 import {
+  JELLYFISH_ARMS_START,
   JELLYFISH_ATLAS,
+  JELLYFISH_BELL_ATTACH_Y,
   JELLYFISH_ATLAS_CELL,
   JELLYFISH_ATLAS_COLS,
-  JELLYFISH_FRAMES,
+  JELLYFISH_BELL_START,
+  JELLYFISH_LAYER_FRAMES,
+  JELLYFISH_LAYER_ROOT_Y,
+  JELLYFISH_TENDRILS_START,
 } from "../src/jellyfishAtlas";
 import {
   FISH_ATLAS,
@@ -48,8 +53,8 @@ const opt = (k: string) => argv[k] ?? process.env[k];
 // MODE=fish (default) bakes every fish's swim sheet from the atlas; MODE=backdrop
 // bakes the static scene to backdrop.png; MODE=octopus lays out the baked octopus
 // poses (the live pose-swapping state machine only shows in `bun run dev`);
-// MODE=jellyfish lays out the sixteen baked jellyfish poses (the live pulse
-// machine that swaps them only shows in `bun run dev`);
+// MODE=jellyfish composites the layered bell/arms/tendril loops into sixteen
+// representative frames (their clocks are independent in the live tank);
 // MODE=ruins-kit validates the modular ruins source sidecar and renders assembled
 // column/wall/arch recipe previews. The nautilus is cropped from the sea-creature
 // atlas and animated in-browser at load.
@@ -113,14 +118,12 @@ function renderFrames(frames: Buf[], name: string, label: string) {
   console.log(`wrote ${name} (${cw}x${ch}) — ${frames.length} ${label}`);
 }
 
-// Lays out the sixteen baked jellyfish poses — the bell-pulse cycle, the streaming
-// glides, the hover variety, the turns, and the flare/recoil — so the art and
-// framing can be checked without a browser. The live pose-swapping pulse machine
-// still needs `bun run dev`.
+// Composite representative layered frames. The tendril phase intentionally walks
+// at a different rate from the bell and oral arms to expose seams or clipping.
 function renderJellyfish() {
   const atlas = decodePng(dataUrlToBuffer(JELLYFISH_ATLAS));
   const cell = JELLYFISH_ATLAS_CELL;
-  const frames = Array.from({ length: JELLYFISH_FRAMES }, (_, i) =>
+  const tile = (i: number) =>
     copyRect(
       atlas.rgba,
       atlas.w,
@@ -128,9 +131,35 @@ function renderJellyfish() {
       Math.floor(i / JELLYFISH_ATLAS_COLS) * cell,
       cell,
       cell,
-    ),
-  );
-  renderFrames(frames, "jellyfish.png", "jellyfish poses");
+    );
+  const over = (dst: Buf, src: Buf, oy = 0) => {
+    for (let y = 0; y < src.h; y++) {
+      const dy = y + oy;
+      if (dy < 0 || dy >= dst.h) continue;
+      for (let x = 0; x < src.w; x++) {
+        const si = (y * src.w + x) * 4;
+        const sa = src.data[si + 3] / 255;
+        if (!sa) continue;
+        const di = (dy * dst.w + x) * 4;
+        const da = dst.data[di + 3] / 255;
+        const oa = sa + da * (1 - sa);
+        for (let c = 0; c < 3; c++)
+          dst.data[di + c] = Math.round(
+            (src.data[si + c] * sa + dst.data[di + c] * da * (1 - sa)) / oa,
+          );
+        dst.data[di + 3] = Math.round(oa * 255);
+      }
+    }
+  };
+  const frames = Array.from({ length: JELLYFISH_LAYER_FRAMES }, (_, i) => {
+    const out: Buf = { data: new Uint8Array(cell * cell * 4), w: cell, h: cell };
+    const offset = JELLYFISH_BELL_ATTACH_Y[i] - JELLYFISH_LAYER_ROOT_Y;
+    over(out, tile(JELLYFISH_TENDRILS_START + ((i * 3 + 2) % JELLYFISH_LAYER_FRAMES)), offset);
+    over(out, tile(JELLYFISH_ARMS_START + i), offset);
+    over(out, tile(JELLYFISH_BELL_START + i));
+    return out;
+  });
+  renderFrames(frames, "jellyfish.png", "layered jellyfish frames");
 }
 
 function renderBackdrop() {

@@ -147,15 +147,33 @@ const SEPARATION = 0.25; // share of the overlap each fish resolves per frame
 
 // Occasional ambient actions: now and then a fish breaks its burst/coast routine
 // for a short, self-contained behaviour (nose the sand, gulp at the surface, dart,
-// hover, rest on the bottom, chase a neighbour), then returns to normal swimming.
+// hover, rest on the bottom, chase a slower neighbour who darts away), then
+// returns to normal swimming.
 // ACTION_EVERY is the per-fish gap between actions (seconds, unitless — wall-clock).
 const ACTION_EVERY: [number, number] = [20, 60];
 const NOSE_GAP = 10 * RES; // body-centre height above the sand when nosing/resting
 const DART_IMPULSE = 230 * RES; // one-shot startle kick (several times a normal burst)
-const CHASE_RANGE = 180 * RES; // a chase only starts if another fish is within this
+const CHASE_RANGE = 180 * RES; // a chase only starts if a slower fish is within this
+const CHASE_GIVEUP = CHASE_RANGE * 1.3; // pursuit breaks off once the target escapes this far
+const CHASE_ACCEL = 1.7; // thrust multiplier while chasing (tail-beat follows the speed)
+// A chased fish reacts in a ramp, not a point-blank bounce: it starts pulling away
+// once the pursuer is inside FLEE_ALERT, its thrust growing toward FLEE_ACCEL as
+// the gap closes, and only a point-blank FLEE_DART gap triggers the hard dart kick
+// — by then it is already moving away, so the kick reads as a burst, not a bounce.
+const FLEE_ALERT = 110 * RES; // distance where a chased fish starts easing away
+const FLEE_DART = 30 * RES; // point-blank gap that climaxes in a dart kick
+const FLEE_ACCEL = 2.4; // peak flee thrust multiplier at point-blank
 const BENTHIC_MAX = 0.92; // species with level.max at/above this rest on the bottom
 
-type FishAction = "none" | "sift" | "gulp" | "dart" | "hover" | "rest" | "chase";
+type FishAction =
+  | "none"
+  | "sift"
+  | "gulp"
+  | "dart"
+  | "hover"
+  | "rest"
+  | "chase"
+  | "flee";
 
 export function spawnFish(
   k: KAPLAYCtx,
@@ -188,8 +206,16 @@ export function spawnFish(
     // Enlarged collider acts as a proximity sensor for separation, not a hard
     // hitbox — fish steer away before they actually touch.
     k.area({ scale: 1.5 }),
-    // Head/tail world points, published each frame for capsule-style separation.
-    { headX: 0, headY: 0, tailX: 0, tailY: 0 },
+    // Head/tail world points, published each frame for capsule-style separation;
+    // kindSpeed and menace() let a chaser pick catchable targets and press them.
+    {
+      headX: 0,
+      headY: 0,
+      tailX: 0,
+      tailY: 0,
+      kindSpeed: sp,
+      menace(_fromX: number, _fromY: number) {},
+    },
     "fish",
   ]);
   fish.play("swim", { loop: true });
@@ -225,10 +251,33 @@ export function spawnFish(
   let actTimer = 0;
   let actCooldown = k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
   let chaseTarget: GameObj | null = null;
+  // Flee state: where the pursuer last was, how long that sighting stays fresh,
+  // and the current 0..1 urgency that scales the escape thrust.
+  let threatX = 0;
+  let threatY = 0;
+  let threatFor = 0;
+  let fleeUrgency = 0;
   const benthic = level.max >= BENTHIC_MAX;
   const canSift = level.max >= 0.5; // band reaches low enough to nose the sand
   const canGulp = level.min <= 0.4; // band reaches high enough to gulp at the top
   const inBand = () => k.rand(bandTop(), bandBot());
+
+  // The pursuer publishes its position every chase frame. The sighting stays
+  // fresh briefly; once the threat is inside FLEE_ALERT the target breaks what
+  // it's doing and eases into a flee — the graded urgency (and the point-blank
+  // dart) live in the flee action itself.
+  fish.menace = (fromX: number, fromY: number) => {
+    threatX = fromX;
+    threatY = fromY;
+    threatFor = 0.4;
+    if (action === "flee" || action === "dart") return;
+    if (Math.hypot(px - fromX, py - fromY) > FLEE_ALERT) return;
+    action = "flee";
+    chaseTarget = null;
+    actSub = "";
+    actTimer = 0; // dart-kick cooldown; 0 = armed
+    phase = "burst";
+  };
 
   // Pick a feasible action (light weighting; no config table) and arm its first
   // sub-phase. Bottom species lean toward sifting/resting; chase needs a neighbour.
@@ -242,6 +291,8 @@ export function spawnFish(
     let best = CHASE_RANGE;
     for (const o of k.get("fish")) {
       if (o === fish) continue;
+      // Only chase a slower species — a pursuit the chaser can actually win.
+      if ((o as unknown as { kindSpeed: number }).kindSpeed >= sp) continue;
       const d = Math.hypot(o.pos.x - px, o.pos.y - py);
       if (d < best) {
         best = d;
@@ -269,7 +320,7 @@ export function spawnFish(
       actTimer = k.rand(2, 3);
     } else if (action === "chase") {
       chaseTarget = target;
-      actTimer = k.rand(1, 2);
+      actTimer = k.rand(2.5, 4);
     }
   };
 
@@ -339,16 +390,49 @@ export function spawnFish(
         vy += (0 - vy) * 4 * dt;
         if ((actTimer -= dt) <= 0) endAction();
         break;
-      case "chase":
+      case "chase": {
         if (!chaseTarget || !chaseTarget.exists()) {
           endAction();
           return;
         }
+        const dist = Math.hypot(chaseTarget.pos.x - px, chaseTarget.pos.y - py);
         heading = Math.sign(chaseTarget.pos.x - px) || heading;
         depth = chaseTarget.pos.y;
         phase = "burst";
-        if ((actTimer -= dt) <= 0) endAction();
+        (
+          chaseTarget as unknown as { menace: (x: number, y: number) => void }
+        ).menace(px, py);
+        if (dist > CHASE_GIVEUP || (actTimer -= dt) <= 0) endAction();
         break;
+      }
+      case "flee": {
+        // The threat sighting has gone stale (pursuit broke off) — relax.
+        if (threatFor <= 0) {
+          endAction();
+          return;
+        }
+        const dx = px - threatX;
+        const dy = py - threatY;
+        const d = Math.hypot(dx, dy) || 1;
+        heading = Math.sign(dx) || heading;
+        // Keep sliding off the pursuer's line vertically, within the tank.
+        depth = clamp(py + Math.sign(dy || 1) * 24 * RES, minY, maxY());
+        phase = "burst";
+        // Urgency ramps 0 → 1 as the pursuer closes from the alert edge to
+        // point-blank, scaling the escape thrust in the integrator below.
+        fleeUrgency = clamp((FLEE_ALERT - d) / (FLEE_ALERT - FLEE_DART), 0, 1);
+        actTimer -= dt;
+        if (d < FLEE_DART && actTimer <= 0) {
+          // Point-blank climax: one hard kick straight away, then keep fleeing.
+          actTimer = 1.2; // re-arm delay so repeat kicks can't machine-gun
+          vx += heading * DART_IMPULSE * 0.8;
+          vy +=
+            (Math.sign(dy) || k.choose([-1, 1])) *
+            k.rand(0.08, 0.2) *
+            DART_IMPULSE;
+        }
+        break;
+      }
     }
   };
 
@@ -400,6 +484,8 @@ export function spawnFish(
     const dt = k.dt();
     const w = k.width();
 
+    if (threatFor > 0) threatFor -= dt;
+
     if (!hasEntered) {
       if (px >= 0 && px <= w) hasEntered = true;
     } else if (px < -pad || px > w + pad) {
@@ -440,8 +526,14 @@ export function spawnFish(
     else if (px > w - margin) heading = -1;
 
     // Burst applies thrust; coast applies none. Drag acts in both phases, so a
-    // coast is a decelerating glide.
-    const ax = phase === "burst" ? heading * ACCEL * sp : 0;
+    // coast is a decelerating glide. A fleeing fish's thrust grows with urgency.
+    const boost =
+      action === "chase"
+        ? CHASE_ACCEL
+        : action === "flee"
+          ? 1 + fleeUrgency * (FLEE_ACCEL - 1)
+          : 1;
+    const ax = phase === "burst" ? heading * ACCEL * sp * boost : 0;
     const ay = phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
     vx += ax * dt;
     vy += ay * dt;

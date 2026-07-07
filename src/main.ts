@@ -81,13 +81,14 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  // The cephalopods are clean multi-frame pose sheets; their state machines pick
-  // one authored frame at a time (none is a blind looped sprite animation).
+  // The octopus and nautilus use pose sheets. The jellyfish uses the same atlas
+  // three times so its bell, oral arms, and long tendrils can advance separately.
   k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
-  k.loadSprite("jellyfish", JELLYFISH_ATLAS, {
-    sliceX: JELLYFISH_ATLAS_COLS,
-    sliceY: JELLYFISH_ATLAS_ROWS,
-  });
+  for (const layer of ["bell", "arms", "tendrils"])
+    k.loadSprite(`jellyfish-${layer}`, JELLYFISH_ATLAS, {
+      sliceX: JELLYFISH_ATLAS_COLS,
+      sliceY: JELLYFISH_ATLAS_ROWS,
+    });
   k.loadSprite("nautilus", NAUTILUS_ATLAS, {
     sliceX: NAUTILUS_ATLAS_COLS,
     sliceY: NAUTILUS_ATLAS_ROWS,
@@ -100,7 +101,8 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     // A few cephalopods drift among the fish as larger accent creatures.
     spawnCephalopod(k, "nautilus");
     spawnCephalopod(k, "octopus");
-    spawnCephalopod(k, "octopus");
+    spawnCephalopod(k, "jellyfish");
+    spawnCephalopod(k, "jellyfish");
     spawnCephalopod(k, "jellyfish");
   });
 })();
