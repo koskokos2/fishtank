@@ -580,7 +580,10 @@ function renderFishGrid() {
       ? FISH_EXTRA_ATLAS_LAYOUT[k.name]
       : FISH_ATLAS_LAYOUT[k.name];
     const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
-    return shearSheet(copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh));
+    return shearSheet(
+      copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh),
+      k.motion,
+    );
   });
 
   const cw = pad + Math.max(...sheets.map((s) => s.w)) * S + pad;

@@ -1,10 +1,12 @@
 {
-  "image": "fish-atlas-extra-original.png",
-  "sourceWidth": 1086,
-  "sourceHeight": 1448,
+  "image": "fish-extra-atlas-128.png",
+  "sourceImage": "fish-extra-atlas-regenerated-transparent.png",
+  "tileSize": 128,
+  "sourceWidth": 384,
+  "sourceHeight": 512,
   "columns": 3,
   "rows": 4,
-  "layout": "semantic-source-layout",
+  "layout": "runtime-grid",
   "reference": "fish-atlas-original.png",
   "sprites": [
     { "name": "betta", "row": 0, "col": 0, "category": "fish", "role": "flowingFins" },

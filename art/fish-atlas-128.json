@@ -1,5 +1,6 @@
 {
   "image": "fish-atlas-128.png",
+  "sourceImage": "fish-atlas-regenerated-transparent.png",
   "tileSize": 128,
   "columns": 3,
   "rows": 4,

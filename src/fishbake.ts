@@ -2,19 +2,28 @@
 // are pure (RGBA buffers in, RGBA buffers out) and touch no DOM, so the same code
 // drives the in-app canvas bake (fish.ts) and the headless previewer (preview.ts).
 //
-// The atlas frames are static, so the "swim" is synthesized: each fish is
-// copied from its 128px cell, then a few frames are baked by shearing the rear of
-// the body vertically along a sine. The tail end sweeps up and down while the
-// head stays put, reading as a caudal beat. Shears are whole-pixel column shifts,
-// so the art stays on the integer pixel grid under the global nearest-neighbour
-// filter. The motion model then plays these frames at a speed tied to swim speed.
+// The atlas poses are static, so a four-frame swim is synthesized for each fish.
+// Species select one of four motion profiles: a normal tail beat, slower flowing
+// fins, whole-body eel undulation, or a restrained paddle. All offsets remain on
+// the integer pixel grid under the global nearest-neighbour filter, and playback
+// speed stays tied to both the fish's swim speed and its motion profile.
 
 export type Buf = { data: Uint8Array; w: number; h: number };
 
-export const SWIM_FRAMES = 6;
-const SHEAR_AMP = 4; // peak tail shift, in native sprite pixels
-const SHEAR_PIVOT = 0.45; // body fraction (from the head) where the tail starts to flex
-const PAD = SHEAR_AMP; // vertical room each side so a shifted tail isn't clipped
+export const SWIM_FRAMES = 4;
+export type FishMotionProfile = "standard" | "flowing" | "eel" | "paddle";
+
+const PROFILE = {
+  standard: { amp: 4, pivot: 0.45, flutter: 0, beat: 1 },
+  flowing: { amp: 4, pivot: 0.38, flutter: 2, beat: 0.68 },
+  eel: { amp: 3, pivot: 0, flutter: 0, beat: 0.78 },
+  paddle: { amp: 2, pivot: 0.58, flutter: 1, beat: 0.58 },
+} as const;
+const PAD = 6; // covers tail bend plus flowing-fin expansion without clipping
+
+export function motionBeatScale(profile: FishMotionProfile): number {
+  return PROFILE[profile].beat;
+}
 
 // Tight bounding box of the non-transparent pixels inside one atlas cell.
 export function cellBBox(rgba: Uint8Array, imgW: number, x0: number, y0: number, cell: number) {
@@ -57,28 +66,53 @@ export function copyRect(
 
 // Per-column vertical shift for frame `f`: zero over the head, rising toward the
 // tail and oscillating as a travelling wave so the body looks like it undulates.
-function shearShift(x: number, w: number, f: number): number {
-  const xp = w * SHEAR_PIVOT;
-  if (x <= xp) return 0;
-  const t = (x - xp) / Math.max(1, w - 1 - xp); // 0 at pivot → 1 at tail tip
+function swimShift(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  f: number,
+  profile: FishMotionProfile,
+): number {
+  const p = PROFILE[profile];
   const phase = (2 * Math.PI * f) / SWIM_FRAMES;
-  return Math.round(SHEAR_AMP * t * Math.sin(phase - Math.PI * t));
+  if (profile === "eel") {
+    // Whole-body travelling S-wave: tiny at the head, strongest at the tail.
+    const along = x / Math.max(1, w - 1);
+    const envelope = 0.12 + along * 0.88;
+    return Math.round(p.amp * envelope * Math.sin(phase - Math.PI * 1.35 * along));
+  }
+
+  const xp = w * p.pivot;
+  const tail = x <= xp ? 0 : (x - xp) / Math.max(1, w - 1 - xp);
+  let shift = p.amp * tail * Math.sin(phase);
+  if (p.flutter) {
+    // Fancy/slow swimmers breathe their dorsal and ventral fin edges while the
+    // tail sweeps. Opposite signs above/below the body expand then relax the fins.
+    const mid = (h - 1) / 2;
+    const edge = Math.abs(y - mid) / Math.max(1, mid);
+    const finReach = Math.max(0, (x / Math.max(1, w - 1) - 0.12) / 0.88);
+    shift += Math.sign(y - mid) * p.flutter * edge * finReach * Math.cos(phase);
+  }
+  return Math.round(shift);
 }
 
 // Lay the swim frames out side by side into one sheet buffer (frames wide, padded
-// in height). Each frame is the native fish crop with its tail sheared.
-export function shearSheet(fish: Buf): Buf {
+// in height). Each frame is the native fish crop transformed by its profile.
+export function shearSheet(
+  fish: Buf,
+  profile: FishMotionProfile = "standard",
+): Buf {
   const fh = fish.h + PAD * 2;
   const sheetW = fish.w * SWIM_FRAMES;
   const data = new Uint8Array(sheetW * fh * 4);
   for (let f = 0; f < SWIM_FRAMES; f++) {
     const ox = f * fish.w;
     for (let x = 0; x < fish.w; x++) {
-      const shift = shearShift(x, fish.w, f);
       for (let y = 0; y < fish.h; y++) {
         const si = (y * fish.w + x) * 4;
         if (fish.data[si + 3] === 0) continue;
-        const dy = y + PAD + shift;
+        const dy = y + PAD + swimShift(x, y, fish.w, fish.h, f, profile);
         if (dy < 0 || dy >= fh) continue;
         const di = (dy * sheetW + (ox + x)) * 4;
         data[di] = fish.data[si];
