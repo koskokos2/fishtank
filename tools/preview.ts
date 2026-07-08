@@ -36,6 +36,18 @@ import {
   SCI_FI_PROPS_ATLAS_CELL,
   SCI_FI_PROPS_ATLAS_LAYOUT,
 } from "../src/sciFiPropsAtlas";
+import { ELDRITCH_PROP_SPECS } from "../src/eldritchProps";
+import {
+  ELDRITCH_PROPS_ATLAS,
+  ELDRITCH_PROPS_ATLAS_CELL,
+  ELDRITCH_PROPS_ATLAS_LAYOUT,
+} from "../src/eldritchPropsAtlas";
+import { STAR_WARS_PROP_SPECS } from "../src/starWarsProps";
+import {
+  STAR_WARS_PROPS_ATLAS,
+  STAR_WARS_PROPS_ATLAS_CELL,
+  STAR_WARS_PROPS_ATLAS_LAYOUT,
+} from "../src/starWarsPropsAtlas";
 import { RES } from "../src/res";
 import {
   JELLYFISH_ARMS_START,
@@ -318,6 +330,8 @@ function backdropWithProps() {
 function renderPlantScene() {
   const buf = backdropWithProps();
   blitSciFiProps(buf);
+  blitEldritchProps(buf);
+  blitStarWarsProps(buf);
   const atlas = decodePng(dataUrlToBuffer(PLANT_ATLAS));
   const time = Number(opt("TIME") ?? 3.4);
   type Part = {
@@ -375,6 +389,76 @@ function renderPlantScene() {
   const name = opt("OUT") ?? "plants-scene.png";
   writeFileSync(name, encodePng(out, BW, BH));
   console.log(`wrote ${name} (${BW}x${BH}) — ${parts.length} independently placed fronds`);
+}
+
+function blitEldritchProps(buf: ReturnType<typeof backdropPixels>) {
+  const atlas = decodePng(dataUrlToBuffer(ELDRITCH_PROPS_ATLAS));
+  const cell = ELDRITCH_PROPS_ATLAS_CELL;
+  for (const spec of ELDRITCH_PROP_SPECS) {
+    const layout = ELDRITCH_PROPS_ATLAS_LAYOUT[spec.name];
+    const rootX = spec.fx * BW;
+    const dx = Math.round(rootX - cell / 2);
+    let floor = -Infinity;
+    for (let x = dx + layout.contactLeft; x <= dx + layout.contactRight; x++)
+      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
+    const rootY = floor + spec.depth * RES;
+    const spriteY = rootY + cell - layout.bottom;
+    const dy = Math.round(spriteY - cell);
+    const sx0 = layout.col * cell;
+    const sy0 = layout.row * cell;
+    for (let y = 0; y < cell; y++) {
+      for (let x = 0; x < cell; x++) {
+        const bx = dx + x;
+        const by = dy + y;
+        if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
+        const si = ((sy0 + y) * atlas.w + sx0 + x) * 4;
+        const a = atlas.rgba[si + 3] / 255;
+        if (!a) continue;
+        const [br, bg, bb] = buf[by * BW + bx];
+        buf[by * BW + bx] = [
+          Math.round(atlas.rgba[si] * a + br * (1 - a)),
+          Math.round(atlas.rgba[si + 1] * a + bg * (1 - a)),
+          Math.round(atlas.rgba[si + 2] * a + bb * (1 - a)),
+          255,
+        ];
+      }
+    }
+  }
+}
+
+function blitStarWarsProps(buf: ReturnType<typeof backdropPixels>) {
+  const atlas = decodePng(dataUrlToBuffer(STAR_WARS_PROPS_ATLAS));
+  const cell = STAR_WARS_PROPS_ATLAS_CELL;
+  for (const spec of STAR_WARS_PROP_SPECS) {
+    const layout = STAR_WARS_PROPS_ATLAS_LAYOUT[spec.name];
+    const rootX = spec.fx * BW;
+    const dx = Math.round(rootX - cell / 2);
+    let floor = -Infinity;
+    for (let x = dx + layout.contactLeft; x <= dx + layout.contactRight; x++)
+      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
+    const rootY = floor + spec.depth * RES;
+    const spriteY = rootY + cell - layout.bottom;
+    const dy = Math.round(spriteY - cell);
+    const sx0 = layout.col * cell;
+    const sy0 = layout.row * cell;
+    for (let y = 0; y < cell; y++) {
+      for (let x = 0; x < cell; x++) {
+        const bx = dx + x;
+        const by = dy + y;
+        if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
+        const si = ((sy0 + y) * atlas.w + sx0 + x) * 4;
+        const a = atlas.rgba[si + 3] / 255;
+        if (!a) continue;
+        const [br, bg, bb] = buf[by * BW + bx];
+        buf[by * BW + bx] = [
+          Math.round(atlas.rgba[si] * a + br * (1 - a)),
+          Math.round(atlas.rgba[si + 1] * a + bg * (1 - a)),
+          Math.round(atlas.rgba[si + 2] * a + bb * (1 - a)),
+          255,
+        ];
+      }
+    }
+  }
 }
 
 function blitSciFiProps(buf: ReturnType<typeof backdropPixels>) {

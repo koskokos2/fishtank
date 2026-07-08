@@ -1,0 +1,24 @@
+{
+  "image": "star-wars-props-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "utility_droid_dome", "row": 0, "col": 0, "category": "droid", "role": "robotRemains" },
+    { "name": "moisture_collector", "row": 0, "col": 1, "category": "machinery", "role": "tallInstrument" },
+    { "name": "hologram_strategy_table", "row": 0, "col": 2, "category": "display", "role": "roundDisplay" },
+    { "name": "galactic_field_terminal", "row": 0, "col": 3, "category": "display", "role": "tallDisplay" },
+    { "name": "cracked_guardian_helmet", "row": 1, "col": 0, "category": "salvage", "role": "armorRelic" },
+    { "name": "translator_droid_head", "row": 1, "col": 1, "category": "droid", "role": "robotRemains" },
+    { "name": "spherical_courier_droid", "row": 1, "col": 2, "category": "droid", "role": "robotRemains" },
+    { "name": "collapsed_survey_remote", "row": 1, "col": 3, "category": "droid", "role": "sensor" },
+    { "name": "interceptor_wing_wreckage", "row": 2, "col": 0, "category": "wreckage", "role": "starfighterRemains" },
+    { "name": "ceremonial_power_coupler", "row": 2, "col": 1, "category": "relic", "role": "handheldRelic" },
+    { "name": "resistance_field_reactor", "row": 2, "col": 2, "category": "machinery", "role": "powerUnit" },
+    { "name": "planetary_probe_wreck", "row": 2, "col": 3, "category": "wreckage", "role": "robotRemains" },
+    { "name": "galactic_cargo_crate", "row": 3, "col": 0, "category": "salvage", "role": "storage" },
+    { "name": "crystal_containment_canister", "row": 3, "col": 1, "category": "science", "role": "luminousAccent" },
+    { "name": "folding_comms_dish", "row": 3, "col": 2, "category": "machinery", "role": "communications" },
+    { "name": "cantina_beverage_dispenser", "row": 3, "col": 3, "category": "salvage", "role": "domesticMachine" }
+  ]
+}

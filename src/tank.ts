@@ -6,6 +6,8 @@ import {
   PLANT_ATLAS_LAYOUT,
 } from "./plantAtlas";
 import { spawnSciFiProps } from "./sciFiProps";
+import { spawnEldritchProps } from "./eldritchProps";
+import { spawnStarWarsProps } from "./starWarsProps";
 
 const S = RES;
 
@@ -22,6 +24,8 @@ export function setupTank(k: KAPLAYCtx) {
   // Technological salvage stays as live sprites rather than being baked into the
   // backdrop: two blank glass surfaces carry animated, replaceable readouts.
   spawnSciFiProps(k);
+  spawnEldritchProps(k);
+  spawnStarWarsProps(k);
 
   // Atlas plants keep the good depth language of the old procedural grass, but
   // each real frond now has its own root pivot and current phase. Their roots use

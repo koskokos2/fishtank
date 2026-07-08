@@ -31,6 +31,16 @@ import {
   SCI_FI_PROPS_ATLAS_COLS,
   SCI_FI_PROPS_ATLAS_ROWS,
 } from "./sciFiPropsAtlas";
+import {
+  ELDRITCH_PROPS_ATLAS,
+  ELDRITCH_PROPS_ATLAS_COLS,
+  ELDRITCH_PROPS_ATLAS_ROWS,
+} from "./eldritchPropsAtlas";
+import {
+  STAR_WARS_PROPS_ATLAS,
+  STAR_WARS_PROPS_ATLAS_COLS,
+  STAR_WARS_PROPS_ATLAS_ROWS,
+} from "./starWarsPropsAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -132,6 +142,14 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   k.loadSprite("sci-fi-props", SCI_FI_PROPS_ATLAS, {
     sliceX: SCI_FI_PROPS_ATLAS_COLS,
     sliceY: SCI_FI_PROPS_ATLAS_ROWS,
+  });
+  k.loadSprite("eldritch-props", ELDRITCH_PROPS_ATLAS, {
+    sliceX: ELDRITCH_PROPS_ATLAS_COLS,
+    sliceY: ELDRITCH_PROPS_ATLAS_ROWS,
+  });
+  k.loadSprite("star-wars-props", STAR_WARS_PROPS_ATLAS, {
+    sliceX: STAR_WARS_PROPS_ATLAS_COLS,
+    sliceY: STAR_WARS_PROPS_ATLAS_ROWS,
   });
 
   setupTank(k);

@@ -1,0 +1,24 @@
+{
+  "image": "eldritch-props-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "seated_oracle_idol", "row": 0, "col": 0 },
+    { "name": "tentacle_reliquary", "row": 0, "col": 1 },
+    { "name": "spiral_block_pillar", "row": 0, "col": 2 },
+    { "name": "whispering_stone_arch", "row": 0, "col": 3 },
+    { "name": "fractured_ritual_relief", "row": 1, "col": 0 },
+    { "name": "chained_abyssal_tome", "row": 1, "col": 1 },
+    { "name": "black_orb_votive_slab", "row": 1, "col": 2 },
+    { "name": "cracked_void_monolith", "row": 1, "col": 3 },
+    { "name": "chaos_polyp_relic", "row": 2, "col": 0 },
+    { "name": "biomechanical_tentacle_shrine", "row": 2, "col": 1 },
+    { "name": "star_ceremonial_mask", "row": 2, "col": 2 },
+    { "name": "broken_puzzle_reliquary", "row": 2, "col": 3 },
+    { "name": "bone_spiral_totem", "row": 3, "col": 0 },
+    { "name": "sunken_alien_astrolabe", "row": 3, "col": 1 },
+    { "name": "collapsed_tentacle_seal", "row": 3, "col": 2 },
+    { "name": "dormant_mantle_effigy", "row": 3, "col": 3 }
+  ]
+}
