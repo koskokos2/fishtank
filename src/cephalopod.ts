@@ -30,7 +30,7 @@ import {
   NAUTILUS_SIPHON_START,
   NAUTILUS_TENTACLES_START,
 } from "./nautilusAtlas";
-import { sandTopAt } from "./backdrop";
+import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { RES } from "./res";
 
@@ -857,6 +857,11 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
 
     body.pos.x = Math.round(px);
     body.pos.y = Math.round(py);
+    // The octopus depth-sorts against the other grounded objects by the sand
+    // it stands on (kept while airborne, so a swim bout doesn't pop it through
+    // props it will land behind).
+    if (cfg.motion === "crawl")
+      body.z = groundZ(sandTopAt(clamp(px, 0, k.width() - 1)));
     body.angle =
       cfg.motion === "crawl"
         ? Math.round(ang / TILT_STEP) * TILT_STEP

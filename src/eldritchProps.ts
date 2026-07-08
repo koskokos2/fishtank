@@ -1,10 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
-import { sandTopAt } from "./backdrop";
-import { RES } from "./res";
-import {
-  ELDRITCH_PROPS_ATLAS_CELL,
-  ELDRITCH_PROPS_ATLAS_LAYOUT,
-} from "./eldritchPropsAtlas";
+import { groundZ } from "./backdrop";
+import type { PropPlacement } from "./propPlacement";
+import { ELDRITCH_PROPS_ATLAS_LAYOUT } from "./eldritchPropsAtlas";
 
 export type EldritchPropName = keyof typeof ELDRITCH_PROPS_ATLAS_LAYOUT;
 
@@ -12,34 +9,36 @@ export type EldritchPropSpec = {
   name: EldritchPropName;
   fx: number;
   depth: number;
-  z: number;
 };
 
-// Keep the encounter sparse. The complete atlas is available to future scene
-// variants, while four widely separated relics make this tank feel discovered
-// rather than decorated. Varying burial depth also breaks up the prop horizon.
+// A curated spread of monumental and low-profile relics from the atlas.
+// Alternating burial depths keeps the larger selection from reading as one
+// continuous prop horizon.
 export const ELDRITCH_PROP_SPECS: EldritchPropSpec[] = [
-  { name: "seated_oracle_idol", fx: 0.205, depth: 61, z: -69 },
-  { name: "chained_abyssal_tome", fx: 0.425, depth: 35, z: -78 },
-  { name: "biomechanical_tentacle_shrine", fx: 0.69, depth: 28, z: -77 },
-  { name: "collapsed_tentacle_seal", fx: 0.855, depth: 39, z: -76 },
+  { name: "seated_oracle_idol", fx: 0.07, depth: 61 },
+  { name: "spiral_block_pillar", fx: 0.17, depth: 24 },
+  { name: "whispering_stone_arch", fx: 0.28, depth: 45 },
+  { name: "black_orb_votive_slab", fx: 0.39, depth: 31 },
+  { name: "cracked_void_monolith", fx: 0.49, depth: 54 },
+  { name: "biomechanical_tentacle_shrine", fx: 0.6, depth: 28 },
+  { name: "bone_spiral_totem", fx: 0.7, depth: 48 },
+  { name: "sunken_alien_astrolabe", fx: 0.79, depth: 36 },
+  { name: "collapsed_tentacle_seal", fx: 0.88, depth: 39 },
+  { name: "dormant_mantle_effigy", fx: 0.96, depth: 58 },
 ];
 
-export function spawnEldritchProps(k: KAPLAYCtx) {
+export function spawnEldritchProps(
+  k: KAPLAYCtx,
+  placements: Map<string, PropPlacement>,
+) {
   for (const spec of ELDRITCH_PROP_SPECS) {
     const layout = ELDRITCH_PROPS_ATLAS_LAYOUT[spec.name];
-    const rootX = spec.fx * k.width();
-    const left = Math.round(rootX - ELDRITCH_PROPS_ATLAS_CELL / 2);
-    let floor = -Infinity;
-    for (let x = left + layout.contactLeft; x <= left + layout.contactRight; x++)
-      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(k.width() - 1, x))));
-    const rootY = floor + spec.depth * RES;
-    const spriteY = rootY + ELDRITCH_PROPS_ATLAS_CELL - layout.bottom;
+    const { rootX, rootY, spriteY } = placements.get(spec.name)!;
     k.add([
       k.sprite("eldritch-props", { frame: layout.frame }),
       k.pos(rootX, spriteY),
       k.anchor("bot"),
-      k.z(spec.z),
+      k.z(groundZ(rootY)),
     ]);
   }
 }

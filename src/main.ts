@@ -18,10 +18,9 @@ import { spawnHermitCrab } from "./hermitCrab";
 import { HERMIT_CRAB_ATLAS, HERMIT_CRAB_FRAMES } from "./hermitCrabAtlas";
 import { spawnSeaSnail } from "./seaSnail";
 import { SEA_SNAIL_ATLAS, SEA_SNAIL_FRAMES } from "./seaSnailAtlas";
-import { spawnLuminousKelp } from "./luminousKelp";
+import { spawnLuminousKelpGrove } from "./luminousKelp";
 import {
   LUMINOUS_KELP_ATLAS,
-  LUMINOUS_KELP_BUSHY_ATLAS,
   LUMINOUS_KELP_COLS,
   LUMINOUS_KELP_ROWS,
 } from "./luminousKelpAtlas";
@@ -41,10 +40,16 @@ import {
   STAR_WARS_PROPS_ATLAS_COLS,
   STAR_WARS_PROPS_ATLAS_ROWS,
 } from "./starWarsPropsAtlas";
+import {
+  POP_CULTURE_PROPS_ATLAS,
+  POP_CULTURE_PROPS_ATLAS_COLS,
+  POP_CULTURE_PROPS_ATLAS_ROWS,
+} from "./popCulturePropsAtlas";
+import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 15;
+const FISH_COUNT = 10;
 const BACKDROP_SEED = 1;
 
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
@@ -132,10 +137,6 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     sliceX: LUMINOUS_KELP_COLS,
     sliceY: LUMINOUS_KELP_ROWS,
   });
-  k.loadSprite("luminous-kelp-bushy", LUMINOUS_KELP_BUSHY_ATLAS, {
-    sliceX: LUMINOUS_KELP_COLS,
-    sliceY: LUMINOUS_KELP_ROWS,
-  });
   k.loadSprite("plant-atlas-v2", PLANT_ATLAS, {
     sliceX: PLANT_ATLAS_COLS,
     sliceY: PLANT_ATLAS_ROWS,
@@ -151,6 +152,14 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   k.loadSprite("star-wars-props", STAR_WARS_PROPS_ATLAS, {
     sliceX: STAR_WARS_PROPS_ATLAS_COLS,
     sliceY: STAR_WARS_PROPS_ATLAS_ROWS,
+  });
+  k.loadSprite("pop-culture-props", POP_CULTURE_PROPS_ATLAS, {
+    sliceX: POP_CULTURE_PROPS_ATLAS_COLS,
+    sliceY: POP_CULTURE_PROPS_ATLAS_ROWS,
+  });
+  k.loadSprite("small-props", SMALL_PROPS_ATLAS, {
+    sliceX: 4,
+    sliceY: 4,
   });
 
   setupTank(k);
@@ -168,13 +177,9 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnHermitCrab(k, k.width() * 0.24);
     spawnHermitCrab(k, k.width() * 0.76);
     spawnSeaSnail(k);
-    // Three ages of the same modular species, scattered anew each run through
-    // the right quarter of the tank — one per band so the trunks never stack.
-    // Their separately randomised current phases keep the grove from swaying
-    // as one repeated sprite.
-    [0.72, 1.28, 0.96].forEach((scale, band) => {
-      const fx = 0.75 + (band + k.rand(0.15, 0.85)) * (0.21 / 3);
-      spawnLuminousKelp(k, k.width() * fx, scale);
-    });
+    // Five surface-reaching stalks are reconstructed on every load from ordered
+    // random stem, branch, crown, tendril and pod modules. Alternating rear/front
+    // depth layers make fish disappear naturally into the uneven grove.
+    spawnLuminousKelpGrove(k);
   });
 })();

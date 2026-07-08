@@ -6,14 +6,12 @@ import {
   BW,
   BH,
   backdropPixels,
-  propBlits,
-  propPixelOpacity,
+  groundZ,
   sandTopAt,
 } from "../src/backdrop";
 import {
   SMALL_PROPS_ATLAS,
   SMALL_PROPS_ATLAS_CELL,
-  SMALL_PROPS_ATLAS_LAYOUT,
 } from "../src/smallPropsAtlas";
 import {
   PLANT_ATLAS,
@@ -27,6 +25,13 @@ import {
   THEME_BASE,
   THEME_FRONDS,
 } from "../src/tank";
+import {
+  placeProp,
+  PROP_SLOTS,
+  PROP_WHITELIST,
+  type PropPlacement,
+  type WhitelistedProp,
+} from "../src/propPlacement";
 import {
   SCI_FI_DISPLAY_WINDOWS,
   SCI_FI_PROP_SPECS,
@@ -289,37 +294,52 @@ function renderBackdrop() {
 }
 
 function backdropWithProps() {
-  const buf = backdropPixels(Number(opt("SEED") ?? 1));
+  return backdropPixels(Number(opt("SEED") ?? 1));
+}
 
-  // Blit small-prop atlas cells into the raw buffer (alpha compositing).
-  const atlas = decodePng(dataUrlToBuffer(SMALL_PROPS_ATLAS));
-  const CELL = SMALL_PROPS_ATLAS_CELL;
-  for (const { name, x: dx, y: dy } of propBlits()) {
-    const { col, row, top, bottom } = SMALL_PROPS_ATLAS_LAYOUT[name];
-    const sx0 = col * CELL;
-    const sy0 = row * CELL;
-    // Match backdrop.ts: blit only the prop's tight content rows.
-    for (let cy = top; cy <= bottom; cy++) {
-      for (let cx = 0; cx < CELL; cx++) {
-        const bx = dx + cx;
-        const by = dy + cy;
-        if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
-        const si = ((sy0 + cy) * atlas.w + (sx0 + cx)) * 4;
-        const a = atlas.rgba[si + 3] * propPixelOpacity(cy, bottom, bx, by);
-        if (a === 0) continue;
-        const af = a / 255;
-        const bi = by * BW + bx;
-        const [br, bg, bb] = buf[bi];
-        buf[bi] = [
-          Math.round(atlas.rgba[si] * af + br * (1 - af)),
-          Math.round(atlas.rgba[si + 1] * af + bg * (1 - af)),
-          Math.round(atlas.rgba[si + 2] * af + bb * (1 - af)),
-          255,
-        ];
+// A deterministic cross-section of the runtime pool for headless review. The
+// app samples randomly; the preview strides through the whitelist so all four
+// atlas families are represented consistently between runs.
+function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
+  const selected = Array.from(
+    { length: PROP_SLOTS.length },
+    (_, index) => PROP_WHITELIST[(index * 5) % PROP_WHITELIST.length],
+  );
+  const atlasBySprite: Record<WhitelistedProp["sprite"], ReturnType<typeof decodePng>> = {
+    "sci-fi-props": decodePng(dataUrlToBuffer(SCI_FI_PROPS_ATLAS)),
+    "eldritch-props": decodePng(dataUrlToBuffer(ELDRITCH_PROPS_ATLAS)),
+    "star-wars-props": decodePng(dataUrlToBuffer(STAR_WARS_PROPS_ATLAS)),
+    "small-props": decodePng(dataUrlToBuffer(SMALL_PROPS_ATLAS)),
+  };
+
+  selected
+    .map((prop, index) => ({ prop, placement: placeProp(BW, prop, PROP_SLOTS[index]) }))
+    .sort((a, b) => a.placement.rootY - b.placement.rootY)
+    .forEach(({ prop, placement }) => {
+      const atlas = atlasBySprite[prop.sprite];
+      const cell = prop.cell;
+      const dx = Math.round(placement.rootX - cell / 2);
+      const dy = Math.round(placement.spriteY - cell);
+      const sx0 = (prop.frame % 4) * cell;
+      const sy0 = Math.floor(prop.frame / 4) * cell;
+      for (let y = 0; y < cell; y++) {
+        for (let x = 0; x < cell; x++) {
+          const bx = dx + x;
+          const by = dy + y;
+          if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
+          const si = ((sy0 + y) * atlas.w + sx0 + x) * 4;
+          const a = atlas.rgba[si + 3] / 255;
+          if (!a) continue;
+          const [br, bg, bb] = buf[by * BW + bx];
+          buf[by * BW + bx] = [
+            Math.round(atlas.rgba[si] * a + br * (1 - a)),
+            Math.round(atlas.rgba[si + 1] * a + bg * (1 - a)),
+            Math.round(atlas.rgba[si + 2] * a + bb * (1 - a)),
+            255,
+          ];
+        }
       }
-    }
-  }
-  return buf;
+    });
 }
 
 // Representative still of the live modular plant system. This repeats the pure
@@ -329,9 +349,7 @@ function backdropWithProps() {
 // browser while the real scene continues to animate each frond independently.
 function renderPlantScene() {
   const buf = backdropWithProps();
-  blitSciFiProps(buf);
-  blitEldritchProps(buf);
-  blitStarWarsProps(buf);
+  blitRotatingPropSample(buf);
   const atlas = decodePng(dataUrlToBuffer(PLANT_ATLAS));
   const time = Number(opt("TIME") ?? 3.4);
   type Part = {
@@ -353,6 +371,7 @@ function renderPlantScene() {
       : sandTopAt(Math.max(0, Math.min(BW - 1, rootX))) + spec.depth * RES;
     const names = [...THEME_FRONDS[spec.theme], THEME_BASE[spec.theme]];
     const centre = (names.length - 2) / 2;
+    const clusterZ = spec.foreground ? spec.z! : groundZ(rootY);
     names.forEach((name, index) => {
       const base = index === names.length - 1;
       const side = base ? 0 : index - centre;
@@ -377,7 +396,7 @@ function renderPlantScene() {
         angle,
         tint: spec.tint,
         opacity: spec.opacity,
-        z: spec.z + index * 0.01,
+        z: clusterZ + index * 0.01,
       });
     });
   }
@@ -391,18 +410,16 @@ function renderPlantScene() {
   console.log(`wrote ${name} (${BW}x${BH}) — ${parts.length} independently placed fronds`);
 }
 
-function blitEldritchProps(buf: ReturnType<typeof backdropPixels>) {
+function blitEldritchProps(
+  buf: ReturnType<typeof backdropPixels>,
+  placements: Map<string, PropPlacement>,
+) {
   const atlas = decodePng(dataUrlToBuffer(ELDRITCH_PROPS_ATLAS));
   const cell = ELDRITCH_PROPS_ATLAS_CELL;
   for (const spec of ELDRITCH_PROP_SPECS) {
     const layout = ELDRITCH_PROPS_ATLAS_LAYOUT[spec.name];
-    const rootX = spec.fx * BW;
+    const { rootX, spriteY } = placements.get(spec.name)!;
     const dx = Math.round(rootX - cell / 2);
-    let floor = -Infinity;
-    for (let x = dx + layout.contactLeft; x <= dx + layout.contactRight; x++)
-      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
-    const rootY = floor + spec.depth * RES;
-    const spriteY = rootY + cell - layout.bottom;
     const dy = Math.round(spriteY - cell);
     const sx0 = layout.col * cell;
     const sy0 = layout.row * cell;
@@ -426,18 +443,16 @@ function blitEldritchProps(buf: ReturnType<typeof backdropPixels>) {
   }
 }
 
-function blitStarWarsProps(buf: ReturnType<typeof backdropPixels>) {
+function blitStarWarsProps(
+  buf: ReturnType<typeof backdropPixels>,
+  placements: Map<string, PropPlacement>,
+) {
   const atlas = decodePng(dataUrlToBuffer(STAR_WARS_PROPS_ATLAS));
   const cell = STAR_WARS_PROPS_ATLAS_CELL;
   for (const spec of STAR_WARS_PROP_SPECS) {
     const layout = STAR_WARS_PROPS_ATLAS_LAYOUT[spec.name];
-    const rootX = spec.fx * BW;
+    const { rootX, spriteY } = placements.get(spec.name)!;
     const dx = Math.round(rootX - cell / 2);
-    let floor = -Infinity;
-    for (let x = dx + layout.contactLeft; x <= dx + layout.contactRight; x++)
-      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
-    const rootY = floor + spec.depth * RES;
-    const spriteY = rootY + cell - layout.bottom;
     const dy = Math.round(spriteY - cell);
     const sx0 = layout.col * cell;
     const sy0 = layout.row * cell;
@@ -461,18 +476,16 @@ function blitStarWarsProps(buf: ReturnType<typeof backdropPixels>) {
   }
 }
 
-function blitSciFiProps(buf: ReturnType<typeof backdropPixels>) {
+function blitSciFiProps(
+  buf: ReturnType<typeof backdropPixels>,
+  placements: Map<string, PropPlacement>,
+) {
   const atlas = decodePng(dataUrlToBuffer(SCI_FI_PROPS_ATLAS));
   const cell = SCI_FI_PROPS_ATLAS_CELL;
   for (const spec of SCI_FI_PROP_SPECS) {
     const layout = SCI_FI_PROPS_ATLAS_LAYOUT[spec.name];
-    const rootX = spec.fx * BW;
+    const { rootX, spriteY } = placements.get(spec.name)!;
     const dx = Math.round(rootX - cell / 2);
-    let floor = -Infinity;
-    for (let x = dx + layout.contactLeft; x <= dx + layout.contactRight; x++)
-      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
-    const rootY = floor + spec.depth * RES;
-    const spriteY = rootY + cell - layout.bottom;
     const dy = Math.round(spriteY - cell);
     const sx0 = layout.col * cell;
     const sy0 = layout.row * cell;

@@ -1,6 +1,6 @@
 import type { KAPLAYCtx } from "kaplay";
-import { sandTopAt } from "./backdrop";
-import { RES } from "./res";
+import { groundZ } from "./backdrop";
+import type { PropPlacement } from "./propPlacement";
 import {
   SCI_FI_PROPS_ATLAS_CELL,
   SCI_FI_PROPS_ATLAS_LAYOUT,
@@ -19,20 +19,22 @@ export type SciFiPropSpec = {
   name: SciFiPropName;
   fx: number;
   depth: number;
-  z: number;
 };
 
-// The full atlas remains available for later scene variants. This deliberately
-// sparse subset gives the current natural seabed a curious technological story
-// without turning every gap into another prop shelf.
+// Use selected salvage outside the display-heavy first atlas row. Varying burial
+// depths distribute the larger selection across substrate tiers.
 export const SCI_FI_PROP_SPECS: SciFiPropSpec[] = [
-  { name: "gravity_coil", fx: 0.045, depth: 38, z: -77 },
-  { name: "retro_telemetry_terminal", fx: 0.16, depth: 42, z: -74 },
-  { name: "flux_coil_power_unit", fx: 0.33, depth: 25, z: -81 },
-  { name: "empty_specimen_capsule", fx: 0.545, depth: 36, z: -71 },
-  { name: "three_prong_beacon", fx: 0.64, depth: 18, z: -84 },
-  { name: "porthole_instrument", fx: 0.79, depth: 40, z: -75 },
-  { name: "folded_alien_relic", fx: 0.925, depth: 32, z: -79 },
+  { name: "flux_coil_power_unit", fx: 0.04, depth: 23 },
+  { name: "empty_specimen_capsule", fx: 0.125, depth: 42 },
+  { name: "spherical_sensor", fx: 0.21, depth: 31 },
+  { name: "energy_cell_carrier", fx: 0.38, depth: 25 },
+  { name: "folded_alien_relic", fx: 0.465, depth: 47 },
+  { name: "temporal_regulator", fx: 0.55, depth: 36 },
+  { name: "data_canisters", fx: 0.635, depth: 58 },
+  { name: "biomechanical_seed_pod", fx: 0.72, depth: 28 },
+  { name: "three_prong_beacon", fx: 0.805, depth: 45 },
+  { name: "cracked_machine_shell", fx: 0.89, depth: 20 },
+  { name: "gravity_coil", fx: 0.97, depth: 50 },
 ];
 
 type Point = { x: number; y: number };
@@ -83,7 +85,10 @@ export const SCI_FI_DISPLAY_WINDOWS: Record<SciFiDisplayName, DisplayWindow> = {
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
-export function spawnSciFiProps(k: KAPLAYCtx) {
+export function spawnSciFiProps(
+  k: KAPLAYCtx,
+  placements: Map<string, PropPlacement>,
+) {
   const data: Record<SciFiDisplayName, SciFiDisplayData> = {
     retro_telemetry_terminal: { primary: 0.67, secondary: 0.34, samples: [] },
     porthole_instrument: { primary: 0.42, secondary: 0.78, samples: [] },
@@ -91,22 +96,16 @@ export function spawnSciFiProps(k: KAPLAYCtx) {
 
   for (const spec of SCI_FI_PROP_SPECS) {
     const layout = SCI_FI_PROPS_ATLAS_LAYOUT[spec.name];
-    const rootX = spec.fx * k.width();
-    const left = Math.round(rootX - SCI_FI_PROPS_ATLAS_CELL / 2);
-    let floor = -Infinity;
-    for (let x = left + layout.contactLeft; x <= left + layout.contactRight; x++)
-      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(k.width() - 1, x))));
-    const rootY = floor + spec.depth * RES;
-    const spriteY = rootY + SCI_FI_PROPS_ATLAS_CELL - layout.bottom;
+    const { rootX, rootY, spriteY } = placements.get(spec.name)!;
     k.add([
       k.sprite("sci-fi-props", { frame: layout.frame }),
       k.pos(rootX, spriteY),
       k.anchor("bot"),
-      k.z(spec.z),
+      k.z(groundZ(rootY)),
     ]);
 
     if (spec.name === "retro_telemetry_terminal" || spec.name === "porthole_instrument")
-      spawnReadout(k, spec.name, rootX, spriteY, spec.z + 0.01, data);
+      spawnReadout(k, spec.name, rootX, spriteY, groundZ(rootY) + 0.01, data);
   }
 
   return {

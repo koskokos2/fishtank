@@ -1,77 +1,78 @@
-// Bake the generated six-panel fantasy kelp sheet into a runtime atlas. Every
-// component's anatomical attachment point is placed at the exact centre of its
-// tile, so Kaplay's centre anchor becomes a useful hinge for modular animation.
+// Normalize the generated 4x4 giant-kelp component sheet into one coherent
+// runtime atlas. Every part is cropped independently, downsampled with
+// premultiplied alpha, and placed around a shared 256px hinge. Bottom-rooted
+// pieces grow upward from the hinge; hanging tendrils/pods grow downward.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng } from "./png";
 
-const SRC = "art/luminous-kelp-atlas-v2-transparent.png";
-const OUT = "art/luminous-kelp-atlas-v2-256.png";
-const BUSHY_SRC = "art/luminous-kelp-atlas-256.png";
+const SRC = "art/luminous-kelp-atlas-v3-transparent.png";
+const OUT = "art/luminous-kelp-atlas-v3-256.png";
+const OUT_META = "art/luminous-kelp-atlas-v3-256.json";
 const OUT_TS = "src/luminousKelpAtlas.ts";
-const OUT_META = "art/luminous-kelp-atlas-v2-256.json";
+const COLS = 4;
+const ROWS = 4;
 const TILE = 256;
-const COLS = 3;
-const ROWS = 2;
-const ALPHA_MIN = 24;
+const HINGE = TILE / 2;
+const PAD = 9;
+const ALPHA_MIN = 20;
 
-type Region = { x0: number; y0: number; x1: number; y1: number };
-type Edge = "top" | "bottom";
+type Edge = "top" | "bottom" | "center";
+type Buf = { data: Uint8Array; w: number; h: number };
 type Part = {
   name: string;
-  region: Region;
-  scale: number;
-  attachmentEdge: Edge;
+  edge: Edge;
+  maxWidth?: number;
+  maxHeight?: number;
+  rootBlend?: boolean;
 };
 
+// Row-major order matches the deliberately authored source sheet.
 const PARTS: Part[] = [
-  { name: "base", region: { x0: 0, y0: 0, x1: 512, y1: 512 }, scale: 0.27, attachmentEdge: "bottom" },
-  { name: "lowerStem", region: { x0: 512, y0: 0, x1: 1024, y1: 512 }, scale: 0.25, attachmentEdge: "bottom" },
-  { name: "middleStem", region: { x0: 1024, y0: 0, x1: 1536, y1: 512 }, scale: 0.25, attachmentEdge: "bottom" },
-  { name: "podStem", region: { x0: 0, y0: 512, x1: 512, y1: 1024 }, scale: 0.26, attachmentEdge: "bottom" },
-  { name: "crown", region: { x0: 512, y0: 512, x1: 1024, y1: 1024 }, scale: 0.26, attachmentEdge: "bottom" },
-  { name: "sideShoot", region: { x0: 1024, y0: 512, x1: 1536, y1: 1024 }, scale: 0.27, attachmentEdge: "bottom" },
+  { name: "holdfast", edge: "bottom", maxWidth: 230, maxHeight: 119, rootBlend: true },
+  { name: "straightStem", edge: "bottom", maxWidth: 150, maxHeight: 119 },
+  { name: "leftStem", edge: "bottom", maxWidth: 190, maxHeight: 119 },
+  { name: "rightStem", edge: "bottom", maxWidth: 190, maxHeight: 119 },
+  { name: "leftBranch", edge: "bottom", maxWidth: 230, maxHeight: 118 },
+  { name: "rightBranch", edge: "bottom", maxWidth: 230, maxHeight: 118 },
+  { name: "forkedCrown", edge: "bottom", maxWidth: 230, maxHeight: 119 },
+  { name: "rightCanopy", edge: "bottom", maxWidth: 232, maxHeight: 119 },
+  { name: "leftCanopy", edge: "bottom", maxWidth: 232, maxHeight: 119 },
+  { name: "featheryTuft", edge: "bottom", maxWidth: 210, maxHeight: 119 },
+  { name: "largePods", edge: "top", maxWidth: 200, maxHeight: 116 },
+  { name: "smallPods", edge: "top", maxWidth: 150, maxHeight: 112 },
+  { name: "trailingTendril", edge: "top", maxWidth: 110, maxHeight: 116 },
+  { name: "forkedTendril", edge: "top", maxWidth: 180, maxHeight: 116 },
+  { name: "foliageCollar", edge: "center", maxWidth: 170, maxHeight: 170 },
+  { name: "fanCrown", edge: "bottom", maxWidth: 230, maxHeight: 119 },
 ];
 
-type Buf = { data: Uint8Array; w: number; h: number };
 const src = decodePng(readFileSync(SRC));
-if (src.w !== 1536 || src.h !== 1024)
-  throw new Error(`expected a 1536x1024 source, got ${src.w}x${src.h}`);
 
-function alphaBounds(region: Region) {
-  let minX = region.x1;
-  let minY = region.y1;
-  let maxX = region.x0 - 1;
-  let maxY = region.y0 - 1;
-  for (let y = region.y0; y < region.y1; y++)
-    for (let x = region.x0; x < region.x1; x++) {
-      const alpha = src.rgba[(y * src.w + x) * 4 + 3];
-      if (alpha < ALPHA_MIN) continue;
+function sourceCell(index: number) {
+  const col = index % COLS;
+  const row = Math.floor(index / COLS);
+  const x0 = Math.round((col * src.w) / COLS);
+  const x1 = Math.round(((col + 1) * src.w) / COLS);
+  const y0 = Math.round((row * src.h) / ROWS);
+  const y1 = Math.round(((row + 1) * src.h) / ROWS);
+  return { x0, y0, x1, y1 };
+}
+
+function alphaBounds(cell: ReturnType<typeof sourceCell>) {
+  let minX = cell.x1;
+  let minY = cell.y1;
+  let maxX = cell.x0 - 1;
+  let maxY = cell.y0 - 1;
+  for (let y = cell.y0; y < cell.y1; y++)
+    for (let x = cell.x0; x < cell.x1; x++) {
+      if (src.rgba[(y * src.w + x) * 4 + 3] < ALPHA_MIN) continue;
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x);
       maxY = Math.max(maxY, y);
     }
-  if (maxX < minX || maxY < minY) throw new Error("empty component region");
+  if (maxX < minX || maxY < minY) throw new Error("empty kelp source cell");
   return { minX, minY, maxX, maxY };
-}
-
-function attachmentX(
-  bounds: ReturnType<typeof alphaBounds>,
-  edge: Edge,
-) {
-  const band = 24;
-  const y0 = edge === "top" ? bounds.minY : Math.max(bounds.minY, bounds.maxY - band);
-  const y1 = edge === "top" ? Math.min(bounds.maxY, bounds.minY + band) : bounds.maxY;
-  let weightedX = 0;
-  let weight = 0;
-  for (let y = y0; y <= y1; y++)
-    for (let x = bounds.minX; x <= bounds.maxX; x++) {
-      const alpha = src.rgba[(y * src.w + x) * 4 + 3];
-      if (alpha < ALPHA_MIN) continue;
-      weightedX += x * alpha;
-      weight += alpha;
-    }
-  return weight ? weightedX / weight : (bounds.minX + bounds.maxX) / 2;
 }
 
 function crop(x0: number, y0: number, w: number, h: number): Buf {
@@ -83,18 +84,16 @@ function crop(x0: number, y0: number, w: number, h: number): Buf {
   return { data, w, h };
 }
 
-// Premultiplied-alpha area sampling keeps the original deliberate pixel clusters
-// while avoiding dark or magenta colour bleed at transparent edges.
 function resize(input: Buf, outW: number, outH: number): Buf {
   const data = new Uint8Array(outW * outH * 4);
-  const scaleX = input.w / outW;
-  const scaleY = input.h / outH;
+  const sxScale = input.w / outW;
+  const syScale = input.h / outH;
   for (let dy = 0; dy < outH; dy++) {
-    const sy0 = dy * scaleY;
-    const sy1 = (dy + 1) * scaleY;
+    const sy0 = dy * syScale;
+    const sy1 = (dy + 1) * syScale;
     for (let dx = 0; dx < outW; dx++) {
-      const sx0 = dx * scaleX;
-      const sx1 = (dx + 1) * scaleX;
+      const sx0 = dx * sxScale;
+      const sx1 = (dx + 1) * sxScale;
       let areaSum = 0;
       let alphaSum = 0;
       let red = 0;
@@ -126,90 +125,133 @@ function resize(input: Buf, outW: number, outH: number): Buf {
   return { data, w: outW, h: outH };
 }
 
+function edgeCentre(part: Buf, edge: "top" | "bottom") {
+  // The generated fronds can extend farther than the load-bearing stem. Search
+  // progressively inward and use opaque, dark-green pixels so a stray hair or
+  // amber halo cannot drag the anatomical socket sideways.
+  const greenWeight = (i: number) => {
+    const a = part.data[i + 3];
+    const r = part.data[i];
+    const g = part.data[i + 1];
+    const b = part.data[i + 2];
+    return a >= 80 && g >= r * 0.72 && g >= b * 0.72 ? a : 0;
+  };
+  for (let depth = 0; depth < Math.min(30, part.h); depth++) {
+    const y = edge === "top" ? depth : part.h - 1 - depth;
+    let weightedX = 0;
+    let weight = 0;
+    for (let x = 0; x < part.w; x++) {
+      const w = greenWeight((y * part.w + x) * 4);
+      weightedX += x * w;
+      weight += w;
+    }
+    if (weight > 255) return weightedX / weight;
+  }
+  return part.w / 2;
+}
+
+function rootDither(part: Buf) {
+  const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  const band = Math.min(12, part.h);
+  for (let y = part.h - band; y < part.h; y++) {
+    const keep = (part.h - y) / band;
+    for (let x = 0; x < part.w; x++) {
+      const i = (y * part.w + x) * 4;
+      if (part.data[i + 3] === 0) continue;
+      const threshold = (bayer[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+      if (threshold > keep) part.data[i + 3] = 0;
+    }
+  }
+}
+
 const sheetW = COLS * TILE;
 const sheetH = ROWS * TILE;
 const sheet = new Uint8Array(sheetW * sheetH * 4);
-const metadata: Record<string, unknown> = {};
+const layout: Record<string, unknown> = {};
+const partIds: Record<string, number> = {};
 const tips: Record<string, { x: number; y: number }> = {};
 
-for (let index = 0; index < PARTS.length; index++) {
-  const part = PARTS[index];
-  const b = alphaBounds(part.region);
-  const sourceW = b.maxX - b.minX + 1;
-  const sourceH = b.maxY - b.minY + 1;
-  const drawW = Math.max(1, Math.round(sourceW * part.scale));
-  const drawH = Math.max(1, Math.round(sourceH * part.scale));
-  const pivotSourceX = attachmentX(b, part.attachmentEdge);
-  const pivotSourceY = part.attachmentEdge === "top" ? b.minY : b.maxY;
-  const tipSourceX = attachmentX(b, part.attachmentEdge === "top" ? "bottom" : "top");
-  const tipSourceY = part.attachmentEdge === "top" ? b.maxY : b.minY;
-  const pivotDrawX = (pivotSourceX - b.minX) * part.scale;
-  const pivotDrawY = (pivotSourceY - b.minY) * part.scale;
-  const drawX = Math.round(TILE / 2 - pivotDrawX);
-  const drawY = Math.round(TILE / 2 - pivotDrawY);
-  if (drawX < 0 || drawY < 0 || drawX + drawW > TILE || drawY + drawH > TILE)
-    throw new Error(`${part.name} does not fit its tile: ${drawX},${drawY} ${drawW}x${drawH}`);
+PARTS.forEach((spec, index) => {
+  const bounds = alphaBounds(sourceCell(index));
+  const raw = crop(
+    bounds.minX,
+    bounds.minY,
+    bounds.maxX - bounds.minX + 1,
+    bounds.maxY - bounds.minY + 1,
+  );
+  const scale = Math.min(
+    (spec.maxWidth ?? TILE - PAD * 2) / raw.w,
+    (spec.maxHeight ?? TILE - PAD * 2) / raw.h,
+    1,
+  );
+  const sprite = resize(raw, Math.max(1, Math.round(raw.w * scale)), Math.max(1, Math.round(raw.h * scale)));
+  if (spec.rootBlend) rootDither(sprite);
 
-  const sprite = resize(crop(b.minX, b.minY, sourceW, sourceH), drawW, drawH);
+  const bottomX = edgeCentre(sprite, "bottom");
+  const topX = edgeCentre(sprite, "top");
+  let pivotX = sprite.w / 2;
+  let pivotY = sprite.h / 2;
+  let tipX = sprite.w / 2;
+  let tipY = 0;
+  if (spec.edge === "bottom") {
+    pivotX = bottomX;
+    pivotY = sprite.h - 1;
+    tipX = topX;
+    tipY = 0;
+  } else if (spec.edge === "top") {
+    pivotX = topX;
+    pivotY = 0;
+    tipX = bottomX;
+    tipY = sprite.h - 1;
+  }
+  const drawX = Math.round(HINGE - pivotX);
+  const drawY = Math.round(HINGE - pivotY);
+  if (drawX < 0 || drawY < 0 || drawX + sprite.w > TILE || drawY + sprite.h > TILE)
+    throw new Error(`${spec.name} does not fit ${TILE}px tile at ${drawX},${drawY} (${sprite.w}x${sprite.h})`);
+
   const cellX = (index % COLS) * TILE;
   const cellY = Math.floor(index / COLS) * TILE;
-  for (let y = 0; y < drawH; y++)
-    for (let x = 0; x < drawW; x++) {
-      const si = (y * drawW + x) * 4;
-      if (sprite.data[si + 3] === 0) continue;
+  for (let y = 0; y < sprite.h; y++)
+    for (let x = 0; x < sprite.w; x++) {
+      const si = (y * sprite.w + x) * 4;
+      if (!sprite.data[si + 3]) continue;
       const di = ((cellY + drawY + y) * sheetW + cellX + drawX + x) * 4;
       sheet.set(sprite.data.subarray(si, si + 4), di);
     }
 
-  metadata[part.name] = {
+  const tip = { x: Math.round(tipX - pivotX), y: Math.round(tipY - pivotY) };
+  tips[spec.name] = tip;
+  partIds[spec.name] = index;
+  layout[spec.name] = {
     frame: index,
     cell: { col: index % COLS, row: Math.floor(index / COLS) },
-    pivot: { x: TILE / 2, y: TILE / 2 },
-    draw: { x: drawX, y: drawY, width: drawW, height: drawH },
-    tip: {
-      x: Math.round((tipSourceX - pivotSourceX) * part.scale),
-      y: Math.round((tipSourceY - pivotSourceY) * part.scale),
-    },
+    pivot: { x: HINGE, y: HINGE },
+    draw: { x: drawX, y: drawY, width: sprite.w, height: sprite.h },
+    tip,
+    attachment: spec.edge,
   };
-  tips[part.name] = {
-    x: Math.round((tipSourceX - pivotSourceX) * part.scale),
-    y: Math.round((tipSourceY - pivotSourceY) * part.scale),
-  };
-}
+});
 
 const png = encodePng(sheet, sheetW, sheetH);
 writeFileSync(OUT, png);
-const b64 = Buffer.from(png).toString("base64");
-const bushyPng = readFileSync(BUSHY_SRC);
-const bushy = decodePng(bushyPng);
-if (bushy.w !== COLS * TILE || bushy.h !== ROWS * TILE)
-  throw new Error(`expected a ${COLS * TILE}x${ROWS * TILE} bushy atlas, got ${bushy.w}x${bushy.h}`);
-const bushyB64 = Buffer.from(bushyPng).toString("base64");
+writeFileSync(
+  OUT_META,
+  JSON.stringify({
+    name: "luminous-giant-kelp",
+    source: SRC,
+    layout: { columns: COLS, rows: ROWS, tile: TILE },
+    parts: layout,
+  }, null, 2) + "\n",
+);
 writeFileSync(
   OUT_TS,
   `// GENERATED by tools/gen-luminous-kelp-atlas.ts - do not edit by hand.\n` +
-    `// Six modular plant parts, each with its attachment pivot at tile centre.\n` +
-    `export const LUMINOUS_KELP_ATLAS = "data:image/png;base64,${b64}";\n` +
+    `// One coherent giant-kelp species: articulated hairy stems, crowns, tendrils, and amber pods.\n` +
+    `export const LUMINOUS_KELP_ATLAS = "data:image/png;base64,${Buffer.from(png).toString("base64")}";\n` +
     `export const LUMINOUS_KELP_COLS = ${COLS};\n` +
     `export const LUMINOUS_KELP_ROWS = ${ROWS};\n` +
     `export const LUMINOUS_KELP_TILE = ${TILE};\n` +
-    `export const LUMINOUS_KELP_PART = { base: 0, lowerStem: 1, middleStem: 2, podStem: 3, crown: 4, sideShoot: 5 } as const;\n` +
-    `export const LUMINOUS_KELP_TIP = ${JSON.stringify(tips)} as const;\n` +
-    `// Earlier, fuller modules retained for the hybrid crown and magical fruit.\n` +
-    `export const LUMINOUS_KELP_BUSHY_ATLAS = "data:image/png;base64,${bushyB64}";\n` +
-    `export const LUMINOUS_KELP_BUSHY_PART = { base: 0, leftBranch: 1, rightBranch: 2, crown: 3, tendrils: 4, pods: 5 } as const;\n`,
+    `export const LUMINOUS_KELP_PART = ${JSON.stringify(partIds)} as const;\n` +
+    `export const LUMINOUS_KELP_TIP = ${JSON.stringify(tips)} as const;\n`,
 );
-writeFileSync(
-  OUT_META,
-  JSON.stringify(
-    {
-      name: "luminous-kelp",
-      layout: { columns: COLS, rows: ROWS, tile: TILE },
-      source: SRC,
-      parts: metadata,
-    },
-    null,
-    2,
-  ) + "\n",
-);
-console.log(`wrote ${OUT}, ${OUT_TS}, and ${OUT_META}`);
+console.log(`wrote ${OUT}, ${OUT_META}, and ${OUT_TS}`);

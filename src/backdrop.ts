@@ -1,7 +1,7 @@
 // Procedural static backdrop, baked once into a single BW x BH sprite. Generated
 // as a raw RGBA buffer (headlessly previewable), then painted to an offscreen
 // canvas for kaplay. A warm tropical reef: a smooth water gradient, ruined
-// columns + a stone arch, and atlas-based seabed props, over the warm gold sand.
+// columns + a stone arch over the warm gold sand.
 // Organic ordered dithering gives the solid materials pixel texture without
 // filling the water with a high-resolution dot mesh.
 //
@@ -12,11 +12,6 @@
 
 import { type RGBA, lerp, clamp01 } from "./color";
 import { RES } from "./res";
-import {
-  SMALL_PROPS_ATLAS,
-  SMALL_PROPS_ATLAS_CELL,
-  SMALL_PROPS_ATLAS_LAYOUT,
-} from "./smallPropsAtlas";
 
 const S = RES;
 export const BW = 640 * S;
@@ -184,6 +179,13 @@ export const sandTopAt = (x: number) => {
   return BH - SAND_H + Math.round(slope + swell + mound + chop);
 };
 
+// z from screen depth: whatever sits lower on screen is nearer the viewer, so
+// it must draw in front. Grounded objects pass their base (sand-contact line);
+// fish pass their own y — they never descend below the crest, so they slip
+// behind anything rooted on the dune. The band stays behind the hovering
+// swimmers (jellyfish 15, nautilus 16) and in front of the caustics (-95).
+export const groundZ = (baseY: number) => -90 + 80 * (baseY / BH);
+
 function sandShadow(x: number, y: number, top: number) {
   const d = y - top;
   let shade = 0;
@@ -289,77 +291,6 @@ function paintRuins(buf: Buf) {
   arch(buf, (cxL + cxR) / 2, springline, (cxR - cxL) / 2, (cxR - cxL) / 2 + 12 * S, new Set([0, 1, 2]));
 }
 
-// --- seabed-prop placement ---------------------------------------------------
-
-// Each entry positions one atlas cell in the backdrop buffer. x/y are the
-// top-left corner of the 128px cell in buffer space.
-export type PropBlit = { name: string; x: number; y: number };
-
-// Place one prop so its broad illustrated base rests on the sand at x = cx.
-// yShift (design px) nudges it down into the sand (positive = closer/foreground,
-// foot buried a touch) or up (negative = further back, just kissing the sand).
-// The atlas bottom bound is the contact anchor, so objects never float even
-// though their silhouettes and heights differ substantially.
-function place(cx: number, yShift: number, name: string): PropBlit {
-  const { bottom, contactLeft, contactRight } = SMALL_PROPS_ATLAS_LAYOUT[name];
-  const bx = Math.round(cx * S) - SMALL_PROPS_ATLAS_CELL / 2;
-  // A centre-point anchor leaves wide props hanging over dips in a curved dune.
-  // Use the lowest terrain point under the sprite's actual base footprint: the
-  // opposite edge may become slightly buried, but no edge can float in water.
-  let floor = -Infinity;
-  for (let x = bx + contactLeft; x <= bx + contactRight; x++)
-    floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
-  floor += Math.round(yShift * S);
-  return { name, x: bx, y: floor - bottom - 1 };
-}
-
-// Every atlas prop appears once. They are spread over three substrate tiers so
-// the floor reads as a discovered place rather than an icon row. Large upright
-// silhouettes stay in back; low scatters, bottle, compass, and anchor sit nearer
-// the viewer. The x positions avoid visually tangling with the ruin columns.
-// Entries are listed back-to-front for natural overlap.
-export function propBlits(): PropBlit[] {
-  return [
-    // Back tier — below the loose, sparsely dithered surface-silt band. That
-    // transition belongs visually to the water/sand edge and stays unobstructed.
-    place(55, 9, "leaning_scallop_shell"),
-    place(178, 10, "fish_skeleton"),
-    place(320, 9, "spiral_stone_tablet"),
-    place(466, 10, "forked_driftwood"),
-    place(600, 9, "half_buried_conch"),
-    // Middle tier — partly silted into the bed.
-    place(28, 17, "pebbles_sea_glass"),
-    place(130, 15, "plank_with_brass_ring"),
-    place(292, 18, "buried_jawbone"),
-    place(455, 15, "leaning_broken_amphora"),
-    place(575, 18, "sideways_cracked_jar"),
-    // Foreground tier — low objects nearest the viewer.
-    place(65, 38, "open_pearl_clam"),
-    place(165, 35, "patterned_pottery_shards"),
-    place(275, 41, "tarnished_coin_spill"),
-    place(420, 38, "cracked_brass_compass"),
-    place(515, 42, "sideways_message_bottle"),
-    place(610, 36, "broken_anchor_and_chain"),
-  ];
-}
-
-// The generated props include a small illustrated sand skirt. Rather than try
-// to palette-match that baked texture, progressively punch it out over the
-// lowest few design pixels and reveal the real procedural seabed underneath.
-// The same ordered grain field makes the burial edge belong to the backdrop.
-const PROP_BURIAL_BAND = 6 * S;
-export function propPixelOpacity(
-  localY: number,
-  bottom: number,
-  worldX: number,
-  worldY: number,
-) {
-  const rowsAboveBottom = bottom - localY;
-  if (rowsAboveBottom >= PROP_BURIAL_BAND) return 1;
-  const coverage = clamp01(rowsAboveBottom / PROP_BURIAL_BAND);
-  return coverage > orderedGrain(worldX, worldY) ? 1 : 0;
-}
-
 function paintSand(buf: Buf) {
   for (let x = 0; x < BW; x++) {
     const top = sandTopAt(x);
@@ -404,10 +335,8 @@ const CLEAR: RGBA = [0, 0, 0, 0];
 
 // DOM bake -> data URLs for kaplay's loadSprite. The scene splits into two
 // full-resolution layers: the opaque water+ruins back plate and a transparent
-// sand overlay (dunes + the baked seabed props, which sit on the sand). Far
-// plants render between the two so the dune crest occludes their roots. Async
-// because the prop atlas is loaded via HTMLImageElement to get alpha-composited
-// drawImage blitting.
+// sand overlay (dunes only). Far plants render between the two so the dune crest
+// occludes their roots. Props remain live so the rotating pool can replace them.
 export async function makeBackdrop(
   seed = 1,
 ): Promise<{ back: string; sand: string }> {
@@ -418,7 +347,6 @@ export async function makeBackdrop(
   const sandBuf: Buf = new Array(BW * BH).fill(CLEAR);
   paintSand(sandBuf);
   const sand = bufToCanvas(sandBuf);
-  await blitSmallPropsAtlas(sand.getContext("2d")!);
 
   return { back: bufToCanvas(backBuf).toDataURL(), sand: sand.toDataURL() };
 }
@@ -439,48 +367,4 @@ function bufToCanvas(buf: Buf): HTMLCanvasElement {
   }
   ctx.putImageData(img, 0, 0);
   return canvas;
-}
-
-function blitSmallPropsAtlas(ctx: CanvasRenderingContext2D): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      ctx.imageSmoothingEnabled = false;
-      const CELL = SMALL_PROPS_ATLAS_CELL;
-      const sourceCanvas = document.createElement("canvas");
-      sourceCanvas.width = img.width;
-      sourceCanvas.height = img.height;
-      const sourceCtx = sourceCanvas.getContext("2d")!;
-      sourceCtx.imageSmoothingEnabled = false;
-      sourceCtx.drawImage(img, 0, 0);
-      const source = sourceCtx.getImageData(0, 0, img.width, img.height).data;
-      for (const { name, x, y } of propBlits()) {
-        const { col, row, top, bottom } = SMALL_PROPS_ATLAS_LAYOUT[name];
-        const sh = bottom - top + 1;
-        const dest = ctx.getImageData(x, y + top, CELL, sh);
-        for (let cy = top; cy <= bottom; cy++) {
-          for (let cx = 0; cx < CELL; cx++) {
-            const si = (((row * CELL + cy) * img.width) + col * CELL + cx) * 4;
-            const sourceAlpha = source[si + 3] / 255;
-            if (!sourceAlpha) continue;
-            const opacity = propPixelOpacity(cy, bottom, x + cx, y + cy);
-            if (!opacity) continue;
-            const di = (((cy - top) * CELL) + cx) * 4;
-            const sa = sourceAlpha * opacity;
-            const da = dest.data[di + 3] / 255;
-            const outA = sa + da * (1 - sa);
-            for (let channel = 0; channel < 3; channel++)
-              dest.data[di + channel] = Math.round(
-                (source[si + channel] * sa + dest.data[di + channel] * da * (1 - sa)) / outA,
-              );
-            dest.data[di + 3] = Math.round(outA * 255);
-          }
-        }
-        ctx.putImageData(dest, x, y + top);
-      }
-      resolve();
-    };
-    img.onerror = reject;
-    img.src = SMALL_PROPS_ATLAS;
-  });
 }

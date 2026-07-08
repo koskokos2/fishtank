@@ -21,7 +21,7 @@ import {
   shearSheet,
   type FishMotionProfile,
 } from "./fishbake";
-import { sandTopAt } from "./backdrop";
+import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { spawnBubble } from "./tank";
 import { RES } from "./res";
@@ -232,13 +232,14 @@ export function spawnFish(
   const bandTop = () => minY + (maxY() - minY) * level.min;
   const bandBot = () => minY + (maxY() - minY) * level.max;
 
+  const spawnY = k.rand(bandTop(), bandBot());
   const fish = k.add([
     k.sprite(spriteName),
-    k.pos(k.rand(40 * RES, k.width() - 40 * RES), k.rand(bandTop(), bandBot())),
+    k.pos(k.rand(40 * RES, k.width() - 40 * RES), spawnY),
     k.anchor("center"),
     k.rotate(0),
     k.scale(1),
-    k.z(20),
+    k.z(groundZ(spawnY)),
     // Enlarged collider acts as a proximity sensor for separation, not a hard
     // hitbox — fish steer away before they actually touch.
     k.area({ scale: 1.5 }),
@@ -637,6 +638,9 @@ export function spawnFish(
     // 0°, keeping slow horizontal swimmers perfectly crisp.
     fish.pos.x = Math.round(px);
     fish.pos.y = Math.round(py);
+    // Depth-sort by its own y: a fish never descends below the sand crest, so
+    // it slips behind whatever is rooted on the dune as it swims past.
+    fish.z = groundZ(py);
     fish.angle = Math.round(ang / TILT_STEP) * TILT_STEP;
 
     // Publish body points for neighbours' separation checks.

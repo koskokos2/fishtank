@@ -1,0 +1,21 @@
+{
+  "image": "pop-culture-props-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 3,
+  "source": "art/pop-culture-props-atlas-chroma.png",
+  "sprites": [
+    { "name": "prism_album_plaque", "row": 0, "col": 0, "category": "relic", "role": "musicHomage" },
+    { "name": "glowing_inscription_ring", "row": 0, "col": 1, "category": "relic", "role": "fantasyJewelry" },
+    { "name": "blue_crystal_d20", "row": 0, "col": 2, "category": "game", "role": "dice" },
+    { "name": "five_inch_floppy", "row": 0, "col": 3, "category": "retroTech", "role": "dataRelic" },
+    { "name": "quiet_spy_pistol", "row": 1, "col": 0, "category": "spy", "role": "propWeapon" },
+    { "name": "batwing_throwing_blade", "row": 1, "col": 1, "category": "heroGear", "role": "throwingRelic" },
+    { "name": "retro_robot_head", "row": 1, "col": 2, "category": "cartoonSciFi", "role": "robotRemains" },
+    { "name": "brass_genie_lamp", "row": 1, "col": 3, "category": "fantasy", "role": "magicLamp" },
+    { "name": "time_dash_clock", "row": 2, "col": 0, "category": "retroTech", "role": "timeInstrument" },
+    { "name": "companion_love_cube", "row": 2, "col": 1, "category": "game", "role": "storageCube" },
+    { "name": "classic_candybar_phone", "row": 2, "col": 2, "category": "retroTech", "role": "phone" },
+    { "name": "green_portal_projector", "row": 2, "col": 3, "category": "cartoonSciFi", "role": "portalDevice" }
+  ]
+}

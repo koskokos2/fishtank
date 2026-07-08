@@ -4,7 +4,7 @@
 // tiers occupied by the seabed props instead of tracing only the sand crest. Stops are
 // real stops (one stable frame), so the legs never paddle while it is parked.
 import type { KAPLAYCtx } from "kaplay";
-import { sandTopAt } from "./backdrop";
+import { groundZ, sandTopAt } from "./backdrop";
 import { HERMIT_CRAB_GROUND_OFFSET } from "./hermitCrabAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
@@ -61,13 +61,16 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
     HERMIT_CRAB_GROUND_OFFSET * CRAB_SCALE +
     depth;
 
+  const baseY = (atX: number, depth: number) =>
+    sandTopAt(clamp(atX, 0, k.width() - 1)) + depth;
+
   const crab = k.add([
     k.sprite("hermit-crab"),
     k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),
     k.rotate(0),
     k.scale(CRAB_SCALE),
-    k.z(17),
+    k.z(groundZ(baseY(x, substrateDepth))),
   ]);
   crab.frame = 1;
   crab.flipX = facing > 0; // source art faces left
@@ -142,6 +145,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
 
     crab.pos.x = x;
     crab.pos.y = groundCentreY(x, substrateDepth);
+    crab.z = groundZ(baseY(x, substrateDepth));
 
     // Lean very slightly with the broad dune slope. The large sampling span
     // ignores single-pixel sand chop, and easing keeps the heavy shell steady.

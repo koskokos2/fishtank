@@ -1,213 +1,300 @@
-// A tall modular plant assembled as a real parent-to-child stem chain. Each
-// atlas component has its root at tile centre and exports its tip vector; the
-// next section is planted at that transformed tip. This keeps the stalk seamless
-// while allowing current bends to accumulate naturally toward the flexible top.
+// A grove of surface-reaching giant kelp assembled from one coherent atlas.
+// Each stalk is an articulated stem chain; branches, tendrils, crowns and pod
+// clusters attach to shared anatomical joints and sway on independent clocks.
 import type { KAPLAYCtx } from "kaplay";
 import { sandTopAt } from "./backdrop";
 import {
-  LUMINOUS_KELP_BUSHY_PART,
   LUMINOUS_KELP_PART,
   LUMINOUS_KELP_TIP,
 } from "./luminousKelpAtlas";
 import { RES } from "./res";
 
 const S = RES;
-const JOINT_OVERLAP = 0.975;
-// Between the water+ruins back plate (z -200) and the baked sand overlay
-// (z -150): the dune crest occludes the roots, so the grove reads as growing
-// farther away, behind the sand.
-const KELP_Z = -180;
+const TRUNK_SWAY_RANGE = 2;
+// Pull neighbouring modules well into one another. The atlas deliberately has
+// soft, hairy ends, so this overlap reads as one continuous stem instead of a
+// stack of independently cut sprites.
+const JOINT_OVERLAP = 0.91;
+const REAR_Z = -180; // behind fish and the sand crest
+const FRONT_Z = 18; // selected stalks occlude passing fish
 
 type Point = { x: number; y: number };
+type PartName = keyof typeof LUMINOUS_KELP_PART;
+type Layer = "rear" | "front";
 
-function transformedTip(origin: Point, angle: number, tip: Point, amount = 1) {
+export type LuminousKelpSpec = {
+  fx: number;
+  scale: number;
+  layer: Layer;
+  phase: number;
+  surface: number;
+  depth: number;
+  podRichness: number;
+};
+
+type Range = readonly [number, number];
+type GroveSlot = {
+  fx: number;
+  jitter: number;
+  scale: Range;
+  layer: Layer;
+  surface: Range;
+  depth: Range;
+  podRichness: Range;
+};
+
+// Five tightly ordered root bands confine the grove to the rightmost quarter.
+// Values inside each band are rolled once per load; compact scales let the
+// crowns interweave densely without throwing stray branches into mid-screen.
+export const LUMINOUS_KELP_GROVE: readonly GroveSlot[] = [
+  { fx: 0.785, jitter: 0.005, scale: [0.76, 0.86], layer: "rear", surface: [0.025, 0.075], depth: [6, 10], podRichness: [0.42, 0.68] },
+  { fx: 0.83, jitter: 0.006, scale: [0.86, 0.98], layer: "front", surface: [-0.015, 0.04], depth: [17, 23], podRichness: [0.62, 0.88] },
+  { fx: 0.875, jitter: 0.006, scale: [0.94, 1.06], layer: "rear", surface: [-0.055, 0.01], depth: [6, 11], podRichness: [0.72, 1] },
+  { fx: 0.92, jitter: 0.006, scale: [0.86, 1], layer: "front", surface: [-0.025, 0.03], depth: [17, 23], podRichness: [0.58, 0.92] },
+  { fx: 0.965, jitter: 0.004, scale: [0.78, 0.9], layer: "rear", surface: [0.025, 0.08], depth: [6, 10], podRichness: [0.38, 0.7] },
+];
+
+function transformedTip(origin: Point, angle: number, tip: Point, scale: number) {
   const radians = (angle * Math.PI) / 180;
-  const x = tip.x * amount;
-  const y = tip.y * amount;
+  const x = tip.x * scale * JOINT_OVERLAP;
+  const y = tip.y * scale * JOINT_OVERLAP;
   return {
     x: origin.x + x * Math.cos(radians) - y * Math.sin(radians),
     y: origin.y + x * Math.sin(radians) + y * Math.cos(radians),
   };
 }
 
-export function spawnLuminousKelp(
-  k: KAPLAYCtx,
-  atX = k.width() * 0.82,
-  plantScale = 1,
-) {
-  const rootX = Math.max(24 * S, Math.min(k.width() - 24 * S, atX));
-  // Keep this tall plant close to the sand crest. The old deep foreground tier
-  // lowered its whole silhouette enough to make it read as a short shrub.
-  const rootY = sandTopAt(rootX) + k.rand(4, 10) * S;
-  const phase = k.rand(0, Math.PI * 2);
+const STEM_PARTS: PartName[] = ["straightStem", "straightStem", "leftStem", "rightStem"];
 
-  const makePart = (
-    frame: number,
-    z: number,
-    sprite = "luminous-kelp",
-    scale = plantScale,
-  ) => {
-    const part = k.add([
-      k.sprite(sprite),
+export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
+  const rootX = Math.max(18 * S, Math.min(k.width() - 18 * S, spec.fx * k.width()));
+  const rootY = sandTopAt(rootX) + spec.depth * S;
+  const targetY = spec.surface * k.height();
+  const z = spec.layer === "front" ? FRONT_Z : REAR_Z;
+  const rear = spec.layer === "rear";
+
+  const makePart = (name: PartName, scale = spec.scale, zOffset = 0) => {
+    const object = k.add([
+      k.sprite("luminous-kelp", { frame: LUMINOUS_KELP_PART[name] }),
       k.pos(rootX, rootY),
       k.anchor("center"),
       k.rotate(0),
       k.scale(scale),
-      k.opacity(1),
-      k.z(z),
+      k.color(...(rear ? [186, 207, 190] as const : [238, 249, 232] as const)),
+      k.opacity(rear ? 0.88 : 0.98),
+      k.z(z + zOffset),
     ]);
-    part.frame = frame;
-    return part;
+    return { name, object, scale, baseScale: scale };
   };
 
-  // Children render just behind their parent. The few pixels of overlap conceal
-  // the plain stem ends without collars, sockets, or visible attachment caps.
-  const base = makePart(LUMINOUS_KELP_PART.base, KELP_Z);
-  const lowerStem = makePart(LUMINOUS_KELP_PART.lowerStem, KELP_Z - 0.1);
-  const middleStem = makePart(LUMINOUS_KELP_PART.middleStem, KELP_Z - 0.2);
-  const upperStem = makePart(LUMINOUS_KELP_PART.lowerStem, KELP_Z - 0.3);
-  upperStem.flipX = true;
-  const crown = makePart(LUMINOUS_KELP_PART.crown, KELP_Z - 0.4);
-  const bushyLeft = makePart(
-    LUMINOUS_KELP_BUSHY_PART.leftBranch,
-    KELP_Z - 0.55,
-    "luminous-kelp-bushy",
-    plantScale * 0.72,
+  const base = makePart("holdfast", spec.scale, 0.02);
+  const baseRise = Math.abs(LUMINOUS_KELP_TIP.holdfast.y) * spec.scale * JOINT_OVERLAP;
+  const nominalRise = Math.abs(LUMINOUS_KELP_TIP.straightStem.y) * spec.scale * JOINT_OVERLAP;
+  const segmentCount = Math.max(5, Math.min(10, Math.ceil((rootY - targetY - baseRise) / nominalRise)));
+
+  // Choose fruit-bearing joints before constructing foliage. The lowest fruit
+  // becomes a natural growth line: below it the plant uses restrained trunk
+  // modules only, while branches and ornamental growth begin at or above it.
+  const podCandidates = Array.from(new Set([
+    Math.min(segmentCount - 1, Math.max(2, Math.floor(segmentCount * 0.26))),
+    Math.min(segmentCount - 1, Math.max(3, Math.floor(segmentCount * 0.4))),
+    Math.min(segmentCount - 1, Math.max(4, Math.floor(segmentCount * 0.54))),
+    Math.min(segmentCount - 1, Math.max(5, Math.floor(segmentCount * 0.68))),
+    Math.min(segmentCount - 1, Math.max(6, Math.floor(segmentCount * 0.82))),
+  ]));
+  let podJoints = podCandidates.filter(() => k.chance(spec.podRichness));
+  const minimumPodJoints = spec.podRichness > 0.72 ? 3 : 2;
+  while (podJoints.length < Math.min(minimumPodJoints, podCandidates.length)) {
+    const missing = podCandidates.filter((joint) => !podJoints.includes(joint));
+    if (!missing.length) break;
+    podJoints.push(k.choose(missing));
+  }
+  podJoints.sort((a, b) => a - b);
+  podJoints = podJoints.slice(0, spec.podRichness > 0.82 ? 4 : 3);
+  const lowestPodJoint = podJoints[0] ?? Math.max(2, Math.floor(segmentCount * 0.4));
+
+  // A constrained random walk gives each trunk an uneven identity. The lower
+  // section is always straight and cumulative left/right bias is capped, so
+  // random construction cannot make a corkscrew or expose impossible joints.
+  let bendBalance = 0;
+  let previousStem: PartName = "straightStem";
+  const stemPlan = Array.from({ length: segmentCount }, (_, index): PartName => {
+    if (index + 1 < lowestPodJoint) return "straightStem";
+    let candidates = STEM_PARTS.filter((name) => name !== previousStem || name === "straightStem");
+    if (bendBalance <= -1) candidates = candidates.filter((name) => name !== "leftStem");
+    if (bendBalance >= 1) candidates = candidates.filter((name) => name !== "rightStem");
+    const name = k.choose(candidates);
+    bendBalance += name === "leftStem" ? -1 : name === "rightStem" ? 1 : 0;
+    previousStem = name;
+    return name;
+  });
+  const stems = stemPlan.map((name, index) =>
+    makePart(name, spec.scale * k.rand(0.985, 1.015), 0.03 + index * 0.002),
   );
-  const bushyRight = makePart(
-    LUMINOUS_KELP_BUSHY_PART.rightBranch,
-    KELP_Z - 0.5,
-    "luminous-kelp-bushy",
-    plantScale * 0.72,
-  );
-  const bushyCrown = makePart(
-    LUMINOUS_KELP_BUSHY_PART.crown,
-    KELP_Z - 0.45,
-    "luminous-kelp-bushy",
-    plantScale * 0.78,
-  );
-  const magicalPods = makePart(
-    LUMINOUS_KELP_BUSHY_PART.pods,
-    KELP_Z - 0.35,
-    "luminous-kelp-bushy",
-    plantScale * 0.86,
-  );
 
-  const place = (part: typeof base, point: Point, angle: number) => {
-    part.pos.x = point.x;
-    part.pos.y = point.y;
-    part.angle = angle;
-  };
+  // A slim piece of matching stem texture bridges every module boundary. It
+  // sits above both neighbours and follows their averaged angle, concealing
+  // the otherwise visible cut without turning every joint into a leafy knot.
+  const jointBridges = stems.slice(0, -1).map((_, index) => ({
+    ...makePart("straightStem", spec.scale * k.rand(0.42, 0.49), 0.058 + index * 0.0002),
+    joint: index + 2,
+  }));
 
-  const updatePlant = () => {
-    const time = k.time();
-    const current =
-      Math.sin(time * 0.34 + phase) +
-      Math.sin(time * 0.17 + phase * 0.61) * 0.42;
+  // Dense side growth at alternating stem joints. Its scale is smaller than the
+  // trunk so neighbouring plants interweave without becoming a solid rectangle.
+  const eligibleBranchJoints = stems
+    .slice(1, -1)
+    .map((_, index) => index + 1)
+    .filter((joint) => joint >= lowestPodJoint);
+  const branchChance = k.rand(0.68, 0.9);
+  const chosenBranchJoints = eligibleBranchJoints.filter(() => k.chance(branchChance));
+  while (chosenBranchJoints.length < Math.min(3, eligibleBranchJoints.length)) {
+    const fallback = eligibleBranchJoints[Math.floor((chosenBranchJoints.length + 1) * eligibleBranchJoints.length / 4)];
+    if (fallback !== undefined && !chosenBranchJoints.includes(fallback)) chosenBranchJoints.push(fallback);
+    else {
+      const missing = eligibleBranchJoints.find((joint) => !chosenBranchJoints.includes(joint));
+      if (missing === undefined) break;
+      chosenBranchJoints.push(missing);
+    }
+  }
+  chosenBranchJoints.sort((a, b) => a - b);
+  let branchSide = k.chance(0.5) ? -1 : 1;
+  const branches = chosenBranchJoints.flatMap((joint, index) => {
+    if (index > 0 && k.chance(0.72)) branchSide *= -1;
+    const primarySide = branchSide;
+    const makeBranch = (side: number, secondary = false) => {
+      const name: PartName = !secondary && k.chance(0.14)
+        ? "featheryTuft"
+        : side < 0 ? "leftBranch" : "rightBranch";
+      const scale = spec.scale * (secondary ? k.rand(0.56, 0.68) : k.rand(0.74, 0.88));
+      return { ...makePart(name, scale, secondary ? -0.035 : -0.02), joint, side, secondary };
+    };
+    // Upper joints sometimes receive a smaller counter-branch, but the chance
+    // stays low enough that each plant keeps a lopsided natural silhouette.
+    return joint >= Math.floor(stems.length * 0.5) && k.chance(0.3)
+      ? [makeBranch(primarySide), makeBranch(-primarySide, true)]
+      : [makeBranch(primarySide)];
+  });
 
-    // The rooted base never rocks. Each following section adds only a little
-    // relative bend, but those bends accumulate into a broad, organic top sway.
-    place(base, { x: rootX, y: rootY }, 0);
+  const centralCrown = k.choose<PartName>(["fanCrown", "forkedCrown", "featheryTuft"]);
+  const canopySides = k.chance(0.58) ? [-1, 1] : [k.chance(0.5) ? -1 : 1];
+  const crowns = [
+    { ...makePart(centralCrown, spec.scale * k.rand(0.86, 1), 0.04), angleOffset: k.rand(-2, 2) },
+    ...canopySides.map((side) => ({
+      ...makePart(side < 0 ? "leftCanopy" : "rightCanopy", spec.scale * k.rand(0.7, 0.84), 0.03),
+      angleOffset: side * k.rand(11, 16),
+    })),
+  ];
 
-    const lowerRoot = transformedTip(
-      base.pos,
-      base.angle,
-      LUMINOUS_KELP_TIP.base,
-      JOINT_OVERLAP * plantScale,
-    );
-    const lowerAngle = current * 0.9 + Math.sin(time * 0.53 + phase + 0.8) * 0.45;
-    place(lowerStem, lowerRoot, lowerAngle);
+  // Keep only an occasional larger collar as natural variation; continuity is
+  // handled by the unobtrusive stem bridges above rather than repeated rosettes.
+  const collars = stems
+    .map((_, joint) => joint)
+    .filter((joint) => joint >= lowestPodJoint && joint < stems.length - 1 && k.chance(0.2))
+    .slice(0, 1)
+    .map((joint) => ({ ...makePart("foliageCollar", spec.scale * k.rand(0.34, 0.42), 0.061), joint }));
 
-    const middleRoot = transformedTip(
-      lowerStem.pos,
-      lowerStem.angle,
-      LUMINOUS_KELP_TIP.lowerStem,
-      JOINT_OVERLAP * plantScale,
-    );
-    const middleAngle =
-      lowerAngle +
-      current * 0.85 +
-      Math.sin(time * 0.61 + phase + 2.1) * 0.65;
-    place(middleStem, middleRoot, middleAngle);
+  const pods = podJoints
+    .map((joint, index) => ({
+      ...makePart(k.chance(spec.podRichness * 0.72) ? "largePods" : "smallPods", spec.scale * k.rand(0.5, 0.64), 0.07),
+      joint,
+      phase: spec.phase + index * 2.4 + k.rand(-0.5, 0.5),
+    }));
 
-    const upperRoot = transformedTip(
-      middleStem.pos,
-      middleStem.angle,
-      LUMINOUS_KELP_TIP.middleStem,
-      JOINT_OVERLAP * plantScale,
-    );
-    const upperAngle =
-      middleAngle +
-      current * 0.7 +
-      Math.sin(time * 0.69 + phase + 3.4) * 0.7;
-    place(upperStem, upperRoot, upperAngle);
+  const firstTendrilSide = k.chance(0.5) ? -1 : 1;
+  const tendrils = [
+    { ...makePart(k.chance(0.5) ? "trailingTendril" : "forkedTendril", spec.scale * k.rand(0.48, 0.6), -0.01), joint: Math.max(lowestPodJoint, segmentCount - k.randi(2, 4)), side: firstTendrilSide },
+    ...(k.chance(0.56) ? [{ ...makePart("trailingTendril" as PartName, spec.scale * k.rand(0.44, 0.54), -0.012), joint: Math.max(lowestPodJoint, segmentCount - 2), side: -firstTendrilSide }] : []),
+  ];
 
-    // Both side branches share the exact middle/upper joint. The two central
-    // stems render in front of their roots, closing the gap and hiding the old
-    // modules' attachment collars.
-    place(
-      bushyLeft,
-      upperRoot,
-      middleAngle + current * 1.1 + Math.sin(time * 0.73 + phase + 1.2) * 1.2,
-    );
-    place(
-      bushyRight,
-      upperRoot,
-      middleAngle + current * 0.95 + Math.sin(time * 0.67 + phase + 2.8) * 1.1,
-    );
-
-    const crownRoot = transformedTip(
-      upperStem.pos,
-      upperStem.angle,
-      {
-        x: -LUMINOUS_KELP_TIP.lowerStem.x,
-        y: LUMINOUS_KELP_TIP.lowerStem.y,
-      },
-      JOINT_OVERLAP * plantScale,
-    );
-    const crownAngle =
-      upperAngle +
-      current * 1.05 +
-      Math.sin(time * 0.77 + phase + 4.6) * 1.1;
-    place(crown, crownRoot, crownAngle);
-    place(
-      bushyCrown,
-      crownRoot,
-      upperAngle + current * 1.2 + Math.sin(time * 0.71 + phase + 5.5) * 1.2,
-    );
-
-    // Reuse the previous atlas's luminous amber pods. Their top pivot shares the
-    // crown joint, so the plain upper stem hides the collar while the fruit hangs
-    // freely around it and pulses without stretching the structural stem.
-    place(
-      magicalPods,
-      crownRoot,
-      upperAngle + current * 0.55 + Math.sin(time * 0.59 + phase + 0.3) * 0.8,
-    );
-
-    const glow = 0.5 + 0.5 * Math.sin(time * 1.12 + phase);
-    const podScale = plantScale * 0.86 * (1 + glow * 0.025);
-    magicalPods.scale.x = podScale;
-    magicalPods.scale.y = podScale;
-    magicalPods.opacity = 0.86 + glow * 0.14;
+  const place = (part: ReturnType<typeof makePart>, point: Point, angle: number) => {
+    part.object.pos.x = point.x;
+    part.object.pos.y = point.y;
+    part.object.angle = angle;
   };
 
   const controller = k.add([k.pos(0, 0)]);
-  controller.onUpdate(updatePlant);
-  updatePlant();
+  controller.onUpdate(() => {
+    const time = k.time();
+    const current =
+      Math.sin(time * 0.25 + spec.phase) * 0.74 +
+      Math.sin(time * 0.11 + spec.phase * 0.57) * 0.34;
+    const points: Point[] = [{ x: rootX, y: rootY }];
+    const angles: number[] = [0];
 
-  return {
-    base,
-    parts: [
-      lowerStem,
-      middleStem,
-      upperStem,
-      crown,
-      bushyLeft,
-      bushyRight,
-      bushyCrown,
-      magicalPods,
-    ],
-    controller,
-  };
+    place(base, points[0], 0);
+    points.push(transformedTip(points[0], 0, LUMINOUS_KELP_TIP.holdfast, spec.scale));
+
+    stems.forEach((stem, index) => {
+      const flexibility = (index + 1) / stems.length;
+      const angle = TRUNK_SWAY_RANGE * (
+        current * (1.15 + flexibility * 3.1) +
+        Math.sin(time * (0.31 + index * 0.017) + spec.phase + index * 0.73) * (0.22 + flexibility * 0.62)
+      );
+      const point = points[index + 1];
+      angles[index + 1] = angle;
+      place(stem, point, angle);
+      points.push(transformedTip(point, angle, LUMINOUS_KELP_TIP[stem.name], stem.scale));
+    });
+
+    jointBridges.forEach((bridge, index) => {
+      const lowerAngle = angles[bridge.joint - 1] ?? 0;
+      const upperAngle = angles[bridge.joint] ?? lowerAngle;
+      const breathing = Math.sin(time * 0.29 + spec.phase + index * 0.61) * 0.18;
+      place(bridge, points[bridge.joint], (lowerAngle + upperAngle) * 0.5 + breathing);
+    });
+
+    branches.forEach((branch, index) => {
+      const parentAngle = angles[branch.joint] ?? 0;
+      const flutter = Math.sin(time * (0.42 + index * 0.028) + spec.phase + index * 1.37) * (branch.secondary ? 2 : 1.55);
+      const spread = branch.secondary ? 24 : 17 + (branch.joint % 3) * 2.5;
+      place(branch, points[branch.joint], parentAngle + branch.side * spread + flutter);
+    });
+
+    collars.forEach((collar, index) => {
+      place(collar, points[collar.joint], (angles[collar.joint] ?? 0) + Math.sin(time * 0.33 + spec.phase + index) * 0.7);
+    });
+
+    pods.forEach((pod, index) => {
+      const parentAngle = angles[pod.joint] ?? 0;
+      place(pod, points[pod.joint], parentAngle + Math.sin(time * 0.37 + pod.phase) * 2.1);
+      const glow = 0.5 + 0.5 * Math.sin(time * 0.92 + pod.phase);
+      const scale = pod.baseScale * (1 + glow * 0.025);
+      pod.object.scale.x = scale;
+      pod.object.scale.y = scale;
+      pod.object.opacity = (rear ? 0.78 : 0.9) + glow * (rear ? 0.12 : 0.1);
+    });
+
+    tendrils.forEach((tendril, index) => {
+      const parentAngle = angles[tendril.joint] ?? 0;
+      place(
+        tendril,
+        points[tendril.joint],
+        parentAngle + tendril.side * 8 + Math.sin(time * (0.48 + index * 0.07) + spec.phase + index * 2.2) * 2.6,
+      );
+    });
+
+    const crownPoint = points[points.length - 1];
+    const crownParentAngle = angles[angles.length - 1] ?? 0;
+    crowns.forEach((crown, index) => {
+      const flutter = Math.sin(time * (0.36 + index * 0.045) + spec.phase + index * 2.1) * (1.1 + index * 0.35);
+      place(crown, crownPoint, crownParentAngle + crown.angleOffset + flutter);
+    });
+  });
+
+  return { base: base.object, stems, jointBridges, branches, crowns, collars, pods, tendrils, controller };
+}
+
+export function spawnLuminousKelpGrove(k: KAPLAYCtx) {
+  return LUMINOUS_KELP_GROVE.map((slot) =>
+    spawnLuminousKelp(k, {
+      fx: slot.fx + k.rand(-slot.jitter, slot.jitter),
+      scale: k.rand(...slot.scale),
+      layer: slot.layer,
+      phase: k.rand(0, Math.PI * 2),
+      surface: k.rand(...slot.surface),
+      depth: k.rand(...slot.depth),
+      podRichness: k.rand(...slot.podRichness),
+    }),
+  );
 }

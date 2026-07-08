@@ -1,18 +1,16 @@
 import type { KAPLAYCtx } from "kaplay";
 import { RES } from "./res";
-import { sandTopAt } from "./backdrop";
+import { groundZ, sandTopAt } from "./backdrop";
 import {
   PLANT_ATLAS_CELL,
   PLANT_ATLAS_LAYOUT,
 } from "./plantAtlas";
-import { spawnSciFiProps } from "./sciFiProps";
-import { spawnEldritchProps } from "./eldritchProps";
-import { spawnStarWarsProps } from "./starWarsProps";
+import { spawnRotatingProps } from "./propPlacement";
 
 const S = RES;
 
 // The static scene is baked once into two sprites (see backdrop.ts): the
-// water+ruins back plate and a transparent sand overlay (dunes + seabed props).
+// water+ruins back plate and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
 // caustics, swaying plants, motes, and source-based bubbles. Depth is faked
 // with z-ordering.
@@ -25,11 +23,9 @@ export function setupTank(k: KAPLAYCtx) {
   k.add([k.sprite("backdrop"), k.pos(0, 0), k.z(-200)]);
   k.add([k.sprite("backdrop-sand"), k.pos(0, 0), k.z(-150)]);
 
-  // Technological salvage stays as live sprites rather than being baked into the
-  // backdrop: two blank glass surfaces carry animated, replaceable readouts.
-  spawnSciFiProps(k);
-  spawnEldritchProps(k);
-  spawnStarWarsProps(k);
+  // Six live prop slots draw from the combined whitelist. One random occupant
+  // is replaced by a different whitelisted prop every five minutes.
+  spawnRotatingProps(k);
 
   // Atlas plants keep the good depth language of the old procedural grass, but
   // each real frond now has its own root pivot and current phase. Their roots use
@@ -37,6 +33,10 @@ export function setupTank(k: KAPLAYCtx) {
   // the atlas' dithered alpha edge reveals the procedural substrate beneath.
   const midPlants = MID_PLANTS.map((spec) => spawnPlantCluster(k, spec));
   FOREGROUND_PLANTS.forEach((spec) => spawnPlantCluster(k, spec));
+
+  // Lone shoots scattered between the clusters so the seabed reads as evenly
+  // planted rather than tufted only at the set piece clumps.
+  spawnSinglePlants(k, 15);
 
   // Caustics: three overlapping sine fields on a coarse grid read as the
   // shimmering light mesh, brightest near the surface and fading with depth.
@@ -87,7 +87,9 @@ export type PlantSpec = {
   phase: number;
   tint: [number, number, number];
   opacity: number;
-  z: number;
+  // Fixed z for the foreground clumps only; mid plants derive theirs from the
+  // dune contact line via groundZ, like every other grounded object.
+  z?: number;
   foreground?: boolean;
 };
 
@@ -108,13 +110,13 @@ type PlantCluster = {
 };
 
 export const MID_PLANTS: PlantSpec[] = [
-  { fx: 0.025, depth: 7, scale: 0.82, theme: "ribbon", phase: 0.4, tint: [118, 164, 151], opacity: 0.78, z: -62 },
-  { fx: 0.12, depth: 13, scale: 1.04, theme: "mixed", phase: 1.5, tint: [190, 216, 193], opacity: 0.94, z: -43 },
-  { fx: 0.235, depth: 10, scale: 0.9, theme: "fern", phase: 3.1, tint: [147, 190, 163], opacity: 0.88, z: -52 },
-  { fx: 0.46, depth: 12, scale: 0.96, theme: "broad", phase: 4.4, tint: [182, 212, 188], opacity: 0.92, z: -46 },
-  { fx: 0.64, depth: 8, scale: 0.84, theme: "ribbon", phase: 2.35, tint: [126, 174, 158], opacity: 0.82, z: -58 },
-  { fx: 0.81, depth: 14, scale: 1.08, theme: "fern", phase: 5.5, tint: [181, 207, 181], opacity: 0.92, z: -42 },
-  { fx: 0.965, depth: 10, scale: 0.92, theme: "mixed", phase: 0.9, tint: [145, 186, 166], opacity: 0.86, z: -50 },
+  { fx: 0.025, depth: 7, scale: 0.82, theme: "ribbon", phase: 0.4, tint: [118, 164, 151], opacity: 0.78 },
+  { fx: 0.12, depth: 13, scale: 1.04, theme: "mixed", phase: 1.5, tint: [190, 216, 193], opacity: 0.94 },
+  { fx: 0.235, depth: 10, scale: 0.9, theme: "fern", phase: 3.1, tint: [147, 190, 163], opacity: 0.88 },
+  { fx: 0.46, depth: 12, scale: 0.96, theme: "broad", phase: 4.4, tint: [182, 212, 188], opacity: 0.92 },
+  { fx: 0.64, depth: 8, scale: 0.84, theme: "ribbon", phase: 2.35, tint: [126, 174, 158], opacity: 0.82 },
+  { fx: 0.81, depth: 14, scale: 1.08, theme: "fern", phase: 5.5, tint: [181, 207, 181], opacity: 0.92 },
+  { fx: 0.965, depth: 10, scale: 0.92, theme: "mixed", phase: 0.9, tint: [145, 186, 166], opacity: 0.86 },
 ];
 
 // Like the old near-camera grass, these oversized edge clumps sit in front of
@@ -148,6 +150,7 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
     : sandTopAt(Math.max(0, Math.min(k.width() - 1, rootX))) + spec.depth * S;
   const names = [...THEME_FRONDS[spec.theme], THEME_BASE[spec.theme]];
   const centre = (names.length - 2) / 2;
+  const clusterZ = spec.foreground ? spec.z! : groundZ(rootY);
   const fronds: AnimatedFrond[] = [];
 
   names.forEach((name, index) => {
@@ -171,7 +174,7 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
       k.rotate(baseAngle),
       k.color(...spec.tint),
       k.opacity(spec.opacity),
-      k.z(spec.z + index * 0.01),
+      k.z(clusterZ + index * 0.01),
     ]);
     const frond: AnimatedFrond = {
       rootX: rootX + spread,
@@ -193,6 +196,60 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
   });
 
   return { fronds };
+}
+
+// The bottom two atlas rows (frames 8-15): ferny/bushy stems and the compact
+// tuft/rosette bases, which read well as lone shoots.
+const SINGLE_PLANT_KINDS: PlantName[] = [
+  "ferny_seaweed_stem",
+  "bushy_hornwort_sprig",
+  "forked_olive_branch",
+  "redgold_feathery_stem",
+  "narrow_blade_fan",
+  "broadleaf_rosette",
+  "irregular_moss_tuft",
+  "fiddlehead_shoot",
+];
+
+// A single swaying frond rooted on the dune contour. Stratified across the width
+// (one per bin, jittered) so the scatter stays balanced instead of clumping.
+function spawnSinglePlants(k: KAPLAYCtx, count: number) {
+  for (let i = 0; i < count; i++) {
+    const fx = (i + k.rand(0.15, 0.85)) / count;
+    const rootX = fx * k.width();
+    const clampX = Math.max(0, Math.min(k.width() - 1, rootX));
+    // near: 0 roots back at the dune line, 1 roots well down the foreground sand,
+    // closer to the camera. Root Y, scale, sway and z (via groundZ) all track it
+    // so each shoot reads as one distance instead of all sitting on the crest.
+    const near = k.rand(0, 1);
+    const sandTop = sandTopAt(clampX);
+    const rootY = sandTop + 6 * S + near * (k.height() - sandTop) * 0.78;
+    const name = k.choose(SINGLE_PLANT_KINDS);
+    const layout = PLANT_ATLAS_LAYOUT[name];
+    const scale = 0.5 + near * 0.5 + k.rand(0, 0.18);
+    const rootPad = (PLANT_ATLAS_CELL - layout.bottom) * scale;
+    const baseAngle = k.rand(-6, 6);
+    const sway = k.rand(3, 6) * (1 + near * 0.25);
+    const phase = k.rand(0, Math.PI * 2);
+    const speed = k.rand(0.42, 0.6);
+    // Cool-darken slightly with closeness, echoing the foreground clumps.
+    const shade = 1 - near * 0.35;
+    const tint: [number, number, number] = [k.rand(120, 180) * shade, k.rand(165, 210) * shade, k.rand(150, 190) * shade];
+    const object = k.add([
+      k.sprite("plant-atlas-v2", { frame: layout.frame }),
+      k.pos(rootX, rootY + rootPad),
+      k.anchor("bot"),
+      k.scale(k.chance(0.5) ? -scale : scale, scale),
+      k.rotate(baseAngle),
+      k.color(...tint),
+      k.opacity(k.rand(0.82, 0.94)),
+      k.z(groundZ(rootY)),
+    ]);
+    object.onUpdate(() => {
+      const slowCurrent = 0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
+      object.angle = baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
+    });
+  }
 }
 
 // Suspended detritus: tiny pale specks drifting slowly for a sense of depth.

@@ -2,7 +2,7 @@
 // back, middle, and foreground substrate tiers. The pose cycle advances by total
 // distance travelled, so its muscular foot wave cannot slide while stationary.
 import type { KAPLAYCtx } from "kaplay";
-import { sandTopAt } from "./backdrop";
+import { groundZ, sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
@@ -55,12 +55,15 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
     SEA_SNAIL_GROUND_OFFSET +
     depth;
 
+  const baseY = (atX: number, depth: number) =>
+    sandTopAt(clamp(atX, 0, k.width() - 1)) + depth;
+
   const snail = k.add([
     k.sprite("sea-snail"),
     k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),
     k.rotate(0),
-    k.z(16.5),
+    k.z(groundZ(baseY(x, substrateDepth))),
   ]);
   snail.frame = 0;
   snail.flipX = facing > 0; // source art faces left
@@ -129,6 +132,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
 
     snail.pos.x = x;
     snail.pos.y = groundCentreY(x, substrateDepth);
+    snail.z = groundZ(baseY(x, substrateDepth));
     const left = sandTopAt(clamp(x - SLOPE_SPAN, 0, k.width() - 1));
     const right = sandTopAt(clamp(x + SLOPE_SPAN, 0, k.width() - 1));
     const desired = clamp(

@@ -1,6 +1,6 @@
 import type { KAPLAYCtx } from "kaplay";
-import { sandTopAt } from "./backdrop";
-import { RES } from "./res";
+import { groundZ } from "./backdrop";
+import type { PropPlacement } from "./propPlacement";
 import {
   STAR_WARS_PROPS_ATLAS_CELL,
   STAR_WARS_PROPS_ATLAS_LAYOUT,
@@ -19,18 +19,26 @@ export type StarWarsPropSpec = {
   name: StarWarsPropName;
   fx: number;
   depth: number;
-  z: number;
 };
 
-// A sparse cross-section of the atlas: two functional displays and three
-// instantly readable pieces of galactic salvage. The different burial depths
-// keep them from becoming another straight prop horizon.
+// Use every droid, relic, machine, and wreck in the atlas while leaving out the
+// two display-category props. Four burial tiers keep the larger selection from
+// becoming a single prop horizon.
 export const STAR_WARS_PROP_SPECS: StarWarsPropSpec[] = [
-  { name: "utility_droid_dome", fx: 0.27, depth: 35, z: -70 },
-  { name: "hologram_strategy_table", fx: 0.475, depth: 24, z: -83 },
-  { name: "cracked_guardian_helmet", fx: 0.60, depth: 24, z: -68 },
-  { name: "galactic_field_terminal", fx: 0.735, depth: 23, z: -82 },
-  { name: "crystal_containment_canister", fx: 0.975, depth: 35, z: -70 },
+  { name: "utility_droid_dome", fx: 0.03, depth: 14 },
+  { name: "moisture_collector", fx: 0.102, depth: 30 },
+  { name: "cracked_guardian_helmet", fx: 0.175, depth: 46 },
+  { name: "translator_droid_head", fx: 0.247, depth: 62 },
+  { name: "spherical_courier_droid", fx: 0.319, depth: 14 },
+  { name: "collapsed_survey_remote", fx: 0.392, depth: 30 },
+  { name: "interceptor_wing_wreckage", fx: 0.464, depth: 46 },
+  { name: "ceremonial_power_coupler", fx: 0.536, depth: 62 },
+  { name: "resistance_field_reactor", fx: 0.608, depth: 14 },
+  { name: "planetary_probe_wreck", fx: 0.681, depth: 30 },
+  { name: "galactic_cargo_crate", fx: 0.753, depth: 46 },
+  { name: "crystal_containment_canister", fx: 0.825, depth: 62 },
+  { name: "folding_comms_dish", fx: 0.897, depth: 14 },
+  { name: "cantina_beverage_dispenser", fx: 0.97, depth: 30 },
 ];
 
 type Point = { x: number; y: number };
@@ -74,7 +82,10 @@ export const STAR_WARS_DISPLAY_WINDOWS: Record<StarWarsDisplayName, DisplayWindo
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-export function spawnStarWarsProps(k: KAPLAYCtx) {
+export function spawnStarWarsProps(
+  k: KAPLAYCtx,
+  placements: Map<string, PropPlacement>,
+) {
   const data: Record<StarWarsDisplayName, StarWarsDisplayData> = {
     hologram_strategy_table: { primary: 0.54, secondary: 0.31, samples: [] },
     galactic_field_terminal: { primary: 0.66, secondary: 0.42, samples: [] },
@@ -82,22 +93,16 @@ export function spawnStarWarsProps(k: KAPLAYCtx) {
 
   for (const spec of STAR_WARS_PROP_SPECS) {
     const layout = STAR_WARS_PROPS_ATLAS_LAYOUT[spec.name];
-    const rootX = spec.fx * k.width();
-    const left = Math.round(rootX - STAR_WARS_PROPS_ATLAS_CELL / 2);
-    let floor = -Infinity;
-    for (let x = left + layout.contactLeft; x <= left + layout.contactRight; x++)
-      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(k.width() - 1, x))));
-    const rootY = floor + spec.depth * RES;
-    const spriteY = rootY + STAR_WARS_PROPS_ATLAS_CELL - layout.bottom;
+    const { rootX, rootY, spriteY } = placements.get(spec.name)!;
     k.add([
       k.sprite("star-wars-props", { frame: layout.frame }),
       k.pos(rootX, spriteY),
       k.anchor("bot"),
-      k.z(spec.z),
+      k.z(groundZ(rootY)),
     ]);
 
     if (spec.name === "hologram_strategy_table" || spec.name === "galactic_field_terminal")
-      spawnReadout(k, spec.name, rootX, spriteY, spec.z + 0.01, data);
+      spawnReadout(k, spec.name, rootX, spriteY, groundZ(rootY) + 0.01, data);
   }
 
   return {
