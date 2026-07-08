@@ -1,0 +1,24 @@
+{
+  "image": "plant-atlas-v2-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "eelgrass_left_arc", "row": 0, "col": 0, "category": "ribbon" },
+    { "name": "eelgrass_s_curve", "row": 0, "col": 1, "category": "ribbon" },
+    { "name": "eelgrass_upright_wave", "row": 0, "col": 2, "category": "ribbon" },
+    { "name": "eelgrass_right_arc", "row": 0, "col": 3, "category": "ribbon" },
+    { "name": "emerald_strap_leaf", "row": 1, "col": 0, "category": "broad" },
+    { "name": "jagged_olive_kelp", "row": 1, "col": 1, "category": "broad" },
+    { "name": "bluegreen_lance_leaf", "row": 1, "col": 2, "category": "broad" },
+    { "name": "burgundy_accent_leaf", "row": 1, "col": 3, "category": "broad" },
+    { "name": "ferny_seaweed_stem", "row": 2, "col": 0, "category": "branching" },
+    { "name": "bushy_hornwort_sprig", "row": 2, "col": 1, "category": "branching" },
+    { "name": "forked_olive_branch", "row": 2, "col": 2, "category": "branching" },
+    { "name": "redgold_feathery_stem", "row": 2, "col": 3, "category": "branching" },
+    { "name": "narrow_blade_fan", "row": 3, "col": 0, "category": "base" },
+    { "name": "broadleaf_rosette", "row": 3, "col": 1, "category": "base" },
+    { "name": "irregular_moss_tuft", "row": 3, "col": 2, "category": "base" },
+    { "name": "fiddlehead_shoot", "row": 3, "col": 3, "category": "base" }
+  ]
+}

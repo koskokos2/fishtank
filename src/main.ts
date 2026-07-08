@@ -25,6 +25,11 @@ import {
   LUMINOUS_KELP_COLS,
   LUMINOUS_KELP_ROWS,
 } from "./luminousKelpAtlas";
+import {
+  PLANT_ATLAS,
+  PLANT_ATLAS_COLS,
+  PLANT_ATLAS_ROWS,
+} from "./plantAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -118,6 +123,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   k.loadSprite("luminous-kelp-bushy", LUMINOUS_KELP_BUSHY_ATLAS, {
     sliceX: LUMINOUS_KELP_COLS,
     sliceY: LUMINOUS_KELP_ROWS,
+  });
+  k.loadSprite("plant-atlas-v2", PLANT_ATLAS, {
+    sliceX: PLANT_ATLAS_COLS,
+    sliceY: PLANT_ATLAS_ROWS,
   });
 
   setupTank(k);

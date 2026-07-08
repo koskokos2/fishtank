@@ -2,12 +2,32 @@
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng, dataUrlToBuffer } from "./png";
-import { BW, BH, backdropPixels, propBlits, propPixelOpacity } from "../src/backdrop";
+import {
+  BW,
+  BH,
+  backdropPixels,
+  propBlits,
+  propPixelOpacity,
+  sandTopAt,
+} from "../src/backdrop";
 import {
   SMALL_PROPS_ATLAS,
   SMALL_PROPS_ATLAS_CELL,
   SMALL_PROPS_ATLAS_LAYOUT,
 } from "../src/smallPropsAtlas";
+import {
+  PLANT_ATLAS,
+  PLANT_ATLAS_CELL,
+  PLANT_ATLAS_COLS,
+  PLANT_ATLAS_LAYOUT,
+} from "../src/plantAtlas";
+import {
+  FOREGROUND_PLANTS,
+  MID_PLANTS,
+  THEME_BASE,
+  THEME_FRONDS,
+} from "../src/tank";
+import { RES } from "../src/res";
 import {
   JELLYFISH_ARMS_START,
   JELLYFISH_ATLAS,
@@ -83,6 +103,7 @@ if (MODE === "backdrop") renderBackdrop();
 else if (MODE === "octopus") renderOctopus();
 else if (MODE === "jellyfish") renderJellyfish();
 else if (MODE === "nautilus") renderNautilus();
+else if (MODE === "plants") renderPlantScene();
 else if (MODE === "ruins-kit") renderRuinsKit();
 else renderFishGrid();
 
@@ -222,6 +243,31 @@ function renderNautilus() {
 }
 
 function renderBackdrop() {
+  const buf = backdropWithProps();
+
+  const cw = BW * S;
+  const ch = BH * S;
+  const out = new Uint8Array(cw * ch * 4);
+  for (let y = 0; y < BH; y++) {
+    for (let x = 0; x < BW; x++) {
+      const [r, g, b, a] = buf[y * BW + x];
+      for (let sy = 0; sy < S; sy++) {
+        for (let sx = 0; sx < S; sx++) {
+          const i = ((y * S + sy) * cw + (x * S + sx)) * 4;
+          out[i] = r;
+          out[i + 1] = g;
+          out[i + 2] = b;
+          out[i + 3] = a;
+        }
+      }
+    }
+  }
+  const name = opt("OUT") ?? "backdrop.png";
+  writeFileSync(name, encodePng(out, cw, ch));
+  console.log(`wrote ${name} (${cw}x${ch})`);
+}
+
+function backdropWithProps() {
   const buf = backdropPixels(Number(opt("SEED") ?? 1));
 
   // Blit small-prop atlas cells into the raw buffer (alpha compositing).
@@ -252,27 +298,123 @@ function renderBackdrop() {
       }
     }
   }
+  return buf;
+}
 
-  const cw = BW * S;
-  const ch = BH * S;
-  const out = new Uint8Array(cw * ch * 4);
-  for (let y = 0; y < BH; y++) {
-    for (let x = 0; x < BW; x++) {
-      const [r, g, b, a] = buf[y * BW + x];
-      for (let sy = 0; sy < S; sy++) {
-        for (let sx = 0; sx < S; sx++) {
-          const i = ((y * S + sy) * cw + (x * S + sx)) * 4;
-          out[i] = r;
-          out[i + 1] = g;
-          out[i + 2] = b;
-          out[i + 3] = a;
-        }
-      }
+// Representative still of the live modular plant system. This repeats the pure
+// placement math from tank.ts at one instant, then inverse-maps each rotated
+// atlas cell onto the exact procedural backdrop. It is intentionally headless:
+// roots, scale tiers, tint, and foreground framing can be reviewed without a
+// browser while the real scene continues to animate each frond independently.
+function renderPlantScene() {
+  const buf = backdropWithProps();
+  const atlas = decodePng(dataUrlToBuffer(PLANT_ATLAS));
+  const time = Number(opt("TIME") ?? 3.4);
+  type Part = {
+    frame: number;
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    angle: number;
+    tint: [number, number, number];
+    opacity: number;
+    z: number;
+  };
+  const parts: Part[] = [];
+  for (const spec of [...MID_PLANTS, ...FOREGROUND_PLANTS]) {
+    const rootX = spec.fx * BW;
+    const rootY = spec.foreground
+      ? BH + spec.depth * RES
+      : sandTopAt(Math.max(0, Math.min(BW - 1, rootX))) + spec.depth * RES;
+    const names = [...THEME_FRONDS[spec.theme], THEME_BASE[spec.theme]];
+    const centre = (names.length - 2) / 2;
+    names.forEach((name, index) => {
+      const base = index === names.length - 1;
+      const side = base ? 0 : index - centre;
+      const spread = side * 2.1 * RES * spec.scale;
+      const centreBoost = base ? 0.72 : 0.78 + (1 - Math.abs(side) / (centre + 1)) * 0.28;
+      const scale = spec.scale * centreBoost;
+      const layout = PLANT_ATLAS_LAYOUT[name];
+      const rootPad = (PLANT_ATLAS_CELL - layout.bottom) * scale;
+      const baseAngle = base ? 0 : side * 4.8 + Math.sin(index * 2.7 + spec.phase) * 2.4;
+      const sway = (base ? 1.2 : 3.2 + index * 0.38) * (spec.foreground ? 1.22 : 1);
+      const phase = spec.phase + index * 1.17;
+      const speed = 0.46 + (index % 3) * 0.09;
+      const slowCurrent = 0.82 + Math.sin(time * 0.16 + phase * 0.7) * 0.18;
+      const angle = baseAngle + Math.sin(time * speed + phase) * sway * slowCurrent;
+      const mirror = !base && (index + Math.round(spec.phase)) % 2 === 1;
+      parts.push({
+        frame: layout.frame,
+        x: rootX + spread,
+        y: rootY + rootPad,
+        scaleX: mirror ? -scale : scale,
+        scaleY: scale,
+        angle,
+        tint: spec.tint,
+        opacity: spec.opacity,
+        z: spec.z + index * 0.01,
+      });
+    });
+  }
+  parts.sort((a, b) => a.z - b.z);
+  for (const part of parts) blitPlantPart(buf, atlas.rgba, atlas.w, part);
+
+  const out = new Uint8Array(BW * BH * 4);
+  for (let i = 0; i < buf.length; i++) out.set(buf[i], i * 4);
+  const name = opt("OUT") ?? "plants-scene.png";
+  writeFileSync(name, encodePng(out, BW, BH));
+  console.log(`wrote ${name} (${BW}x${BH}) — ${parts.length} independently placed fronds`);
+}
+
+function blitPlantPart(
+  dst: ReturnType<typeof backdropPixels>,
+  atlas: Uint8Array,
+  atlasW: number,
+  part: {
+    frame: number;
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    angle: number;
+    tint: [number, number, number];
+    opacity: number;
+  },
+) {
+  const cell = PLANT_ATLAS_CELL;
+  const col = part.frame % PLANT_ATLAS_COLS;
+  const row = Math.floor(part.frame / PLANT_ATLAS_COLS);
+  const radians = (part.angle * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const radius = cell * Math.max(Math.abs(part.scaleX), part.scaleY) * 1.5;
+  const x0 = Math.max(0, Math.floor(part.x - radius));
+  const x1 = Math.min(BW - 1, Math.ceil(part.x + radius));
+  const y0 = Math.max(0, Math.floor(part.y - radius));
+  const y1 = Math.min(BH - 1, Math.ceil(part.y + radius * 0.2));
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const dx = x - part.x;
+      const dy = y - part.y;
+      const localX = (cos * dx + sin * dy) / part.scaleX + cell / 2;
+      const localY = (-sin * dx + cos * dy) / part.scaleY + cell;
+      const sx = Math.floor(localX);
+      const sy = Math.floor(localY);
+      if (sx < 0 || sx >= cell || sy < 0 || sy >= cell) continue;
+      const si = (((row * cell + sy) * atlasW) + col * cell + sx) * 4;
+      const sa = (atlas[si + 3] / 255) * part.opacity;
+      if (!sa) continue;
+      const bi = y * BW + x;
+      const [br, bg, bb] = dst[bi];
+      dst[bi] = [
+        Math.round((atlas[si] * part.tint[0] / 255) * sa + br * (1 - sa)),
+        Math.round((atlas[si + 1] * part.tint[1] / 255) * sa + bg * (1 - sa)),
+        Math.round((atlas[si + 2] * part.tint[2] / 255) * sa + bb * (1 - sa)),
+        255,
+      ];
     }
   }
-  const name = opt("OUT") ?? "backdrop.png";
-  writeFileSync(name, encodePng(out, cw, ch));
-  console.log(`wrote ${name} (${cw}x${ch})`);
 }
 
 type RuinsSocket = { x: number; y: number; type: string };
