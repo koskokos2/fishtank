@@ -2,7 +2,7 @@
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng, dataUrlToBuffer } from "./png";
-import { BW, BH, backdropPixels, propBlits } from "../src/backdrop";
+import { BW, BH, backdropPixels, propBlits, propPixelOpacity } from "../src/backdrop";
 import {
   SMALL_PROPS_ATLAS,
   SMALL_PROPS_ATLAS_CELL,
@@ -238,7 +238,7 @@ function renderBackdrop() {
         const by = dy + cy;
         if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
         const si = ((sy0 + cy) * atlas.w + (sx0 + cx)) * 4;
-        const a = atlas.rgba[si + 3];
+        const a = atlas.rgba[si + 3] * propPixelOpacity(cy, bottom, bx, by);
         if (a === 0) continue;
         const af = a / 255;
         const bi = by * BW + bx;

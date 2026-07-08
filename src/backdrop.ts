@@ -343,6 +343,23 @@ export function propBlits(): PropBlit[] {
   ];
 }
 
+// The generated props include a small illustrated sand skirt. Rather than try
+// to palette-match that baked texture, progressively punch it out over the
+// lowest few design pixels and reveal the real procedural seabed underneath.
+// The same ordered grain field makes the burial edge belong to the backdrop.
+const PROP_BURIAL_BAND = 6 * S;
+export function propPixelOpacity(
+  localY: number,
+  bottom: number,
+  worldX: number,
+  worldY: number,
+) {
+  const rowsAboveBottom = bottom - localY;
+  if (rowsAboveBottom >= PROP_BURIAL_BAND) return 1;
+  const coverage = clamp01(rowsAboveBottom / PROP_BURIAL_BAND);
+  return coverage > orderedGrain(worldX, worldY) ? 1 : 0;
+}
+
 function paintSand(buf: Buf) {
   for (let x = 0; x < BW; x++) {
     const top = sandTopAt(x);
@@ -411,11 +428,36 @@ function blitSmallPropsAtlas(ctx: CanvasRenderingContext2D): Promise<void> {
     img.onload = () => {
       ctx.imageSmoothingEnabled = false;
       const CELL = SMALL_PROPS_ATLAS_CELL;
+      const sourceCanvas = document.createElement("canvas");
+      sourceCanvas.width = img.width;
+      sourceCanvas.height = img.height;
+      const sourceCtx = sourceCanvas.getContext("2d")!;
+      sourceCtx.imageSmoothingEnabled = false;
+      sourceCtx.drawImage(img, 0, 0);
+      const source = sourceCtx.getImageData(0, 0, img.width, img.height).data;
       for (const { name, x, y } of propBlits()) {
         const { col, row, top, bottom } = SMALL_PROPS_ATLAS_LAYOUT[name];
-        // Clip to the prop's tight rows, omitting empty cell padding.
         const sh = bottom - top + 1;
-        ctx.drawImage(img, col * CELL, row * CELL + top, CELL, sh, x, y + top, CELL, sh);
+        const dest = ctx.getImageData(x, y + top, CELL, sh);
+        for (let cy = top; cy <= bottom; cy++) {
+          for (let cx = 0; cx < CELL; cx++) {
+            const si = (((row * CELL + cy) * img.width) + col * CELL + cx) * 4;
+            const sourceAlpha = source[si + 3] / 255;
+            if (!sourceAlpha) continue;
+            const opacity = propPixelOpacity(cy, bottom, x + cx, y + cy);
+            if (!opacity) continue;
+            const di = (((cy - top) * CELL) + cx) * 4;
+            const sa = sourceAlpha * opacity;
+            const da = dest.data[di + 3] / 255;
+            const outA = sa + da * (1 - sa);
+            for (let channel = 0; channel < 3; channel++)
+              dest.data[di + channel] = Math.round(
+                (source[si + channel] * sa + dest.data[di + channel] * da * (1 - sa)) / outA,
+              );
+            dest.data[di + 3] = Math.round(outA * 255);
+          }
+        }
+        ctx.putImageData(dest, x, y + top);
       }
       resolve();
     };
