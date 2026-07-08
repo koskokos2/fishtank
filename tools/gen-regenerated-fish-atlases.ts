@@ -42,7 +42,7 @@ const CONFIGS: AtlasConfig[] = [
     height: 1450,
     colCuts: [0, 362, 723, 1085],
     rowCuts: [0, 363, 725, 1088, 1450],
-    minIslandPixels: 4,
+    minIslandPixels: 12,
   },
 ];
 
@@ -52,6 +52,9 @@ const CONFIGS: AtlasConfig[] = [
 function removeTinyIslands(rgba: Uint8Array, minPixels: number) {
   if (minPixels <= 1) return;
   const seen = new Uint8Array(TILE * TILE);
+  // Fully discard near-invisible matte noise before component analysis.
+  for (let index = 0; index < TILE * TILE; index++)
+    if (rgba[index * 4 + 3] < 16) rgba.fill(0, index * 4, index * 4 + 4);
   for (let start = 0; start < TILE * TILE; start++) {
     if (seen[start] || rgba[start * 4 + 3] < 16) continue;
     const stack = [start];
