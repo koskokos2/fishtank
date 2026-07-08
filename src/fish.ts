@@ -10,6 +10,11 @@ import {
   FISH_EXTRA_ATLAS_LAYOUT,
 } from "./fishExtraAtlas";
 import {
+  FISH_BONUS_ATLAS,
+  FISH_BONUS_ATLAS_CELL,
+  FISH_BONUS_ATLAS_LAYOUT,
+} from "./fishBonusAtlas";
+import {
   cellBBox,
   copyRect,
   motionBeatScale,
@@ -31,7 +36,7 @@ export type FishKind = {
   motion: FishMotionProfile;
 };
 
-// Names must match keys in FISH_ATLAS_LAYOUT or FISH_EXTRA_ATLAS_LAYOUT. Every fish faces left.
+// Names must match one of the three atlas layouts. Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
@@ -62,6 +67,19 @@ export const FISH_KINDS: FishKind[] = [
   { name: "glass_catfish",          level: { min: 0.28, max: 0.62 }, speed: 0.70, motion: "eel" }, // slow  — drifting, nearly transparent
   { name: "otocinclus",             level: { min: 0.62, max: 0.92 }, speed: 0.80, motion: "paddle" }, // slow  — tiny grazer, lower half
   { name: "clown_loach",            level: { min: 0.68, max: 0.95 }, speed: 1.05, motion: "standard" }, // med   — striped bottom cruiser
+  // --- bonus reef atlas ---
+  { name: "ocellaris_clownfish",    level: { min: 0.22, max: 0.58 }, speed: 0.85, motion: "standard" }, // med   — compact, agile reef swimmer
+  { name: "blue_tang",              level: { min: 0.14, max: 0.55 }, speed: 1.25, motion: "standard" }, // fast  — active open-reef cruiser
+  { name: "yellow_tang",            level: { min: 0.18, max: 0.58 }, speed: 1.15, motion: "standard" }, // fast  — steady midwater grazer
+  { name: "moorish_idol",           level: { min: 0.12, max: 0.52 }, speed: 0.90, motion: "flowing" }, // med   — tall profile with trailing banner fin
+  { name: "lionfish",               level: { min: 0.38, max: 0.82 }, speed: 0.55, motion: "flowing" }, // slow  — hovering ambush hunter with broad fins
+  { name: "porcupine_puffer",       level: { min: 0.25, max: 0.68 }, speed: 0.65, motion: "paddle" }, // slow  — rounded body propelled by small fins
+  { name: "royal_gramma",           level: { min: 0.38, max: 0.76 }, speed: 0.85, motion: "standard" }, // med   — small cave-edge reef fish
+  { name: "mandarin_dragonet",      level: { min: 0.68, max: 0.94 }, speed: 0.50, motion: "paddle" }, // slow  — ornate bottom-hugging hoverer
+  { name: "firefish_goby",          level: { min: 0.12, max: 0.46 }, speed: 1.15, motion: "standard" }, // fast  — hovering fish with sharp retreat bursts
+  { name: "copperband_butterflyfish",level: { min: 0.20, max: 0.62 }, speed: 0.75, motion: "paddle" }, // slow  — precise tall-bodied reef picker
+  { name: "arctic_peeper",          level: { min: 0.10, max: 0.55 }, speed: 1.30, motion: "flowing" }, // fast  — alien cruiser with flexible trailing fins
+  { name: "foxface_rabbitfish",     level: { min: 0.22, max: 0.66 }, speed: 1.10, motion: "standard" }, // fast  — active reef grazer
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -69,9 +87,10 @@ export const FISH_KINDS: FishKind[] = [
 // Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
 // decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const [img1, img2] = await Promise.all([
+  const [img1, img2, img3] = await Promise.all([
     loadImage(FISH_ATLAS),
     loadImage(FISH_EXTRA_ATLAS),
+    loadImage(FISH_BONUS_ATLAS),
   ]);
 
   const toPixels = (img: HTMLImageElement) => {
@@ -88,14 +107,22 @@ export async function makeFishSheets(): Promise<string[]> {
 
   const a1 = toPixels(img1);
   const a2 = toPixels(img2);
+  const a3 = toPixels(img3);
 
   return FISH_KINDS.map((kind) => {
     const inExtra = kind.name in FISH_EXTRA_ATLAS_LAYOUT;
-    const { full, width } = inExtra ? a2 : a1;
-    const cell = inExtra ? FISH_EXTRA_ATLAS_CELL : FISH_ATLAS_CELL;
-    const { row, col } = inExtra
-      ? FISH_EXTRA_ATLAS_LAYOUT[kind.name]
-      : FISH_ATLAS_LAYOUT[kind.name];
+    const inBonus = kind.name in FISH_BONUS_ATLAS_LAYOUT;
+    const { full, width } = inBonus ? a3 : inExtra ? a2 : a1;
+    const cell = inBonus
+      ? FISH_BONUS_ATLAS_CELL
+      : inExtra
+        ? FISH_EXTRA_ATLAS_CELL
+        : FISH_ATLAS_CELL;
+    const { row, col } = inBonus
+      ? FISH_BONUS_ATLAS_LAYOUT[kind.name]
+      : inExtra
+        ? FISH_EXTRA_ATLAS_LAYOUT[kind.name]
+        : FISH_ATLAS_LAYOUT[kind.name];
     const bb = cellBBox(full, width, col * cell, row * cell, cell);
     const fish = copyRect(full, width, bb.x, bb.y, bb.bw, bb.bh);
     return bufToDataURL(shearSheet(fish, kind.motion));

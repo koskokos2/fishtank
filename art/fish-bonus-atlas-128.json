@@ -1,0 +1,24 @@
+{
+  "image": "fish-bonus-atlas-128.png",
+  "sourceImage": "fish-bonus-atlas-regenerated-transparent.png",
+  "tileSize": 128,
+  "sourceWidth": 1085,
+  "sourceHeight": 1450,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    { "name": "ocellaris_clownfish", "row": 0, "col": 0, "category": "fish", "role": "reefIcon" },
+    { "name": "blue_tang", "row": 0, "col": 1, "category": "fish", "role": "fastReefCruiser" },
+    { "name": "yellow_tang", "row": 0, "col": 2, "category": "fish", "role": "discReefCruiser" },
+    { "name": "moorish_idol", "row": 1, "col": 0, "category": "fish", "role": "flowingBannerFin" },
+    { "name": "lionfish", "row": 1, "col": 1, "category": "fish", "role": "flowingSpinedHunter" },
+    { "name": "porcupine_puffer", "row": 1, "col": 2, "category": "fish", "role": "roundPaddleSwimmer" },
+    { "name": "royal_gramma", "row": 2, "col": 0, "category": "fish", "role": "smallReefFish" },
+    { "name": "mandarin_dragonet", "row": 2, "col": 1, "category": "fish", "role": "ornateBottomHoverer" },
+    { "name": "firefish_goby", "row": 2, "col": 2, "category": "fish", "role": "dartingReefFish" },
+    { "name": "copperband_butterflyfish", "row": 3, "col": 0, "category": "fish", "role": "tallReefProfile" },
+    { "name": "arctic_peeper", "row": 3, "col": 1, "category": "fish", "role": "alienFlowingFins" },
+    { "name": "foxface_rabbitfish", "row": 3, "col": 2, "category": "fish", "role": "reefGrazer" }
+  ]
+}

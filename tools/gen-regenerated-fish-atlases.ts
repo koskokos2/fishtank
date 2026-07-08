@@ -1,4 +1,4 @@
-// Normalize the two regenerated high-resolution fish sheets into clean 3x4
+// Normalize the regenerated high-resolution fish sheets into clean 3x4
 // runtime atlases. Each fish is isolated through an empty gutter, centred in a
 // padded work tile, then area-filtered into its 128px cell with premultiplied
 // alpha so fins and barbels stay crisp without green/dark edge halos.
@@ -13,6 +13,7 @@ type AtlasConfig = {
   height: number;
   colCuts: readonly number[];
   rowCuts: readonly number[];
+  minIslandPixels?: number;
 };
 
 const TILE = 128;
@@ -34,7 +35,48 @@ const CONFIGS: AtlasConfig[] = [
     colCuts: [0, 379, 699, 1086],
     rowCuts: [0, 418, 701, 1024, 1448],
   },
+  {
+    source: "art/fish-bonus-atlas-regenerated-transparent.png",
+    output: "art/fish-bonus-atlas-128.png",
+    width: 1085,
+    height: 1450,
+    colCuts: [0, 362, 723, 1085],
+    rowCuts: [0, 363, 725, 1088, 1450],
+    minIslandPixels: 4,
+  },
 ];
+
+// Generated chroma-key sources occasionally leave isolated one-pixel flecks.
+// Remove only tiny disconnected components after downsampling; genuine fins,
+// barbels, and spines remain connected to the body and are unaffected.
+function removeTinyIslands(rgba: Uint8Array, minPixels: number) {
+  if (minPixels <= 1) return;
+  const seen = new Uint8Array(TILE * TILE);
+  for (let start = 0; start < TILE * TILE; start++) {
+    if (seen[start] || rgba[start * 4 + 3] < 16) continue;
+    const stack = [start];
+    const component: number[] = [];
+    seen[start] = 1;
+    while (stack.length) {
+      const index = stack.pop()!;
+      component.push(index);
+      const x = index % TILE;
+      const y = Math.floor(index / TILE);
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if ((!ox && !oy) || x + ox < 0 || x + ox >= TILE || y + oy < 0 || y + oy >= TILE)
+            continue;
+          const next = (y + oy) * TILE + x + ox;
+          if (seen[next] || rgba[next * 4 + 3] < 16) continue;
+          seen[next] = 1;
+          stack.push(next);
+        }
+      }
+    }
+    if (component.length >= minPixels) continue;
+    for (const index of component) rgba.fill(0, index * 4, index * 4 + 4);
+  }
+}
 
 function alphaBBox(rgba: Uint8Array, imageW: number, region: Rect): Rect {
   let minX = region.x + region.w;
@@ -126,6 +168,7 @@ function generate(config: AtlasConfig) {
         }
       }
       const tile = downsample(work);
+      removeTinyIslands(tile, config.minIslandPixels ?? 1);
       for (let y = 0; y < TILE; y++) {
         const from = y * TILE * 4;
         const to = ((row * TILE + y) * sheetW + col * TILE) * 4;
