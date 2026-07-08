@@ -27,6 +27,15 @@ import {
   THEME_BASE,
   THEME_FRONDS,
 } from "../src/tank";
+import {
+  SCI_FI_DISPLAY_WINDOWS,
+  SCI_FI_PROP_SPECS,
+} from "../src/sciFiProps";
+import {
+  SCI_FI_PROPS_ATLAS,
+  SCI_FI_PROPS_ATLAS_CELL,
+  SCI_FI_PROPS_ATLAS_LAYOUT,
+} from "../src/sciFiPropsAtlas";
 import { RES } from "../src/res";
 import {
   JELLYFISH_ARMS_START,
@@ -308,6 +317,7 @@ function backdropWithProps() {
 // browser while the real scene continues to animate each frond independently.
 function renderPlantScene() {
   const buf = backdropWithProps();
+  blitSciFiProps(buf);
   const atlas = decodePng(dataUrlToBuffer(PLANT_ATLAS));
   const time = Number(opt("TIME") ?? 3.4);
   type Part = {
@@ -365,6 +375,119 @@ function renderPlantScene() {
   const name = opt("OUT") ?? "plants-scene.png";
   writeFileSync(name, encodePng(out, BW, BH));
   console.log(`wrote ${name} (${BW}x${BH}) — ${parts.length} independently placed fronds`);
+}
+
+function blitSciFiProps(buf: ReturnType<typeof backdropPixels>) {
+  const atlas = decodePng(dataUrlToBuffer(SCI_FI_PROPS_ATLAS));
+  const cell = SCI_FI_PROPS_ATLAS_CELL;
+  for (const spec of SCI_FI_PROP_SPECS) {
+    const layout = SCI_FI_PROPS_ATLAS_LAYOUT[spec.name];
+    const rootX = spec.fx * BW;
+    const dx = Math.round(rootX - cell / 2);
+    let floor = -Infinity;
+    for (let x = dx + layout.contactLeft; x <= dx + layout.contactRight; x++)
+      floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
+    const rootY = floor + spec.depth * RES;
+    const spriteY = rootY + cell - layout.bottom;
+    const dy = Math.round(spriteY - cell);
+    const sx0 = layout.col * cell;
+    const sy0 = layout.row * cell;
+    for (let y = 0; y < cell; y++) {
+      for (let x = 0; x < cell; x++) {
+        const bx = dx + x;
+        const by = dy + y;
+        if (bx < 0 || bx >= BW || by < 0 || by >= BH) continue;
+        const si = ((sy0 + y) * atlas.w + sx0 + x) * 4;
+        const a = atlas.rgba[si + 3] / 255;
+        if (!a) continue;
+        const [br, bg, bb] = buf[by * BW + bx];
+        buf[by * BW + bx] = [
+          Math.round(atlas.rgba[si] * a + br * (1 - a)),
+          Math.round(atlas.rgba[si + 1] * a + bg * (1 - a)),
+          Math.round(atlas.rgba[si + 2] * a + bb * (1 - a)),
+          255,
+        ];
+      }
+    }
+    if (spec.name === "retro_telemetry_terminal") {
+      const screen = SCI_FI_DISPLAY_WINDOWS[spec.name];
+      if (screen.shape !== "quad") continue;
+      const quad = screen.points.map((point) => ({ x: dx + point.x, y: dy + point.y })) as [
+        { x: number; y: number },
+        { x: number; y: number },
+        { x: number; y: number },
+        { x: number; y: number },
+      ];
+      const values = [0.31, 0.58, 0.45, 0.82, 0.67, 0.39, 0.72, 0.55, 0.76, 0.49];
+      values.forEach((value, i) => {
+        const gap = 0.018;
+        const barWidth = (0.86 - gap * (values.length - 1)) / values.length;
+        const u0 = 0.07 + i * (barWidth + gap);
+        fillPreviewQuad(buf, quad, u0, 0.7 - value * 0.54, u0 + barWidth, 0.7, [71, 208, 199, 255]);
+      });
+      fillPreviewQuad(buf, quad, 0.07, 0.84, 0.07 + 0.86 * 0.67, 0.93, [238, 167, 70, 255]);
+    } else if (spec.name === "porthole_instrument") {
+      const screen = SCI_FI_DISPLAY_WINDOWS[spec.name];
+      if (screen.shape !== "round") continue;
+      const cx = Math.round(dx + screen.cx);
+      const cy = Math.round(dy + screen.cy);
+      const radius = Math.floor(screen.radius);
+      for (let d = -radius; d <= radius; d++) {
+        if (d * d > screen.radius * screen.radius) continue;
+        if (cx + d >= 0 && cx + d < BW && cy >= 0 && cy < BH) buf[cy * BW + cx + d] = [54, 157, 151, 255];
+        if (cx >= 0 && cx < BW && cy + d >= 0 && cy + d < BH) buf[(cy + d) * BW + cx] = [54, 157, 151, 255];
+      }
+      fillPreviewRect(buf, cx + 8, cy - 7, 2, 2, [242, 179, 78, 255]);
+    }
+  }
+}
+
+function fillPreviewRect(
+  buf: ReturnType<typeof backdropPixels>,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: [number, number, number, number],
+) {
+  for (let py = Math.max(0, y); py < Math.min(BH, y + h); py++)
+    for (let px = Math.max(0, x); px < Math.min(BW, x + w); px++)
+      buf[py * BW + px] = color;
+}
+
+function fillPreviewQuad(
+  buf: ReturnType<typeof backdropPixels>,
+  quad: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
+  u0: number,
+  v0: number,
+  u1: number,
+  v1: number,
+  color: [number, number, number, number],
+) {
+  const project = (u: number, v: number) => {
+    const [tl, tr, br, bl] = quad;
+    const top = { x: tl.x + (tr.x - tl.x) * u, y: tl.y + (tr.y - tl.y) * u };
+    const bottom = { x: bl.x + (br.x - bl.x) * u, y: bl.y + (br.y - bl.y) * u };
+    return { x: top.x + (bottom.x - top.x) * v, y: top.y + (bottom.y - top.y) * v };
+  };
+  const points = [project(u0, v0), project(u1, v0), project(u1, v1), project(u0, v1)];
+  const minX = Math.max(0, Math.floor(Math.min(...points.map((point) => point.x))));
+  const maxX = Math.min(BW - 1, Math.ceil(Math.max(...points.map((point) => point.x))));
+  const minY = Math.max(0, Math.floor(Math.min(...points.map((point) => point.y))));
+  const maxY = Math.min(BH - 1, Math.ceil(Math.max(...points.map((point) => point.y))));
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      let inside = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const a = points[i];
+        const b = points[j];
+        if ((a.y > y + 0.5) !== (b.y > y + 0.5) &&
+          x + 0.5 < ((b.x - a.x) * (y + 0.5 - a.y)) / (b.y - a.y) + a.x)
+          inside = !inside;
+      }
+      if (inside) buf[y * BW + x] = color;
+    }
+  }
 }
 
 function blitPlantPart(

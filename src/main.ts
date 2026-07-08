@@ -25,15 +25,16 @@ import {
   LUMINOUS_KELP_COLS,
   LUMINOUS_KELP_ROWS,
 } from "./luminousKelpAtlas";
+import { PLANT_ATLAS, PLANT_ATLAS_COLS, PLANT_ATLAS_ROWS } from "./plantAtlas";
 import {
-  PLANT_ATLAS,
-  PLANT_ATLAS_COLS,
-  PLANT_ATLAS_ROWS,
-} from "./plantAtlas";
+  SCI_FI_PROPS_ATLAS,
+  SCI_FI_PROPS_ATLAS_COLS,
+  SCI_FI_PROPS_ATLAS_ROWS,
+} from "./sciFiPropsAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 5;
+const FISH_COUNT = 50;
 const BACKDROP_SEED = 1;
 
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
@@ -127,6 +128,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   k.loadSprite("plant-atlas-v2", PLANT_ATLAS, {
     sliceX: PLANT_ATLAS_COLS,
     sliceY: PLANT_ATLAS_ROWS,
+  });
+  k.loadSprite("sci-fi-props", SCI_FI_PROPS_ATLAS, {
+    sliceX: SCI_FI_PROPS_ATLAS_COLS,
+    sliceY: SCI_FI_PROPS_ATLAS_ROWS,
   });
 
   setupTank(k);
