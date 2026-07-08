@@ -2,8 +2,12 @@
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng, dataUrlToBuffer } from "./png";
-import { BW, BH, backdropPixels, coralBlits } from "../src/backdrop";
-import { CORAL_ATLAS, CORAL_ATLAS_CELL, CORAL_ATLAS_LAYOUT } from "../src/coralsAtlas";
+import { BW, BH, backdropPixels, propBlits } from "../src/backdrop";
+import {
+  SMALL_PROPS_ATLAS,
+  SMALL_PROPS_ATLAS_CELL,
+  SMALL_PROPS_ATLAS_LAYOUT,
+} from "../src/smallPropsAtlas";
 import {
   JELLYFISH_ARMS_START,
   JELLYFISH_ATLAS,
@@ -220,15 +224,14 @@ function renderNautilus() {
 function renderBackdrop() {
   const buf = backdropPixels(Number(opt("SEED") ?? 1));
 
-  // Blit coral atlas cells into the raw buffer (alpha compositing).
-  const atlas = decodePng(dataUrlToBuffer(CORAL_ATLAS));
-  const CELL = CORAL_ATLAS_CELL;
-  for (const { name, x: dx, y: dy } of coralBlits()) {
-    const { col, row, top, bottom } = CORAL_ATLAS_LAYOUT[name];
+  // Blit small-prop atlas cells into the raw buffer (alpha compositing).
+  const atlas = decodePng(dataUrlToBuffer(SMALL_PROPS_ATLAS));
+  const CELL = SMALL_PROPS_ATLAS_CELL;
+  for (const { name, x: dx, y: dy } of propBlits()) {
+    const { col, row, top, bottom } = SMALL_PROPS_ATLAS_LAYOUT[name];
     const sx0 = col * CELL;
     const sy0 = row * CELL;
-    // Match backdrop.ts: only blit the coral's main-body rows [top, bottom] so
-    // disconnected atlas-edge specks don't float in the water.
+    // Match backdrop.ts: blit only the prop's tight content rows.
     for (let cy = top; cy <= bottom; cy++) {
       for (let cx = 0; cx < CELL; cx++) {
         const bx = dx + cx;

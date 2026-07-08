@@ -1,18 +1,22 @@
 // Procedural static backdrop, baked once into a single BW x BH sprite. Generated
 // as a raw RGBA buffer (headlessly previewable), then painted to an offscreen
 // canvas for kaplay. A warm tropical reef: a smooth water gradient, ruined
-// columns + a stone arch, and atlas-based coral sprites, over the warm gold sand.
+// columns + a stone arch, and atlas-based seabed props, over the warm gold sand.
 // Organic ordered dithering gives the solid materials pixel texture without
 // filling the water with a high-resolution dot mesh.
 //
 // Authored in 640x360 design space and scaled by RES: macro features (columns,
-// arch, coral, sand height) multiply by S so the composition is unchanged. Broad
+// arch, props, sand height) multiply by S so the composition is unchanged. Broad
 // water gradients stay smooth at high RES; harder materials keep a broken-up
 // ordered dither for pixel texture.
 
 import { type RGBA, lerp, clamp01 } from "./color";
 import { RES } from "./res";
-import { CORAL_ATLAS, CORAL_ATLAS_CELL, CORAL_ATLAS_LAYOUT } from "./coralsAtlas";
+import {
+  SMALL_PROPS_ATLAS,
+  SMALL_PROPS_ATLAS_CELL,
+  SMALL_PROPS_ATLAS_LAYOUT,
+} from "./smallPropsAtlas";
 
 const S = RES;
 export const BW = 640 * S;
@@ -285,50 +289,57 @@ function paintRuins(buf: Buf) {
   arch(buf, (cxL + cxR) / 2, springline, (cxR - cxL) / 2, (cxR - cxL) / 2 + 12 * S, new Set([0, 1, 2]));
 }
 
-// --- coral placement ---------------------------------------------------------
+// --- seabed-prop placement ---------------------------------------------------
 
-// Each entry positions one atlas cell in the backdrop buffer. x,y are the
+// Each entry positions one atlas cell in the backdrop buffer. x/y are the
 // top-left corner of the 128px cell in buffer space.
-export type CoralBlit = { name: string; x: number; y: number };
+export type PropBlit = { name: string; x: number; y: number };
 
-// Place one coral so its main body rests on the sand at design-space x = cx.
+// Place one prop so its broad illustrated base rests on the sand at x = cx.
 // yShift (design px) nudges it down into the sand (positive = closer/foreground,
 // foot buried a touch) or up (negative = further back, just kissing the sand).
-// Uses the tight bottom offset baked into CORAL_ATLAS_LAYOUT — which now tracks
-// the coral's real base, ignoring stray atlas-edge pixels — so nothing floats.
-function place(cx: number, yShift: number, name: string): CoralBlit {
-  const { bottom } = CORAL_ATLAS_LAYOUT[name];
-  const bx = Math.round(cx * S) - CORAL_ATLAS_CELL / 2;
-  const floor = sandTopAt(cx * S) + Math.round(yShift * S);
+// The atlas bottom bound is the contact anchor, so objects never float even
+// though their silhouettes and heights differ substantially.
+function place(cx: number, yShift: number, name: string): PropBlit {
+  const { bottom, contactLeft, contactRight } = SMALL_PROPS_ATLAS_LAYOUT[name];
+  const bx = Math.round(cx * S) - SMALL_PROPS_ATLAS_CELL / 2;
+  // A centre-point anchor leaves wide props hanging over dips in a curved dune.
+  // Use the lowest terrain point under the sprite's actual base footprint: the
+  // opposite edge may become slightly buried, but no edge can float in water.
+  let floor = -Infinity;
+  for (let x = bx + contactLeft; x <= bx + contactRight; x++)
+    floor = Math.max(floor, sandTopAt(Math.max(0, Math.min(BW - 1, x))));
+  floor += Math.round(yShift * S);
   return { name, x: bx, y: floor - bottom - 1 };
 }
 
-// A varied scatter of standalone corals across the floor. Rather than a single
-// row hugging the crest, the corals are spread through the sand's full depth in
-// three tiers — a back row kissing the crest, a mid row, and a foreground row
-// sunk well into the bed — so the tall sand band reads as a populated seabed
-// with depth. yShift (design px below the crest) sets each coral's tier; bigger
-// = lower/nearer. Listed back-to-front so foreground corals overlap on top. The
-// cx values keep clear of the ruin columns (design x ~248 / ~392).
-export function coralBlits(): CoralBlit[] {
+// Every atlas prop appears once. They are spread over three substrate tiers so
+// the floor reads as a discovered place rather than an icon row. Large upright
+// silhouettes stay in back; low scatters, bottle, compass, and anchor sit nearer
+// the viewer. The x positions avoid visually tangling with the ruin columns.
+// Entries are listed back-to-front for natural overlap.
+export function propBlits(): PropBlit[] {
   return [
-    // back tier — kissing the crest
-    place(150,  0, "sea_fan_small_purple"),
-    place(300,  2, "orange_open_antler"),
-    place(440,  0, "plate_coral_shelf_green"),
-    place(620,  0, "sea_fan_large_purple"),
-    // mid tier — sunk a little into the bed
-    place(40,  16, "plate_coral_stacked_cluster"),
-    place(110, 14, "orange_dense_antler"),
-    place(350, 18, "orange_low_branch"),
-    place(495, 14, "orange_finger_cluster"),
-    place(545, 16, "tan_sponge_tube_cluster"),
-    // foreground tier — settled deep in the sand, nearest the viewer
-    place(85,  36, "orange_staghorn_bushy"),
-    place(200, 40, "mixed_rock_coral_base"),
-    place(325, 34, "low_pink_coral_mound"),
-    place(470, 42, "blue_green_polyp_cluster"),
-    place(590, 32, "orange_knob_cluster"),
+    // Back tier — below the loose, sparsely dithered surface-silt band. That
+    // transition belongs visually to the water/sand edge and stays unobstructed.
+    place(55, 9, "leaning_scallop_shell"),
+    place(178, 10, "fish_skeleton"),
+    place(320, 9, "spiral_stone_tablet"),
+    place(466, 10, "forked_driftwood"),
+    place(600, 9, "half_buried_conch"),
+    // Middle tier — partly silted into the bed.
+    place(28, 17, "pebbles_sea_glass"),
+    place(130, 15, "plank_with_brass_ring"),
+    place(292, 18, "buried_jawbone"),
+    place(455, 15, "leaning_broken_amphora"),
+    place(575, 18, "sideways_cracked_jar"),
+    // Foreground tier — low objects nearest the viewer.
+    place(65, 38, "open_pearl_clam"),
+    place(165, 35, "patterned_pottery_shards"),
+    place(275, 41, "tarnished_coin_spill"),
+    place(420, 38, "cracked_brass_compass"),
+    place(515, 42, "sideways_message_bottle"),
+    place(610, 36, "broken_anchor_and_chain"),
   ];
 }
 
@@ -372,7 +383,7 @@ export function backdropPixels(seed = 1): RGBA[] {
   return buf;
 }
 
-// DOM bake -> data URL for kaplay's loadSprite. Async because the coral atlas
+// DOM bake -> data URL for kaplay's loadSprite. Async because the prop atlas
 // is loaded via HTMLImageElement to get alpha-composited drawImage blitting.
 export async function makeBackdrop(seed = 1): Promise<string> {
   const buf = backdropPixels(seed);
@@ -390,26 +401,25 @@ export async function makeBackdrop(seed = 1): Promise<string> {
     img.data[p + 3] = a;
   }
   ctx.putImageData(img, 0, 0);
-  await blitCoralAtlas(ctx);
+  await blitSmallPropsAtlas(ctx);
   return canvas.toDataURL();
 }
 
-function blitCoralAtlas(ctx: CanvasRenderingContext2D): Promise<void> {
+function blitSmallPropsAtlas(ctx: CanvasRenderingContext2D): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       ctx.imageSmoothingEnabled = false;
-      const CELL = CORAL_ATLAS_CELL;
-      for (const { name, x, y } of coralBlits()) {
-        const { col, row, top, bottom } = CORAL_ATLAS_LAYOUT[name];
-        // Blit only the coral's main-body rows; clipping to [top, bottom] drops
-        // disconnected atlas-edge specks that would otherwise float in the water.
+      const CELL = SMALL_PROPS_ATLAS_CELL;
+      for (const { name, x, y } of propBlits()) {
+        const { col, row, top, bottom } = SMALL_PROPS_ATLAS_LAYOUT[name];
+        // Clip to the prop's tight rows, omitting empty cell padding.
         const sh = bottom - top + 1;
         ctx.drawImage(img, col * CELL, row * CELL + top, CELL, sh, x, y + top, CELL, sh);
       }
       resolve();
     };
     img.onerror = reject;
-    img.src = CORAL_ATLAS;
+    img.src = SMALL_PROPS_ATLAS;
   });
 }

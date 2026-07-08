@@ -28,7 +28,7 @@ import {
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 12;
+const FISH_COUNT = 5;
 const BACKDROP_SEED = 1;
 
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the

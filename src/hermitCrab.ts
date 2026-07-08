@@ -1,7 +1,7 @@
 // Hermit crab: a strictly benthic crawler. Its travelled distance drives the
 // six-pose gait, while its centre follows the dune contour plus a changing
 // substrate depth. This lets it wander through the back, middle, and foreground
-// tiers occupied by the corals instead of tracing only the sand crest. Stops are
+// tiers occupied by the seabed props instead of tracing only the sand crest. Stops are
 // real stops (one stable frame), so the legs never paddle while it is parked.
 import type { KAPLAYCtx } from "kaplay";
 import { sandTopAt } from "./backdrop";
@@ -17,7 +17,7 @@ const MIN_TRIP = 55 * S;
 const MAX_TRIP = 190 * S;
 const FRAME_STEP = 2.2 * S; // travelled pixels per gait pose
 const SLOPE_SPAN = 20 * S;
-// These match the three coral-placement bands in backdrop.ts. A little jitter
+// These match the three prop-placement bands in backdrop.ts. A little jitter
 // prevents the crab from revealing them as three perfectly mechanical lanes.
 const DEPTH_TIERS = [2, 17, 38].map((depth) => depth * S);
 const DEPTH_JITTER = 3 * S;

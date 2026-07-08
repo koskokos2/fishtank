@@ -4,7 +4,7 @@ import { RES } from "./res";
 const S = RES;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-// The static scene (dithered water, ruins, coral, sand) is baked once into the
+// The static scene (dithered water, ruins, seabed props, sand) is baked once into the
 // backdrop sprite (see backdrop.ts). setupTank places that sprite at the back
 // and adds the *animated* layers over it: caustics, swaying plants, motes, and
 // source-based bubbles. Depth is faked with z-ordering.
