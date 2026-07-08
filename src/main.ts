@@ -18,6 +18,13 @@ import { spawnHermitCrab } from "./hermitCrab";
 import { HERMIT_CRAB_ATLAS, HERMIT_CRAB_FRAMES } from "./hermitCrabAtlas";
 import { spawnSeaSnail } from "./seaSnail";
 import { SEA_SNAIL_ATLAS, SEA_SNAIL_FRAMES } from "./seaSnailAtlas";
+import { spawnLuminousKelp } from "./luminousKelp";
+import {
+  LUMINOUS_KELP_ATLAS,
+  LUMINOUS_KELP_BUSHY_ATLAS,
+  LUMINOUS_KELP_COLS,
+  LUMINOUS_KELP_ROWS,
+} from "./luminousKelpAtlas";
 import { setupTank } from "./tank";
 import { VW, VH } from "./res";
 
@@ -104,6 +111,14 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   k.loadSprite("sea-snail", SEA_SNAIL_ATLAS, {
     sliceX: SEA_SNAIL_FRAMES,
   });
+  k.loadSprite("luminous-kelp", LUMINOUS_KELP_ATLAS, {
+    sliceX: LUMINOUS_KELP_COLS,
+    sliceY: LUMINOUS_KELP_ROWS,
+  });
+  k.loadSprite("luminous-kelp-bushy", LUMINOUS_KELP_BUSHY_ATLAS, {
+    sliceX: LUMINOUS_KELP_COLS,
+    sliceY: LUMINOUS_KELP_ROWS,
+  });
 
   setupTank(k);
 
@@ -120,5 +135,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnHermitCrab(k, k.width() * 0.24);
     spawnHermitCrab(k, k.width() * 0.76);
     spawnSeaSnail(k);
+    // Three ages of the same modular species. Their separately randomised
+    // current phases keep the grove from swaying as one repeated sprite.
+    spawnLuminousKelp(k, k.width() * 0.58, 0.72);
+    spawnLuminousKelp(k, k.width() * 0.72, 1.28);
+    spawnLuminousKelp(k, k.width() * 0.88, 0.96);
   });
 })();

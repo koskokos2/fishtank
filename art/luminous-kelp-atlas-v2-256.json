@@ -1,0 +1,137 @@
+{
+  "name": "luminous-kelp",
+  "layout": {
+    "columns": 3,
+    "rows": 2,
+    "tile": 256
+  },
+  "source": "art/luminous-kelp-atlas-v2-transparent.png",
+  "parts": {
+    "base": {
+      "frame": 0,
+      "cell": {
+        "col": 0,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 109,
+        "y": 27,
+        "width": 40,
+        "height": 101
+      },
+      "tip": {
+        "x": 1,
+        "y": -101
+      }
+    },
+    "lowerStem": {
+      "frame": 1,
+      "cell": {
+        "col": 1,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 110,
+        "y": 12,
+        "width": 40,
+        "height": 117
+      },
+      "tip": {
+        "x": -3,
+        "y": -116
+      }
+    },
+    "middleStem": {
+      "frame": 2,
+      "cell": {
+        "col": 2,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 110,
+        "y": 9,
+        "width": 35,
+        "height": 119
+      },
+      "tip": {
+        "x": -2,
+        "y": -119
+      }
+    },
+    "podStem": {
+      "frame": 3,
+      "cell": {
+        "col": 0,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 105,
+        "y": 13,
+        "width": 53,
+        "height": 115
+      },
+      "tip": {
+        "x": 2,
+        "y": -115
+      }
+    },
+    "crown": {
+      "frame": 4,
+      "cell": {
+        "col": 1,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 102,
+        "y": 10,
+        "width": 56,
+        "height": 119
+      },
+      "tip": {
+        "x": -11,
+        "y": -118
+      }
+    },
+    "sideShoot": {
+      "frame": 5,
+      "cell": {
+        "col": 2,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 61,
+        "y": 15,
+        "width": 69,
+        "height": 113
+      },
+      "tip": {
+        "x": -58,
+        "y": -113
+      }
+    }
+  }
+}
