@@ -5,6 +5,7 @@ import {
   PLANT_ATLAS_CELL,
   PLANT_ATLAS_LAYOUT,
 } from "./plantAtlas";
+import { spawnSciFiProps } from "./sciFiProps";
 
 const S = RES;
 
@@ -17,6 +18,10 @@ export function setupTank(k: KAPLAYCtx) {
 
   // The baked backdrop holds everything static; only the layers below animate.
   k.add([k.sprite("backdrop"), k.pos(0, 0), k.z(-200)]);
+
+  // Technological salvage stays as live sprites rather than being baked into the
+  // backdrop: two blank glass surfaces carry animated, replaceable readouts.
+  spawnSciFiProps(k);
 
   // Atlas plants keep the good depth language of the old procedural grass, but
   // each real frond now has its own root pivot and current phase. Their roots use

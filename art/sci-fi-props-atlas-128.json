@@ -1,0 +1,24 @@
+{
+  "image": "sci-fi-props-atlas-128.png",
+  "tileSize": 128,
+  "columns": 4,
+  "rows": 4,
+  "sprites": [
+    { "name": "retro_telemetry_terminal", "row": 0, "col": 0, "category": "display", "role": "wideDisplay" },
+    { "name": "amber_wedge_console", "row": 0, "col": 1, "category": "display", "role": "wideDisplay" },
+    { "name": "alien_obelisk_terminal", "row": 0, "col": 2, "category": "display", "role": "tallDisplay" },
+    { "name": "porthole_instrument", "row": 0, "col": 3, "category": "display", "role": "roundDisplay" },
+    { "name": "flux_coil_power_unit", "row": 1, "col": 0, "category": "machinery", "role": "powerUnit" },
+    { "name": "empty_specimen_capsule", "row": 1, "col": 1, "category": "science", "role": "glassAccent" },
+    { "name": "spherical_sensor", "row": 1, "col": 2, "category": "machinery", "role": "sensor" },
+    { "name": "broken_maintenance_drone", "row": 1, "col": 3, "category": "wreckage", "role": "robotRemains" },
+    { "name": "energy_cell_carrier", "row": 2, "col": 0, "category": "machinery", "role": "luminousAccent" },
+    { "name": "folded_alien_relic", "row": 2, "col": 1, "category": "alien", "role": "mysteriousRelic" },
+    { "name": "temporal_regulator", "row": 2, "col": 2, "category": "science", "role": "largeInstrument" },
+    { "name": "data_canisters", "row": 2, "col": 3, "category": "salvage", "role": "colorAccent" },
+    { "name": "biomechanical_seed_pod", "row": 3, "col": 0, "category": "alien", "role": "organicMachine" },
+    { "name": "three_prong_beacon", "row": 3, "col": 1, "category": "science", "role": "beacon" },
+    { "name": "cracked_machine_shell", "row": 3, "col": 2, "category": "wreckage", "role": "machineRemains" },
+    { "name": "gravity_coil", "row": 3, "col": 3, "category": "alien", "role": "luminousAccent" }
+  ]
+}
