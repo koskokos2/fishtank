@@ -206,6 +206,11 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 const TILT_STEP = 7;
 
+// Jellyfish shrink by spawn order for depth variety: the first is full size, the
+// second 70%, and every one after that 50%.
+const JELLY_SCALES = [1, 0.7];
+let jellySpawned = 0;
+
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
   const minY = 24 * S;
@@ -217,12 +222,17 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const groundY = (x: number) =>
     sandTopAt(clamp(x, 0, k.width() - 1)) - OCTO_SIT;
 
+  // The picked scale rides every jelly layer and the appendage attach offset.
+  // Other kinds stay at 1.
+  const jellyScale =
+    cfg.motion === "pulse" ? (JELLY_SCALES[jellySpawned++] ?? 0.5) : 1;
+
   const body = k.add([
     k.sprite(cfg.sprite),
     k.pos(k.rand(60 * S, k.width() - 60 * S), k.rand(bandTop(), bandBot())),
     k.anchor("center"),
     k.rotate(0),
-    k.scale(1),
+    k.scale(jellyScale),
     k.z(cfg.z),
   ]);
   // Jellyfish appendages are separate sprites sharing the bell's transform. They
@@ -234,7 +244,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
-          k.scale(1),
+          k.scale(jellyScale),
           k.z(cfg.z - 2),
         ])
       : null;
@@ -245,7 +255,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
-          k.scale(1),
+          k.scale(jellyScale),
           k.z(cfg.z - 1),
         ])
       : null;
@@ -887,13 +897,15 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       // The startle wind-up spreads only the oral arms; their wave clock keeps
       // advancing, and the long tendrils remain completely unaffected.
       jellyArms!.scale.x =
-        1 +
-        (flareTimer > 0
-          ? 0.12 * Math.sin((Math.PI * flareTimer) / JELLY_FLARE)
-          : 0);
+        jellyScale *
+        (1 +
+          (flareTimer > 0
+            ? 0.12 * Math.sin((Math.PI * flareTimer) / JELLY_FLARE)
+            : 0));
 
       const attachOffset =
-        JELLYFISH_BELL_ATTACH_Y[bellFrame] - JELLYFISH_LAYER_ROOT_Y;
+        (JELLYFISH_BELL_ATTACH_Y[bellFrame] - JELLYFISH_LAYER_ROOT_Y) *
+        jellyScale;
       const radians = (body.angle * Math.PI) / 180;
       const ox = -Math.sin(radians) * attachOffset;
       const oy = Math.cos(radians) * attachOffset;

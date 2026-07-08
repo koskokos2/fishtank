@@ -47,23 +47,38 @@ type DisplayWindow =
       shape: "round";
       cx: number;
       cy: number;
-      radius: number;
+      // Half-axis vectors of the dial face as projected on screen: dial-space
+      // u maps to (ax, ay), v to (bx, by). Encodes the glass ellipse's
+      // foreshortening and tilt, so readouts drawn in unit-dial coordinates
+      // land on the angled face.
+      ax: number;
+      ay: number;
+      bx: number;
+      by: number;
     };
 
-// Cell-local pixel rectangles deliberately sit a few pixels inside the dark
-// glass borders. Keeping them separate from the generated art makes replacement
-// readout code independent of future atlas regeneration.
+// Cell-local screen-face geometry, traced from the art's 3/4-perspective glass
+// and inset a few pixels from the bezel. Keeping it separate from the generated
+// art makes replacement readout code independent of future atlas regeneration.
 export const SCI_FI_DISPLAY_WINDOWS: Record<SciFiDisplayName, DisplayWindow> = {
   retro_telemetry_terminal: {
     shape: "quad",
     points: [
-      { x: 40, y: 38 },
-      { x: 78, y: 39 },
-      { x: 76, y: 58 },
-      { x: 39, y: 57 },
+      { x: 42, y: 42 },
+      { x: 72, y: 45 },
+      { x: 70, y: 68 },
+      { x: 40, y: 65 },
     ],
   },
-  porthole_instrument: { shape: "round", cx: 62.5, cy: 52.5, radius: 18 },
+  porthole_instrument: {
+    shape: "round",
+    cx: 57.5,
+    cy: 52,
+    ax: 15.5,
+    ay: 1.5,
+    bx: -1.5,
+    by: 18,
+  },
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -131,43 +146,48 @@ function spawnReadout(
         if (window.shape === "round") {
           const cx = originX + window.cx;
           const cy = originY + window.cy;
-          const radius = window.radius;
+          const at = (u: number, v: number) =>
+            k.vec2(cx + u * window.ax + v * window.bx, cy + u * window.ay + v * window.by);
           const angle = t * 0.36 + value.primary * Math.PI * 2;
+          const rim = Array.from({ length: 24 }, (_, i) => {
+            const a = (i / 24) * Math.PI * 2;
+            return at(Math.cos(a), Math.sin(a));
+          });
           k.drawMasked(
             () => {
               k.drawLine({
-                p1: k.vec2(cx - radius, cy),
-                p2: k.vec2(cx + radius, cy),
+                p1: at(-1, 0),
+                p2: at(1, 0),
                 width: 1,
                 color: k.rgb(54, 157, 151),
                 opacity: 0.35,
               });
               k.drawLine({
-                p1: k.vec2(cx, cy - radius),
-                p2: k.vec2(cx, cy + radius),
+                p1: at(0, -1),
+                p2: at(0, 1),
                 width: 1,
                 color: k.rgb(54, 157, 151),
                 opacity: 0.35,
               });
               k.drawLine({
-                p1: k.vec2(cx, cy),
-                p2: k.vec2(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius),
+                p1: at(0, 0),
+                p2: at(Math.cos(angle), Math.sin(angle)),
                 width: 1,
                 color: k.rgb(91, 226, 210),
                 opacity: 0.7,
               });
               const blipAngle = value.secondary * Math.PI * 2;
+              const blip = at(Math.cos(blipAngle) * 0.72, Math.sin(blipAngle) * 0.72);
               k.drawRect({
-                pos: k.vec2(cx + Math.cos(blipAngle) * radius * 0.72 - 1, cy + Math.sin(blipAngle) * radius * 0.72 - 1),
+                pos: k.vec2(blip.x - 1, blip.y - 1),
                 width: 2,
                 height: 2,
                 color: k.rgb(242, 179, 78),
                 opacity: 0.92,
               });
             },
-            () => k.drawCircle({
-              pos: k.vec2(cx, cy),
-              radius,
+            () => k.drawPolygon({
+              pts: rim,
               color: k.WHITE,
             }),
           );

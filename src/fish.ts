@@ -171,12 +171,13 @@ const TILT_STEP = 7;
 const AVOID = 520 * RES; // separation acceleration; grows as fish get closer
 const AVOID_MAX = 150 * RES; // cap so a deep overlap can't fling a fish across the tank
 // On-screen size tracks each species' real adult length, compressed by a square
-// root so true ratios stay watchable — the 60cm koi renders ~3.5x the 3cm neon
+// root so true ratios stay watchable — the 60cm koi renders ~1.4x the 3cm neon
 // tetra instead of 20x. Scale divides the target length by the sprite's own
 // cropped width and is capped at 1 so texels never grow coarser than the scene
-// grid (only the very largest species saturate the cap).
-const LEN_PER_SQRT_CM = 5 * RES; // rendered body length (px) per sqrt(cm)
-const MIN_SCALE = 0.3; // floor so the smallest species stay readable
+// grid; the MIN_SCALE floor keeps the smallest species readable, so both ends
+// of the range are clamped.
+const LEN_PER_SQRT_CM = 8 * RES; // rendered body length (px) per sqrt(cm)
+const MIN_SCALE = 0.72; // floor so the smallest species stay readable
 const BODY_OFF_FRAC = 0.25; // head/tail separation points, as a share of rendered length
 const PAIR_DIST = 12 * RES; // min spacing kept between any two body points
 const SEPARATION = 0.25; // share of the overlap each fish resolves per frame

@@ -429,15 +429,25 @@ function blitSciFiProps(buf: ReturnType<typeof backdropPixels>) {
     } else if (spec.name === "porthole_instrument") {
       const screen = SCI_FI_DISPLAY_WINDOWS[spec.name];
       if (screen.shape !== "round") continue;
-      const cx = Math.round(dx + screen.cx);
-      const cy = Math.round(dy + screen.cy);
-      const radius = Math.floor(screen.radius);
-      for (let d = -radius; d <= radius; d++) {
-        if (d * d > screen.radius * screen.radius) continue;
-        if (cx + d >= 0 && cx + d < BW && cy >= 0 && cy < BH) buf[cy * BW + cx + d] = [54, 157, 151, 255];
-        if (cx >= 0 && cx < BW && cy + d >= 0 && cy + d < BH) buf[(cy + d) * BW + cx] = [54, 157, 151, 255];
-      }
-      fillPreviewRect(buf, cx + 8, cy - 7, 2, 2, [242, 179, 78, 255]);
+      const cx = dx + screen.cx;
+      const cy = dy + screen.cy;
+      const at = (u: number, v: number) => ({
+        x: cx + u * screen.ax + v * screen.bx,
+        y: cy + u * screen.ay + v * screen.by,
+      });
+      const plot = (p: { x: number; y: number }, q: { x: number; y: number }, color: [number, number, number, number]) => {
+        const steps = Math.ceil(Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)));
+        for (let i = 0; i <= steps; i++) {
+          const x = Math.round(p.x + ((q.x - p.x) * i) / steps);
+          const y = Math.round(p.y + ((q.y - p.y) * i) / steps);
+          if (x >= 0 && x < BW && y >= 0 && y < BH) buf[y * BW + x] = color;
+        }
+      };
+      plot(at(-1, 0), at(1, 0), [54, 157, 151, 255]);
+      plot(at(0, -1), at(0, 1), [54, 157, 151, 255]);
+      const blipAngle = -0.72;
+      const blip = at(Math.cos(blipAngle) * 0.72, Math.sin(blipAngle) * 0.72);
+      fillPreviewRect(buf, Math.round(blip.x) - 1, Math.round(blip.y) - 1, 2, 2, [242, 179, 78, 255]);
     }
   }
 }
