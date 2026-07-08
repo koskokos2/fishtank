@@ -96,12 +96,13 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
 // first, then register every sprite together — that way they're all in the load
 // queue before onLoad fires (no load-order race).
 (async () => {
-  const [fishSheets, backdropUrl] = await Promise.all([
+  const [fishSheets, backdrop] = await Promise.all([
     makeFishSheets(),
     makeBackdrop(BACKDROP_SEED),
   ]);
 
-  k.loadSprite("backdrop", backdropUrl);
+  k.loadSprite("backdrop", backdrop.back);
+  k.loadSprite("backdrop-sand", backdrop.sand);
   fishSheets.forEach((sheet, i) => {
     k.loadSprite(`fish-${i}`, sheet, {
       sliceX: SWIM_FRAMES,
@@ -167,10 +168,13 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnHermitCrab(k, k.width() * 0.24);
     spawnHermitCrab(k, k.width() * 0.76);
     spawnSeaSnail(k);
-    // Three ages of the same modular species. Their separately randomised
-    // current phases keep the grove from swaying as one repeated sprite.
-    spawnLuminousKelp(k, k.width() * 0.58, 0.72);
-    spawnLuminousKelp(k, k.width() * 0.72, 1.28);
-    spawnLuminousKelp(k, k.width() * 0.88, 0.96);
+    // Three ages of the same modular species, scattered anew each run through
+    // the right quarter of the tank — one per band so the trunks never stack.
+    // Their separately randomised current phases keep the grove from swaying
+    // as one repeated sprite.
+    [0.72, 1.28, 0.96].forEach((scale, band) => {
+      const fx = 0.75 + (band + k.rand(0.15, 0.85)) * (0.21 / 3);
+      spawnLuminousKelp(k, k.width() * fx, scale);
+    });
   });
 })();

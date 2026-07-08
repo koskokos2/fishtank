@@ -11,15 +11,19 @@ import { spawnStarWarsProps } from "./starWarsProps";
 
 const S = RES;
 
-// The static scene (dithered water, ruins, seabed props, sand) is baked once into the
-// backdrop sprite (see backdrop.ts). setupTank places that sprite at the back
-// and adds the *animated* layers over it: caustics, swaying plants, motes, and
-// source-based bubbles. Depth is faked with z-ordering.
+// The static scene is baked once into two sprites (see backdrop.ts): the
+// water+ruins back plate and a transparent sand overlay (dunes + seabed props).
+// setupTank places those at the back and adds the *animated* layers over them:
+// caustics, swaying plants, motes, and source-based bubbles. Depth is faked
+// with z-ordering.
 export function setupTank(k: KAPLAYCtx) {
   const floorY = () => k.height() * 0.85;
 
-  // The baked backdrop holds everything static; only the layers below animate.
+  // The baked layers hold everything static; only the layers below animate.
+  // The gap between the two z values is where far plants (the luminous kelp)
+  // live, so the dune crest occludes their roots.
   k.add([k.sprite("backdrop"), k.pos(0, 0), k.z(-200)]);
+  k.add([k.sprite("backdrop-sand"), k.pos(0, 0), k.z(-150)]);
 
   // Technological salvage stays as live sprites rather than being baked into the
   // backdrop: two blank glass surfaces carry animated, replaceable readouts.

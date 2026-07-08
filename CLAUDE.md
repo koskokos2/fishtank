@@ -65,7 +65,7 @@ src/
   jellyfishAtlas.ts # GENERATED — the embedded base64 jellyfish pose atlas (4x4 grid of 128px cells: pulse cycle, glides, hover variety, turns, flare/recoil), indexed by name via JELLYFISH_POSE
   octopusAtlas.ts # GENERATED — the embedded base64 octopus sprite sheet baked from the source atlas's twelve "assembled" poses (rows 3-5): an idle-hover arm-sway loop + single crawl/rest/swim pose frames, indexed by name via OCTOPUS_POSE
   tank.ts     # animated layers over the baked backdrop: caustics, swaying plants, motes, bubbles
-  backdrop.ts # static reef (smooth water, dithered ruins/coral/sand) baked to one full-resolution (VW×VH) sprite
+  backdrop.ts # static reef baked to two full-resolution (VW×VH) sprites: the water/ruins back plate and a transparent sand overlay (dunes + seabed props); far plants render between them so the dune crest occludes their roots
   color.ts    # shared color helpers (hslToRgb, lerp, clamp01) used by backdrop
 tools/
   preview.ts  # headless previewer (bakes the fish swim sheets, the backdrop, the octopus pose composites, or the jellyfish tentacle frames to PNG)

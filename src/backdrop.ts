@@ -400,10 +400,30 @@ export function backdropPixels(seed = 1): RGBA[] {
   return buf;
 }
 
-// DOM bake -> data URL for kaplay's loadSprite. Async because the prop atlas
-// is loaded via HTMLImageElement to get alpha-composited drawImage blitting.
-export async function makeBackdrop(seed = 1): Promise<string> {
-  const buf = backdropPixels(seed);
+const CLEAR: RGBA = [0, 0, 0, 0];
+
+// DOM bake -> data URLs for kaplay's loadSprite. The scene splits into two
+// full-resolution layers: the opaque water+ruins back plate and a transparent
+// sand overlay (dunes + the baked seabed props, which sit on the sand). Far
+// plants render between the two so the dune crest occludes their roots. Async
+// because the prop atlas is loaded via HTMLImageElement to get alpha-composited
+// drawImage blitting.
+export async function makeBackdrop(
+  seed = 1,
+): Promise<{ back: string; sand: string }> {
+  const backBuf: Buf = new Array(BW * BH);
+  paintWater(backBuf);
+  paintRuins(backBuf);
+
+  const sandBuf: Buf = new Array(BW * BH).fill(CLEAR);
+  paintSand(sandBuf);
+  const sand = bufToCanvas(sandBuf);
+  await blitSmallPropsAtlas(sand.getContext("2d")!);
+
+  return { back: bufToCanvas(backBuf).toDataURL(), sand: sand.toDataURL() };
+}
+
+function bufToCanvas(buf: Buf): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = BW;
   canvas.height = BH;
@@ -418,8 +438,7 @@ export async function makeBackdrop(seed = 1): Promise<string> {
     img.data[p + 3] = a;
   }
   ctx.putImageData(img, 0, 0);
-  await blitSmallPropsAtlas(ctx);
-  return canvas.toDataURL();
+  return canvas;
 }
 
 function blitSmallPropsAtlas(ctx: CanvasRenderingContext2D): Promise<void> {

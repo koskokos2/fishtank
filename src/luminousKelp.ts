@@ -13,6 +13,10 @@ import { RES } from "./res";
 
 const S = RES;
 const JOINT_OVERLAP = 0.975;
+// Between the water+ruins back plate (z -200) and the baked sand overlay
+// (z -150): the dune crest occludes the roots, so the grove reads as growing
+// farther away, behind the sand.
+const KELP_Z = -180;
 
 type Point = { x: number; y: number };
 
@@ -31,7 +35,7 @@ export function spawnLuminousKelp(
   atX = k.width() * 0.82,
   plantScale = 1,
 ) {
-  const rootX = Math.max(70 * S, Math.min(k.width() - 70 * S, atX));
+  const rootX = Math.max(24 * S, Math.min(k.width() - 24 * S, atX));
   // Keep this tall plant close to the sand crest. The old deep foreground tier
   // lowered its whole silhouette enough to make it read as a short shrub.
   const rootY = sandTopAt(rootX) + k.rand(4, 10) * S;
@@ -58,33 +62,33 @@ export function spawnLuminousKelp(
 
   // Children render just behind their parent. The few pixels of overlap conceal
   // the plain stem ends without collars, sockets, or visible attachment caps.
-  const base = makePart(LUMINOUS_KELP_PART.base, 13);
-  const lowerStem = makePart(LUMINOUS_KELP_PART.lowerStem, 12.9);
-  const middleStem = makePart(LUMINOUS_KELP_PART.middleStem, 12.8);
-  const upperStem = makePart(LUMINOUS_KELP_PART.lowerStem, 12.7);
+  const base = makePart(LUMINOUS_KELP_PART.base, KELP_Z);
+  const lowerStem = makePart(LUMINOUS_KELP_PART.lowerStem, KELP_Z - 0.1);
+  const middleStem = makePart(LUMINOUS_KELP_PART.middleStem, KELP_Z - 0.2);
+  const upperStem = makePart(LUMINOUS_KELP_PART.lowerStem, KELP_Z - 0.3);
   upperStem.flipX = true;
-  const crown = makePart(LUMINOUS_KELP_PART.crown, 12.6);
+  const crown = makePart(LUMINOUS_KELP_PART.crown, KELP_Z - 0.4);
   const bushyLeft = makePart(
     LUMINOUS_KELP_BUSHY_PART.leftBranch,
-    12.45,
+    KELP_Z - 0.55,
     "luminous-kelp-bushy",
     plantScale * 0.72,
   );
   const bushyRight = makePart(
     LUMINOUS_KELP_BUSHY_PART.rightBranch,
-    12.5,
+    KELP_Z - 0.5,
     "luminous-kelp-bushy",
     plantScale * 0.72,
   );
   const bushyCrown = makePart(
     LUMINOUS_KELP_BUSHY_PART.crown,
-    12.55,
+    KELP_Z - 0.45,
     "luminous-kelp-bushy",
     plantScale * 0.78,
   );
   const magicalPods = makePart(
     LUMINOUS_KELP_BUSHY_PART.pods,
-    12.65,
+    KELP_Z - 0.35,
     "luminous-kelp-bushy",
     plantScale * 0.86,
   );
