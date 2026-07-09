@@ -2,7 +2,7 @@ import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { clamp01 } from "./color";
 import { spawnSandPuff } from "./sandPuff";
-import { RES } from "./res";
+import { RES, VH } from "./res";
 import { SCI_FI_PROP_SPECS } from "./sciFiProps";
 import {
   SCI_FI_PROPS_ATLAS_CELL,
@@ -181,7 +181,12 @@ export function placeProp(
 ): PropPlacement {
   const rootX = slot.fx * width;
   const left = Math.round(rootX - prop.cell / 2);
-  const rootY = footprintFloor(width, left, prop.layout) + slot.depth * RES;
+  // Deep slots on a high dune swell can push the art bottom (= rootY) past the
+  // bottom screen edge; keep a sliver of it on-screen.
+  const rootY = Math.min(
+    footprintFloor(width, left, prop.layout) + slot.depth * RES,
+    VH - 4 * RES,
+  );
   return {
     rootX,
     rootY,

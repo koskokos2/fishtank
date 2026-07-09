@@ -282,10 +282,27 @@ function isPortalCableRegion(frame: number, x: number, y: number) {
 
 function neutralizePortalCablePixel(rgba: Uint8Array, i: number) {
   const luminance = rgba[i] * 0.2126 + rgba[i + 1] * 0.7152 + rgba[i + 2] * 0.0722;
-  rgba[i] = Math.round(luminance * 0.58);
-  rgba[i + 1] = Math.round(luminance * 0.70);
-  rgba[i + 2] = Math.round(luminance * 0.86);
-  rgba[i + 3] = Math.max(rgba[i + 3], 190);
+  rgba[i] = Math.min(255, Math.round(luminance * 0.58 + 14));
+  rgba[i + 1] = Math.min(255, Math.round(luminance * 0.72 + 18));
+  rgba[i + 2] = Math.min(255, Math.round(luminance * 0.98 + 28));
+  rgba[i + 3] = Math.max(rgba[i + 3], 210);
+}
+
+function isPortalCablePixelCandidate(r: number, g: number, b: number, a: number) {
+  if (a < 16) return false;
+  return isGeneratedPurple(r, g, b) || isDarkVioletCast(r, g, b) || (b > 84 && b >= g - 8 && b > r + 8);
+}
+
+function recoverPortalCablePixels(rgba: Uint8Array, original: Uint8Array, frame: number) {
+  if (frame !== 11) return;
+  for (let y = 66; y <= 106; y++) {
+    for (let x = 73; x <= 121; x++) {
+      const i = (y * TILE + x) * 4;
+      if (!isPortalCablePixelCandidate(original[i], original[i + 1], original[i + 2], original[i + 3])) continue;
+      if (rgba[i + 3] < 16) rgba.set(original.subarray(i, i + 4), i);
+      neutralizePortalCablePixel(rgba, i);
+    }
+  }
 }
 
 function neutralizePurpleMatte(rgba: Uint8Array, frame: number) {
@@ -396,12 +413,14 @@ function cleanupRestoredTile(tile: Uint8Array, frame: number) {
   // Restored tiles already have a hand-painted sand/contact rim. Keep that
   // grounding, but remove the old loose bubbles and purple cast that made the
   // source look chroma-contaminated.
+  const original = new Uint8Array(tile);
   removeFloatingSpecks(tile, 96);
   removeBubbleFlecks(tile);
   neutralizePurpleMatte(tile, frame);
   removeTinyIslands(tile);
   removeFloatingSpecks(tile, 96);
   clearTileBorderArtifacts(tile);
+  recoverPortalCablePixels(tile, original, frame);
 }
 
 function contentBounds(rgba: Uint8Array, row: number, col: number, sheetW: number) {
