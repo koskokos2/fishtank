@@ -52,7 +52,7 @@ export type WhitelistedProp = {
 
 type PropSlot = { fx: number; depth: number };
 
-const ROTATION_SECONDS = 30;
+const ROTATION_SECONDS = 2 * 60;
 
 // Drop-in descent z: between the dunes-only sand overlay (-150, tank.ts) and
 // the far kelp (-180), so a falling prop reads distant — behind mid plants —
@@ -502,7 +502,7 @@ export function spawnRotatingProps(k: KAPLAYCtx) {
     object: spawnProp(k, prop, PROP_SLOTS[slotIndex], slotIndex),
   }));
 
-  // Wait five minutes before the first change. Each tick evicts one random
+  // Wait a full rotation period before the first change. Each tick evicts one random
   // occupant and draws from a shuffled no-repeat cycle, so every whitelisted
   // prop is shown at least once before the cycle refills from the full pool.
   let rotating = false;
