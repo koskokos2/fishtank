@@ -174,6 +174,14 @@ function shuffled<T>(k: KAPLAYCtx, values: readonly T[]) {
   return result;
 }
 
+function refillPropCycle(k: KAPLAYCtx, visibleIds: ReadonlySet<string>) {
+  // Refill from the complete whitelist, but count the props already on screen
+  // as shown for the new cycle so they don't immediately repeat into another
+  // slot. Once those visible props are evicted, they stay out until the next
+  // cycle reset.
+  return shuffled(k, PROP_WHITELIST).filter((prop) => !visibleIds.has(prop.id));
+}
+
 function spawnProp(k: KAPLAYCtx, prop: WhitelistedProp, slot: PropSlot) {
   const placement = placeProp(k.width(), prop, slot);
   return k.add([
@@ -190,21 +198,42 @@ export function spawnRotatingProps(k: KAPLAYCtx) {
       `The prop rotation needs at least ${VISIBLE_PROP_COUNT + 1} whitelisted props`,
     );
 
-  const initial = shuffled(k, PROP_WHITELIST).slice(0, VISIBLE_PROP_COUNT);
+  let propCycle = refillPropCycle(k, new Set());
+  const takeNextProp = (visibleIds: ReadonlySet<string>) => {
+    for (;;) {
+      for (let i = propCycle.length - 1; i >= 0; i--) {
+        const prop = propCycle[i];
+        if (visibleIds.has(prop.id)) continue;
+        propCycle.splice(i, 1);
+        return prop;
+      }
+
+      propCycle = refillPropCycle(k, visibleIds);
+    }
+  };
+
+  const initial: WhitelistedProp[] = [];
+  const initialIds = new Set<string>();
+  while (initial.length < VISIBLE_PROP_COUNT) {
+    const prop = takeNextProp(initialIds);
+    initial.push(prop);
+    initialIds.add(prop.id);
+  }
+
   const displayed = initial.map((prop, slotIndex) => ({
     prop,
     object: spawnProp(k, prop, PROP_SLOTS[slotIndex]),
   }));
 
   // Wait five minutes before the first change. Each tick evicts one random
-  // occupant and samples a replacement from props not currently on screen.
+  // occupant and draws from a shuffled no-repeat cycle, so every whitelisted
+  // prop is shown at least once before the cycle refills from the full pool.
   k.loop(
     ROTATION_SECONDS,
     () => {
       const slotIndex = k.randi(0, displayed.length);
       const activeIds = new Set(displayed.map(({ prop }) => prop.id));
-      const candidates = PROP_WHITELIST.filter((prop) => !activeIds.has(prop.id));
-      const next = k.choose(candidates);
+      const next = takeNextProp(activeIds);
       displayed[slotIndex].object.destroy();
       displayed[slotIndex] = {
         prop: next,
