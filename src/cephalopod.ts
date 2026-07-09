@@ -232,13 +232,27 @@ let jellySpawned = 0;
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
   const minY = 24 * S;
-  const maxY = () => k.height() * 0.78;
-  const bandTop = () => minY + (maxY() - minY) * cfg.level.min;
-  const bandBot = () => minY + (maxY() - minY) * cfg.level.max;
+  const swimFloorAt = (atX: number) =>
+    Math.max(
+      minY,
+      Math.min(
+        k.height() * 0.78,
+        sandTopAt(clamp(atX, 0, k.width() - 1)) - 18 * S,
+      ),
+    );
+  const bandTop = (atX: number) =>
+    minY + (swimFloorAt(atX) - minY) * cfg.level.min;
+  const bandBot = (atX: number) =>
+    minY + (swimFloorAt(atX) - minY) * cfg.level.max;
   // Octopus only: the seated height on the sand contour at column x — its body
   // centre rides OCTO_SIT above the dune so the arms drape onto the ground.
   const groundY = (x: number) =>
     sandTopAt(clamp(x, 0, k.width() - 1)) - OCTO_SIT;
+  const spawnX = k.rand(60 * S, k.width() - 60 * S);
+  const spawnY =
+    cfg.motion === "crawl"
+      ? groundY(spawnX)
+      : k.rand(bandTop(spawnX), bandBot(spawnX));
 
   // The picked scale rides every jelly layer and the appendage attach offset.
   // Other kinds stay at 1.
@@ -252,7 +266,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
 
   const body = k.add([
     k.sprite(cfg.sprite),
-    k.pos(k.rand(60 * S, k.width() - 60 * S), k.rand(bandTop(), bandBot())),
+    k.pos(spawnX, spawnY),
     k.anchor("center"),
     k.rotate(0),
     k.scale(jellyScale),
@@ -441,7 +455,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           ? depth < py
             ? -1
             : 1
-          : py > (bandTop() + bandBot()) / 2
+          : py > (bandTop(px) + bandBot(px)) / 2
             ? -1
             : 1;
       return;
@@ -781,7 +795,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       if (Math.abs(tx - px) < 12 * S && jellyTurnTimer <= 0) jellyTxTimer = 0;
       if (roamTimer <= 0 && jellyTurnTimer <= 0) {
         roamTimer = k.rand(p.roam[0], p.roam[1]);
-        depth = k.rand(bandTop(), bandBot()); // roam the column
+        depth = k.rand(bandTop(px), bandBot(px)); // roam the column
       }
       if (jellyTxTimer <= 0 && jellyTurnTimer <= 0) {
         jellyTxTimer = k.rand(p.roam[0], p.roam[1]) * 5;
@@ -864,8 +878,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         // Choose a meaningfully different height instead of repeatedly sampling
         // near the current one. This produces long diagonal ascents/descents
         // without disturbing horizontal heading or tentacle orientation.
-        const top = bandTop();
-        const bottom = bandBot();
+        const top = bandTop(px);
+        const bottom = bandBot(px);
         const middle = (top + bottom) / 2;
         depth =
           py < middle
@@ -904,7 +918,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     px += vx * dt;
     py += vy * dt;
     // The octopus's floor is the sand it sits on; others use the generic low band.
-    const floorY = cfg.motion === "crawl" ? groundY(px) + buryNow : maxY();
+    const floorY =
+      cfg.motion === "crawl" ? groundY(px) + buryNow : swimFloorAt(px);
     py = clamp(py, minY, floorY);
 
     // Keep inside the tank; the jet kind retargets a fresh inward segment on

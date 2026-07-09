@@ -1,9 +1,5 @@
 import type { GameObj, KAPLAYCtx } from "kaplay";
-import {
-  FISH_ATLAS,
-  FISH_ATLAS_CELL,
-  FISH_ATLAS_LAYOUT,
-} from "./fishAtlas";
+import { FISH_ATLAS, FISH_ATLAS_CELL, FISH_ATLAS_LAYOUT } from "./fishAtlas";
 import {
   FISH_EXTRA_ATLAS,
   FISH_EXTRA_ATLAS_CELL,
@@ -44,44 +40,260 @@ export type FishKind = {
 // `length` is the typical adult size in cm; rendered size grows with sqrt(length).
 export const FISH_KINDS: FishKind[] = [
   // --- main atlas ---
-  { name: "angelfish",              level: { min: 0.10, max: 0.42 }, speed: 0.70, length: 15,  motion: "flowing" }, // slow  — deep laterally-flat body
-  { name: "red_tailed_black_shark", level: { min: 0.72, max: 0.97 }, speed: 1.25, length: 12,  motion: "standard" }, // fast  — burst charges when territorial
-  { name: "discus",                 level: { min: 0.28, max: 0.58 }, speed: 0.60, length: 20,  motion: "paddle" }, // slow  — nearly sedentary, prefers still water
-  { name: "guppy",                  level: { min: 0.02, max: 0.26 }, speed: 0.85, length: 4,   motion: "flowing" }, // med   — burst-escape specialist, large tail
-  { name: "goldfish",               level: { min: 0.22, max: 0.62 }, speed: 1.15, length: 20,  motion: "flowing" }, // fast  — sustained cruiser, multiple speed modes
-  { name: "tiger_barb",             level: { min: 0.68, max: 0.96 }, speed: 1.00, length: 7,   motion: "standard" }, // med   — variable; rest-then-dash rhythm
-  { name: "lionhead_cichlid",       level: { min: 0.52, max: 0.86 }, speed: 1.30, length: 11,  motion: "standard" }, // fast  — open-water hunter, uses full tank
-  { name: "neon_tetra",             level: { min: 0.06, max: 0.34 }, speed: 0.80, length: 3,   motion: "standard" }, // slow  — schooling fish, slow-current habitat
-  { name: "labidochromis_caeruleus",level: { min: 0.58, max: 0.92 }, speed: 1.00, length: 10,  motion: "standard" }, // med   — active forager, typical cichlid pace
-  { name: "royal_pleco",            level: { min: 0.44, max: 0.76 }, speed: 1.35, length: 43,  motion: "paddle" }, // fast  — energetic darter, rapid direction changes
-  { name: "gourami",                level: { min: 0.20, max: 0.52 }, speed: 1.20, length: 12,  motion: "flowing" }, // fast  — strong swimmer, adapted to fast currents
-  { name: "koi",                    level: { min: 0.02, max: 0.28 }, speed: 1.40, length: 60,  motion: "standard" }, // fast  — largest body, powerful burst-and-coast
+  {
+    name: "angelfish",
+    level: { min: 0.1, max: 0.42 },
+    speed: 0.7,
+    length: 15,
+    motion: "flowing",
+  }, // slow  — deep laterally-flat body
+  {
+    name: "red_tailed_black_shark",
+    level: { min: 0.72, max: 0.97 },
+    speed: 1.25,
+    length: 12,
+    motion: "standard",
+  }, // fast  — burst charges when territorial
+  {
+    name: "discus",
+    level: { min: 0.28, max: 0.58 },
+    speed: 0.6,
+    length: 20,
+    motion: "paddle",
+  }, // slow  — nearly sedentary, prefers still water
+  {
+    name: "guppy",
+    level: { min: 0.02, max: 0.26 },
+    speed: 0.85,
+    length: 4,
+    motion: "flowing",
+  }, // med   — burst-escape specialist, large tail
+  {
+    name: "goldfish",
+    level: { min: 0.22, max: 0.62 },
+    speed: 1.15,
+    length: 20,
+    motion: "flowing",
+  }, // fast  — sustained cruiser, multiple speed modes
+  {
+    name: "tiger_barb",
+    level: { min: 0.68, max: 0.96 },
+    speed: 1.0,
+    length: 7,
+    motion: "standard",
+  }, // med   — variable; rest-then-dash rhythm
+  {
+    name: "lionhead_cichlid",
+    level: { min: 0.52, max: 0.86 },
+    speed: 1.3,
+    length: 11,
+    motion: "standard",
+  }, // fast  — open-water hunter, uses full tank
+  {
+    name: "neon_tetra",
+    level: { min: 0.06, max: 0.34 },
+    speed: 0.8,
+    length: 3,
+    motion: "standard",
+  }, // slow  — schooling fish, slow-current habitat
+  {
+    name: "labidochromis_caeruleus",
+    level: { min: 0.58, max: 0.92 },
+    speed: 1.0,
+    length: 10,
+    motion: "standard",
+  }, // med   — active forager, typical cichlid pace
+  {
+    name: "royal_pleco",
+    level: { min: 0.44, max: 0.76 },
+    speed: 1.35,
+    length: 43,
+    motion: "paddle",
+  }, // fast  — energetic darter, rapid direction changes
+  {
+    name: "gourami",
+    level: { min: 0.2, max: 0.52 },
+    speed: 1.2,
+    length: 12,
+    motion: "flowing",
+  }, // fast  — strong swimmer, adapted to fast currents
+  {
+    name: "koi",
+    level: { min: 0.02, max: 0.28 },
+    speed: 1.4,
+    length: 60,
+    motion: "standard",
+  }, // fast  — largest body, powerful burst-and-coast
   // --- extra atlas ---
-  { name: "betta",                  level: { min: 0.15, max: 0.50 }, speed: 0.65, length: 6,   motion: "flowing" }, // slow  — long flowing fins, prefers still midwater
-  { name: "corydoras",              level: { min: 0.72, max: 0.95 }, speed: 0.75, length: 6,   motion: "paddle" }, // slow  — benthic schooler, scavenging bottom trot
-  { name: "kuhli_loach",            level: { min: 0.80, max: 0.98 }, speed: 0.55, length: 10,  motion: "eel" }, // slow  — eel-like bottom creep
-  { name: "hatchetfish",            level: { min: 0.00, max: 0.15 }, speed: 1.10, length: 4,   motion: "standard" }, // fast  — surface skimmer, burst-capable
-  { name: "zebra_danio",            level: { min: 0.05, max: 0.35 }, speed: 1.30, length: 5,   motion: "standard" }, // fast  — high-energy schooler
-  { name: "harlequin_rasbora",      level: { min: 0.08, max: 0.38 }, speed: 0.90, length: 4.5, motion: "standard" }, // med   — compact mid-upper schooler
-  { name: "ram_cichlid",            level: { min: 0.48, max: 0.78 }, speed: 1.00, length: 6,   motion: "flowing" }, // med   — active small cichlid, mid-low
-  { name: "black_molly",            level: { min: 0.18, max: 0.62 }, speed: 0.95, length: 8,   motion: "standard" }, // med   — livebearer, wide mid-range
-  { name: "rainbowfish",            level: { min: 0.18, max: 0.55 }, speed: 1.20, length: 11,  motion: "standard" }, // fast  — strong cruiser, iridescent midwater
-  { name: "glass_catfish",          level: { min: 0.28, max: 0.62 }, speed: 0.70, length: 12,  motion: "eel" }, // slow  — drifting, nearly transparent
-  { name: "otocinclus",             level: { min: 0.62, max: 0.92 }, speed: 0.80, length: 4,   motion: "paddle" }, // slow  — tiny grazer, lower half
-  { name: "clown_loach",            level: { min: 0.68, max: 0.95 }, speed: 1.05, length: 25,  motion: "standard" }, // med   — striped bottom cruiser
+  {
+    name: "betta",
+    level: { min: 0.15, max: 0.5 },
+    speed: 0.65,
+    length: 6,
+    motion: "flowing",
+  }, // slow  — long flowing fins, prefers still midwater
+  {
+    name: "corydoras",
+    level: { min: 0.72, max: 0.95 },
+    speed: 0.75,
+    length: 6,
+    motion: "paddle",
+  }, // slow  — benthic schooler, scavenging bottom trot
+  {
+    name: "kuhli_loach",
+    level: { min: 0.8, max: 0.98 },
+    speed: 0.55,
+    length: 10,
+    motion: "eel",
+  }, // slow  — eel-like bottom creep
+  {
+    name: "hatchetfish",
+    level: { min: 0.0, max: 0.15 },
+    speed: 1.1,
+    length: 4,
+    motion: "standard",
+  }, // fast  — surface skimmer, burst-capable
+  {
+    name: "zebra_danio",
+    level: { min: 0.05, max: 0.35 },
+    speed: 1.3,
+    length: 5,
+    motion: "standard",
+  }, // fast  — high-energy schooler
+  {
+    name: "harlequin_rasbora",
+    level: { min: 0.08, max: 0.38 },
+    speed: 0.9,
+    length: 4.5,
+    motion: "standard",
+  }, // med   — compact mid-upper schooler
+  {
+    name: "ram_cichlid",
+    level: { min: 0.48, max: 0.78 },
+    speed: 1.0,
+    length: 6,
+    motion: "flowing",
+  }, // med   — active small cichlid, mid-low
+  {
+    name: "black_molly",
+    level: { min: 0.18, max: 0.62 },
+    speed: 0.95,
+    length: 8,
+    motion: "standard",
+  }, // med   — livebearer, wide mid-range
+  {
+    name: "rainbowfish",
+    level: { min: 0.18, max: 0.55 },
+    speed: 1.2,
+    length: 11,
+    motion: "standard",
+  }, // fast  — strong cruiser, iridescent midwater
+  {
+    name: "glass_catfish",
+    level: { min: 0.28, max: 0.62 },
+    speed: 0.7,
+    length: 12,
+    motion: "eel",
+  }, // slow  — drifting, nearly transparent
+  {
+    name: "otocinclus",
+    level: { min: 0.62, max: 0.92 },
+    speed: 0.8,
+    length: 4,
+    motion: "paddle",
+  }, // slow  — tiny grazer, lower half
+  {
+    name: "clown_loach",
+    level: { min: 0.68, max: 0.95 },
+    speed: 1.05,
+    length: 25,
+    motion: "standard",
+  }, // med   — striped bottom cruiser
   // --- bonus reef atlas ---
-  { name: "ocellaris_clownfish",    level: { min: 0.22, max: 0.58 }, speed: 0.85, length: 9,   motion: "standard" }, // med   — compact, agile reef swimmer
-  { name: "blue_tang",              level: { min: 0.14, max: 0.55 }, speed: 1.25, length: 30,  motion: "standard" }, // fast  — active open-reef cruiser
-  { name: "yellow_tang",            level: { min: 0.18, max: 0.58 }, speed: 1.15, length: 20,  motion: "standard" }, // fast  — steady midwater grazer
-  { name: "moorish_idol",           level: { min: 0.12, max: 0.52 }, speed: 0.90, length: 22,  motion: "flowing" }, // med   — tall profile with trailing banner fin
-  { name: "lionfish",               level: { min: 0.38, max: 0.82 }, speed: 0.55, length: 35,  motion: "flowing" }, // slow  — hovering ambush hunter with broad fins
-  { name: "porcupine_puffer",       level: { min: 0.25, max: 0.68 }, speed: 0.65, length: 40,  motion: "paddle" }, // slow  — rounded body propelled by small fins
-  { name: "royal_gramma",           level: { min: 0.38, max: 0.76 }, speed: 0.85, length: 8,   motion: "standard" }, // med   — small cave-edge reef fish
-  { name: "mandarin_dragonet",      level: { min: 0.68, max: 0.94 }, speed: 0.50, length: 7,   motion: "paddle" }, // slow  — ornate bottom-hugging hoverer
-  { name: "firefish_goby",          level: { min: 0.12, max: 0.46 }, speed: 1.15, length: 8,   motion: "standard" }, // fast  — hovering fish with sharp retreat bursts
-  { name: "copperband_butterflyfish",level: { min: 0.20, max: 0.62 }, speed: 0.75, length: 20,  motion: "paddle" }, // slow  — precise tall-bodied reef picker
-  { name: "arctic_peeper",          level: { min: 0.10, max: 0.55 }, speed: 1.30, length: 14,  motion: "flowing" }, // fast  — alien cruiser with flexible trailing fins
-  { name: "foxface_rabbitfish",     level: { min: 0.22, max: 0.66 }, speed: 1.10, length: 24,  motion: "standard" }, // fast  — active reef grazer
+  {
+    name: "ocellaris_clownfish",
+    level: { min: 0.22, max: 0.58 },
+    speed: 0.85,
+    length: 9,
+    motion: "standard",
+  }, // med   — compact, agile reef swimmer
+  {
+    name: "blue_tang",
+    level: { min: 0.14, max: 0.55 },
+    speed: 1.25,
+    length: 30,
+    motion: "standard",
+  }, // fast  — active open-reef cruiser
+  {
+    name: "yellow_tang",
+    level: { min: 0.18, max: 0.58 },
+    speed: 1.15,
+    length: 20,
+    motion: "standard",
+  }, // fast  — steady midwater grazer
+  {
+    name: "moorish_idol",
+    level: { min: 0.12, max: 0.52 },
+    speed: 0.9,
+    length: 22,
+    motion: "flowing",
+  }, // med   — tall profile with trailing banner fin
+  {
+    name: "lionfish",
+    level: { min: 0.38, max: 0.82 },
+    speed: 0.55,
+    length: 35,
+    motion: "flowing",
+  }, // slow  — hovering ambush hunter with broad fins
+  {
+    name: "porcupine_puffer",
+    level: { min: 0.25, max: 0.68 },
+    speed: 0.65,
+    length: 40,
+    motion: "paddle",
+  }, // slow  — rounded body propelled by small fins
+  {
+    name: "royal_gramma",
+    level: { min: 0.38, max: 0.76 },
+    speed: 0.85,
+    length: 8,
+    motion: "standard",
+  }, // med   — small cave-edge reef fish
+  {
+    name: "mandarin_dragonet",
+    level: { min: 0.68, max: 0.94 },
+    speed: 0.5,
+    length: 7,
+    motion: "paddle",
+  }, // slow  — ornate bottom-hugging hoverer
+  {
+    name: "firefish_goby",
+    level: { min: 0.12, max: 0.46 },
+    speed: 1.15,
+    length: 8,
+    motion: "standard",
+  }, // fast  — hovering fish with sharp retreat bursts
+  {
+    name: "copperband_butterflyfish",
+    level: { min: 0.2, max: 0.62 },
+    speed: 0.75,
+    length: 20,
+    motion: "paddle",
+  }, // slow  — precise tall-bodied reef picker
+  {
+    name: "arctic_peeper",
+    level: { min: 0.1, max: 0.55 },
+    speed: 1.3,
+    length: 14,
+    motion: "flowing",
+  }, // fast  — alien cruiser with flexible trailing fins
+  {
+    name: "foxface_rabbitfish",
+    level: { min: 0.22, max: 0.66 },
+    speed: 1.1,
+    length: 24,
+    motion: "standard",
+  }, // fast  — active reef grazer
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -102,7 +314,9 @@ export async function makeFishSheets(): Promise<string[]> {
     const cx = c.getContext("2d")!;
     cx.drawImage(img, 0, 0);
     return {
-      full: new Uint8Array(cx.getImageData(0, 0, img.width, img.height).data.buffer),
+      full: new Uint8Array(
+        cx.getImageData(0, 0, img.width, img.height).data.buffer,
+      ),
       width: img.width,
     };
   };
@@ -225,17 +439,26 @@ export function spawnFish(
 ) {
   const { level, speed: sp, motion } = kind;
   const minY = 16 * RES;
-  const maxY = () => k.height() * 0.8;
+  const sandFloorAt = (atX: number) =>
+    sandTopAt(clamp(atX, 0, k.width() - 1)) - NOSE_GAP;
+  const swimFloorAt = (atX: number) =>
+    Math.max(minY, Math.min(k.height() * 0.8, sandFloorAt(atX)));
   // Map the species' preferred band (fractions of the swimmable height) to pixel
   // Y bounds, so spawning and the swim target favor that level. A little inset
   // keeps fish off the exact band edges.
-  const bandTop = () => minY + (maxY() - minY) * level.min;
-  const bandBot = () => minY + (maxY() - minY) * level.max;
+  const bandTop = (atX: number) => minY + (swimFloorAt(atX) - minY) * level.min;
+  const bandBot = (atX: number) => minY + (swimFloorAt(atX) - minY) * level.max;
 
-  const spawnY = k.rand(bandTop(), bandBot());
+  const fromLeft = k.chance(0.5);
+  const spawnX = opts.enterFromEdge
+    ? fromLeft
+      ? 0
+      : k.width() - 1
+    : k.rand(40 * RES, k.width() - 40 * RES);
+  const spawnY = k.rand(bandTop(spawnX), bandBot(spawnX));
   const fish = k.add([
     k.sprite(spriteName),
-    k.pos(k.rand(40 * RES, k.width() - 40 * RES), spawnY),
+    k.pos(spawnX, spawnY),
     k.anchor("center"),
     k.rotate(0),
     k.scale(1),
@@ -270,7 +493,6 @@ export function spawnFish(
 
   // Fully-offscreen threshold: half the sprite plus a small pad past the edge.
   const pad = renderedLen / 2 + 2 * RES;
-  const fromLeft = k.chance(0.5);
   if (opts.enterFromEdge) {
     fish.pos.x = fromLeft ? -pad : k.width() + pad;
   }
@@ -309,7 +531,7 @@ export function spawnFish(
   const benthic = level.max >= BENTHIC_MAX;
   const canSift = level.max >= 0.5; // band reaches low enough to nose the sand
   const canGulp = level.min <= 0.4; // band reaches high enough to gulp at the top
-  const inBand = () => k.rand(bandTop(), bandBot());
+  const inBand = () => k.rand(bandTop(px), bandBot(px));
 
   // The pursuer publishes its position every chase frame. The sighting stays
   // fresh briefly; once the threat is inside FLEE_ALERT the target breaks what
@@ -479,7 +701,11 @@ export function spawnFish(
         const d = Math.hypot(dx, dy) || 1;
         heading = Math.sign(dx) || heading;
         // Keep sliding off the pursuer's line vertically, within the tank.
-        depth = clamp(py + Math.sign(dy || 1) * 24 * RES, minY, maxY());
+        depth = clamp(
+          py + Math.sign(dy || 1) * 24 * RES,
+          minY,
+          swimFloorAt(px),
+        );
         phase = "burst";
         // Urgency ramps 0 → 1 as the pursuer closes from the alert edge to
         // point-blank, scaling the escape thrust in the integrator below.
@@ -578,7 +804,7 @@ export function spawnFish(
           phase = "burst";
           timer = k.rand(0.4, 0.9);
           if (k.rand() < 0.12) heading *= -1; // occasional wander turn
-          if (k.rand() < 0.5) depth = k.rand(bandTop(), bandBot());
+          if (k.rand() < 0.5) depth = inBand();
         }
       }
     }
@@ -597,7 +823,8 @@ export function spawnFish(
           ? 1 + fleeUrgency * (FLEE_ACCEL - 1)
           : 1;
     const ax = phase === "burst" ? heading * ACCEL * sp * boost : 0;
-    const ay = phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
+    const ay =
+      phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
     vx += ax * dt;
     vy += ay * dt;
     vx -= vx * DRAG * dt;
@@ -610,10 +837,11 @@ export function spawnFish(
     // Sift/rest dive onto the dune (below the normal band floor); the relaxed floor
     // also stays in effect while the fish is still below maxY after one, so it eases
     // back up instead of snapping at the band edge.
+    const swimFloor = swimFloorAt(px);
     const floor =
-      action === "sift" || action === "rest" || py > maxY()
-        ? sandTopAt(clamp(px, 0, w - 1)) - NOSE_GAP
-        : maxY();
+      action === "sift" || action === "rest" || py > swimFloor
+        ? sandFloorAt(px)
+        : swimFloor;
     if (py < minY) {
       py = minY;
       vy = Math.abs(vy) * 0.3;
@@ -629,7 +857,11 @@ export function spawnFish(
     fish.flipX = facingRight;
 
     // Pitch toward the travel direction, clamped so the fish never goes vertical.
-    const slope = clamp(Math.atan2(vy, Math.abs(vx) + 8 * RES), -MAX_TILT, MAX_TILT);
+    const slope = clamp(
+      Math.atan2(vy, Math.abs(vx) + 8 * RES),
+      -MAX_TILT,
+      MAX_TILT,
+    );
     const targetAngle = ((facingRight ? slope : -slope) * 180) / Math.PI;
     ang = lerpTo(ang, targetAngle, 8, dt);
 
@@ -652,7 +884,8 @@ export function spawnFish(
 
     // Tail beats faster under thrust, nearly stops while gliding.
     const speed = Math.hypot(vx, vy);
-    const targetBeat = phase === "burst" ? Math.min(13, 4 + (speed * 0.18) / RES) : 1.2;
+    const targetBeat =
+      phase === "burst" ? Math.min(13, 4 + (speed * 0.18) / RES) : 1.2;
     beat = lerpTo(beat, targetBeat, 6, dt);
     fish.animSpeed = beat * motionBeatScale(motion);
   });

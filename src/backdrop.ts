@@ -17,6 +17,8 @@ const S = RES;
 export const BW = 640 * S;
 export const BH = 360 * S;
 const SAND_H = 58 * S; // sand floor height from the bottom
+const LEFT_DUNE_START_U = 0.4;
+const LEFT_DUNE_HEIGHT = BH * 0.4;
 
 // --- deterministic noise + dithering ---------------------------------------
 
@@ -171,7 +173,11 @@ export const sandTopAt = (x: number) => {
     Math.exp(-(g1 * g1)) * 7 * S -
     Math.exp(-(g2 * g2)) * 6 * S;
   const chop = (fbm(x * 0.025, 0, 21) - 0.5) * 6 * S;
-  return BH - SAND_H + Math.round(slope + swell + mound + chop);
+  const baseTop = BH - SAND_H + slope + swell + mound + chop;
+  if (u >= LEFT_DUNE_START_U) return Math.round(baseTop);
+
+  const rise = fade(clamp01(u / LEFT_DUNE_START_U));
+  return Math.round(lerp(BH - LEFT_DUNE_HEIGHT, baseTop, rise));
 };
 
 // z from screen depth: whatever sits lower on screen is nearer the viewer, so

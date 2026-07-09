@@ -50,7 +50,7 @@ export type WhitelistedProp = {
   layout: Layout;
 };
 
-type PropSlot = { fx: number; depth: number };
+type PropSlot = { fx: number; depth: number; obstacleDepth?: number };
 
 const ROTATION_SECONDS = 2 * 60;
 
@@ -79,7 +79,7 @@ const DEPTH_BAND = 10 * RES; // creature within 10 design px of prop depth = con
 // virtual width. Alternating depth breaks up the row while keeping every base
 // comfortably inside the 58px-deep design-space bed.
 export const PROP_SLOTS: readonly PropSlot[] = [
-  { fx: 0.08, depth: 14 },
+  { fx: 0.132, depth: 130, obstacleDepth: 46 },
   { fx: 0.24, depth: 42 },
   { fx: 0.4, depth: 24 },
   { fx: 0.56, depth: 50 },
@@ -176,9 +176,9 @@ const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
       STAR_WARS_PROPS_ATLAS_CELL,
       STAR_WARS_PROPS_ATLAS_LAYOUT,
     )[0],
-    // Corner piece: the cell hangs a few px off the left edge, and a deep slot
-    // draws it in front of whatever occupies the fx 0.08 rotating slot behind.
-    slot: { fx: 0.035, depth: 46 },
+    // Corner HUD piece: tuck the sprite almost into the bottom-left corner while
+    // keeping its avoidance footprint in the normal foreground substrate tier.
+    slot: { fx: 0.025, depth: 128, obstacleDepth: 46 },
   },
   {
     prop: atlasProps(
@@ -324,7 +324,7 @@ function claimSlot(
   slotObstacles[slotIndex] = {
     x0: left + prop.layout.contactLeft,
     x1: left + prop.layout.contactRight,
-    depth: slot.depth * RES,
+    depth: (slot.obstacleDepth ?? slot.depth) * RES,
   };
   obstacles = [...slotObstacles];
 }

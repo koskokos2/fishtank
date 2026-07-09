@@ -1,10 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
 import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
-import {
-  PLANT_ATLAS_CELL,
-  PLANT_ATLAS_LAYOUT,
-} from "./plantAtlas";
+import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 
 const S = RES;
@@ -15,8 +12,6 @@ const S = RES;
 // caustics, swaying plants, motes, and source-based bubbles. Depth is faked
 // with z-ordering.
 export function setupTank(k: KAPLAYCtx) {
-  const floorY = () => k.height() * 0.85;
-
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
@@ -76,7 +71,7 @@ export function setupTank(k: KAPLAYCtx) {
 
   spawnMotes(k, 30);
   spawnPlantPearling(k, midPlants);
-  spawnSubstrateSeeps(k, floorY);
+  spawnSubstrateSeeps(k);
   spawnRuinLeaks(k);
 }
 
@@ -113,30 +108,151 @@ type PlantCluster = {
 };
 
 export const MID_PLANTS: PlantSpec[] = [
-  { fx: 0.025, depth: 7, scale: 0.82, theme: "ribbon", phase: 0.4, tint: [118, 164, 151], opacity: 0.78 },
-  { fx: 0.12, depth: 13, scale: 1.04, theme: "mixed", phase: 1.5, tint: [190, 216, 193], opacity: 0.94 },
-  { fx: 0.235, depth: 10, scale: 0.9, theme: "fern", phase: 3.1, tint: [147, 190, 163], opacity: 0.88 },
-  { fx: 0.46, depth: 12, scale: 0.96, theme: "broad", phase: 4.4, tint: [182, 212, 188], opacity: 0.92 },
-  { fx: 0.64, depth: 8, scale: 0.84, theme: "ribbon", phase: 2.35, tint: [126, 174, 158], opacity: 0.82 },
-  { fx: 0.81, depth: 14, scale: 1.08, theme: "fern", phase: 5.5, tint: [181, 207, 181], opacity: 0.92 },
-  { fx: 0.965, depth: 10, scale: 0.92, theme: "mixed", phase: 0.9, tint: [145, 186, 166], opacity: 0.86 },
+  {
+    fx: 0.025,
+    depth: 7,
+    scale: 0.82,
+    theme: "ribbon",
+    phase: 0.4,
+    tint: [118, 164, 151],
+    opacity: 0.78,
+  },
+  {
+    fx: 0.12,
+    depth: 13,
+    scale: 1.04,
+    theme: "mixed",
+    phase: 1.5,
+    tint: [190, 216, 193],
+    opacity: 0.94,
+  },
+  {
+    fx: 0.235,
+    depth: 10,
+    scale: 0.9,
+    theme: "fern",
+    phase: 3.1,
+    tint: [147, 190, 163],
+    opacity: 0.88,
+  },
+  {
+    fx: 0.46,
+    depth: 12,
+    scale: 0.96,
+    theme: "broad",
+    phase: 4.4,
+    tint: [182, 212, 188],
+    opacity: 0.92,
+  },
+  {
+    fx: 0.64,
+    depth: 8,
+    scale: 0.84,
+    theme: "ribbon",
+    phase: 2.35,
+    tint: [126, 174, 158],
+    opacity: 0.82,
+  },
+  {
+    fx: 0.81,
+    depth: 14,
+    scale: 1.08,
+    theme: "fern",
+    phase: 5.5,
+    tint: [181, 207, 181],
+    opacity: 0.92,
+  },
+  {
+    fx: 0.965,
+    depth: 10,
+    scale: 0.92,
+    theme: "mixed",
+    phase: 0.9,
+    tint: [145, 186, 166],
+    opacity: 0.86,
+  },
 ];
 
 // Like the old near-camera grass, these oversized edge clumps sit in front of
 // the animals and are heavily cool-darkened. Keeping them at the side preserves
 // a clear central swimming window while giving the tank genuine depth.
 export const FOREGROUND_PLANTS: PlantSpec[] = [
-  { fx: -0.018, depth: 9, scale: 1.78, theme: "broad", phase: 0.2, tint: [35, 59, 55], opacity: 0.96, z: 32, foreground: true },
-  { fx: 0.055, depth: 8, scale: 1.42, theme: "ribbon", phase: 2.1, tint: [42, 69, 62], opacity: 0.94, z: 31, foreground: true },
-  { fx: 0.95, depth: 8, scale: 1.5, theme: "fern", phase: 4.2, tint: [39, 66, 60], opacity: 0.95, z: 31, foreground: true },
-  { fx: 1.018, depth: 10, scale: 1.9, theme: "mixed", phase: 5.8, tint: [31, 54, 51], opacity: 0.97, z: 33, foreground: true },
+  {
+    fx: -0.018,
+    depth: 9,
+    scale: 1.78,
+    theme: "broad",
+    phase: 0.2,
+    tint: [35, 59, 55],
+    opacity: 0.96,
+    z: 32,
+    foreground: true,
+  },
+  {
+    fx: 0.055,
+    depth: 8,
+    scale: 1.42,
+    theme: "ribbon",
+    phase: 2.1,
+    tint: [42, 69, 62],
+    opacity: 0.94,
+    z: 31,
+    foreground: true,
+  },
+  {
+    fx: 0.95,
+    depth: 8,
+    scale: 1.5,
+    theme: "fern",
+    phase: 4.2,
+    tint: [39, 66, 60],
+    opacity: 0.95,
+    z: 31,
+    foreground: true,
+  },
+  {
+    fx: 1.018,
+    depth: 10,
+    scale: 1.9,
+    theme: "mixed",
+    phase: 5.8,
+    tint: [31, 54, 51],
+    opacity: 0.97,
+    z: 33,
+    foreground: true,
+  },
 ];
 
 export const THEME_FRONDS: Record<PlantTheme, PlantName[]> = {
-  ribbon: ["eelgrass_left_arc", "eelgrass_s_curve", "eelgrass_upright_wave", "eelgrass_right_arc", "bluegreen_lance_leaf"],
-  broad: ["emerald_strap_leaf", "bluegreen_lance_leaf", "jagged_olive_kelp", "eelgrass_s_curve", "burgundy_accent_leaf"],
-  fern: ["ferny_seaweed_stem", "bushy_hornwort_sprig", "forked_olive_branch", "eelgrass_upright_wave", "redgold_feathery_stem"],
-  mixed: ["eelgrass_left_arc", "emerald_strap_leaf", "ferny_seaweed_stem", "eelgrass_right_arc", "forked_olive_branch", "jagged_olive_kelp"],
+  ribbon: [
+    "eelgrass_left_arc",
+    "eelgrass_s_curve",
+    "eelgrass_upright_wave",
+    "eelgrass_right_arc",
+    "bluegreen_lance_leaf",
+  ],
+  broad: [
+    "emerald_strap_leaf",
+    "bluegreen_lance_leaf",
+    "jagged_olive_kelp",
+    "eelgrass_s_curve",
+    "burgundy_accent_leaf",
+  ],
+  fern: [
+    "ferny_seaweed_stem",
+    "bushy_hornwort_sprig",
+    "forked_olive_branch",
+    "eelgrass_upright_wave",
+    "redgold_feathery_stem",
+  ],
+  mixed: [
+    "eelgrass_left_arc",
+    "emerald_strap_leaf",
+    "ferny_seaweed_stem",
+    "eelgrass_right_arc",
+    "forked_olive_branch",
+    "jagged_olive_kelp",
+  ],
 };
 
 export const THEME_BASE: Record<PlantTheme, PlantName> = {
@@ -160,12 +276,17 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
     const base = index === names.length - 1;
     const side = base ? 0 : index - centre;
     const spread = side * 2.1 * S * spec.scale;
-    const centreBoost = base ? 0.72 : 0.78 + (1 - Math.abs(side) / (centre + 1)) * 0.28;
+    const centreBoost = base
+      ? 0.72
+      : 0.78 + (1 - Math.abs(side) / (centre + 1)) * 0.28;
     const scale = spec.scale * centreBoost;
     const layout = PLANT_ATLAS_LAYOUT[name];
     const rootPad = (PLANT_ATLAS_CELL - layout.bottom) * scale;
-    const baseAngle = base ? 0 : side * 4.8 + Math.sin(index * 2.7 + spec.phase) * 2.4;
-    const sway = (base ? 1.2 : 3.2 + index * 0.38) * (spec.foreground ? 1.22 : 1);
+    const baseAngle = base
+      ? 0
+      : side * 4.8 + Math.sin(index * 2.7 + spec.phase) * 2.4;
+    const sway =
+      (base ? 1.2 : 3.2 + index * 0.38) * (spec.foreground ? 1.22 : 1);
     const phase = spec.phase + index * 1.17;
     const speed = 0.46 + (index % 3) * 0.09;
     const mirror = !base && (index + Math.round(spec.phase)) % 2 === 1;
@@ -192,7 +313,8 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
     };
     object.onUpdate(() => {
       const slowCurrent = 0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
-      frond.currentAngle = baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
+      frond.currentAngle =
+        baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
       object.angle = frond.currentAngle;
     });
     fronds.push(frond);
@@ -237,7 +359,11 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
     const speed = k.rand(0.42, 0.6);
     // Cool-darken slightly with closeness, echoing the foreground clumps.
     const shade = 1 - near * 0.35;
-    const tint: [number, number, number] = [k.rand(120, 180) * shade, k.rand(165, 210) * shade, k.rand(150, 190) * shade];
+    const tint: [number, number, number] = [
+      k.rand(120, 180) * shade,
+      k.rand(165, 210) * shade,
+      k.rand(150, 190) * shade,
+    ];
     const object = k.add([
       k.sprite("plant-atlas-v2", { frame: layout.frame }),
       k.pos(rootX, rootY + rootPad),
@@ -250,7 +376,8 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
     ]);
     object.onUpdate(() => {
       const slowCurrent = 0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
-      object.angle = baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
+      object.angle =
+        baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
     });
   }
 }
@@ -380,7 +507,7 @@ function spawnPlantPearling(k: KAPLAYCtx, plants: PlantCluster[]) {
   }
 }
 
-function spawnSubstrateSeeps(k: KAPLAYCtx, floorY: () => number) {
+function spawnSubstrateSeeps(k: KAPLAYCtx) {
   const seepPoints = [0.18, 0.34, 0.66, 0.86];
   for (const fx of seepPoints) {
     const controller = k.add([k.pos(0, 0)]);
@@ -394,10 +521,12 @@ function spawnSubstrateSeeps(k: KAPLAYCtx, floorY: () => number) {
       const large = k.chance(0.25);
       const count = large ? k.randi(1, 2) : k.randi(3, 7);
       for (let i = 0; i < count; i++) {
+        const x = fx * k.width() + k.rand(-3, 3) * S;
+        const sandTop = sandTopAt(Math.max(0, Math.min(k.width() - 1, x)));
         emitBubble(
           k,
-          fx * k.width() + k.rand(-3, 3) * S,
-          floorY() + k.rand(-6, 3) * S,
+          x,
+          sandTop + k.rand(-6, 3) * S,
           large ? { ...SEEP, radius: [1.4, 2.6], rise: [15, 25] } : SEEP,
         );
       }
