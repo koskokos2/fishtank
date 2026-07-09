@@ -3,7 +3,9 @@
   "tileSize": 128,
   "columns": 4,
   "rows": 3,
-  "source": "art/pop-culture-props-atlas-chroma.png",
+  "source": "art/pop-culture-props-restored-128.png",
+  "chromaReference": "art/pop-culture-props-atlas-chroma.png",
+  "transparentReference": "art/pop-culture-props-atlas-transparent.png",
   "sprites": [
     { "name": "prism_album_plaque", "row": 0, "col": 0, "category": "relic", "role": "musicHomage" },
     { "name": "glowing_inscription_ring", "row": 0, "col": 1, "category": "relic", "role": "fantasyJewelry" },

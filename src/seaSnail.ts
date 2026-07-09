@@ -6,9 +6,17 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
+import {
+  clampPathX,
+  getPropObstacles,
+  insidePropFootprint,
+  nearestClearX,
+} from "./propPlacement";
 
 const S = RES;
 const FRAMES = 6;
+const HALF = 30;
+const STANDOFF = 2 * S; // stop points land strictly clear of a footprint
 const EDGE = 38 * S;
 const MIN_TRIP = 35 * S;
 const MAX_TRIP = 125 * S;
@@ -38,6 +46,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
     0,
     MAX_DEPTH,
   );
+  x = nearestClearX(x, HALF, STANDOFF, substrateDepth, EDGE, k.width() - EDGE);
   let facing = k.choose([-1, 1]);
   let targetX = x;
   let targetDepth = substrateDepth;
@@ -48,6 +57,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
   let puffDistance = 0;
   let nextPuffDistance = k.rand(2.5, 4) * S;
   let angle = 0;
+  let seenObstacles = getPropObstacles();
   const speed = k.rand(3.5, 5.5) * S;
 
   const groundCentreY = (atX: number, depth: number) =>
@@ -85,10 +95,40 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
       k.width() - EDGE,
     );
     targetDepth = chooseOtherDepthTier(k, substrateDepth);
+    targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+    if (Math.abs(targetX - x) < 6 * S) {
+      facing = -facing;
+      snail.flipX = facing > 0;
+      targetX = clamp(
+        x + facing * k.rand(MIN_TRIP, MAX_TRIP),
+        EDGE,
+        k.width() - EDGE,
+      );
+      targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+    }
   };
 
   snail.onUpdate(() => {
     const dt = k.dt();
+    if (seenObstacles !== getPropObstacles()) {
+      seenObstacles = getPropObstacles();
+      if (insidePropFootprint(x, HALF, substrateDepth)) {
+        targetX = nearestClearX(
+          x,
+          HALF,
+          STANDOFF,
+          substrateDepth,
+          EDGE,
+          k.width() - EDGE,
+        );
+        targetDepth = substrateDepth;
+        facing = targetX > x ? 1 : -1;
+        snail.flipX = facing > 0;
+        rest = 0;
+      } else {
+        targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+      }
+    }
     if (rest > 0) {
       rest -= dt;
       snail.frame = 0;

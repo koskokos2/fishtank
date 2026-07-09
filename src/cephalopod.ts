@@ -33,6 +33,12 @@ import {
 import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { RES } from "./res";
+import {
+  clampPathX,
+  getPropObstacles,
+  insidePropFootprint,
+  nearestClearX,
+} from "./propPlacement";
 
 const S = RES;
 
@@ -57,6 +63,10 @@ const CRAWL_GAIT = [
   OCTOPUS_POSE.crawlPush,
 ] as const;
 const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
+const OCTO_HALF = 70; // half-width of the octopus's large frame — every prop blocks it
+// Exceeds the 12*S crawl-arrival threshold, so a walk-out target set just past
+// a footprint edge is actually cleared before the octopus parks short of it.
+const OCTO_STANDOFF = 14 * S;
 const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent push-pulses quit
 const OCTO_LAND_POSE = 6 * S; // height above the sand where it braces into the landing pose
 const BURY_DEPTH = 4 * S; // px the body presses into the sand on touchdown
@@ -303,6 +313,18 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let vx = 0;
   let vy = 0;
   let px = body.pos.x;
+  if (cfg.motion === "crawl") {
+    // keep the nudge inside the spawn range so it can't strand at a wall
+    px = nearestClearX(
+      px,
+      OCTO_HALF,
+      OCTO_STANDOFF,
+      undefined,
+      60 * S,
+      k.width() - 60 * S,
+    );
+    body.pos.x = px;
+  }
   let py = cfg.motion === "crawl" ? groundY(px) : body.pos.y; // octopus spawns on the sand
   let ang = 0;
   let facing = k.choose([-1, 1]); // head/eye direction (left-facing sprite)
@@ -332,6 +354,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   // crawl-kind (octopus) state: a crawl target, and a swim sub-machine for the
   // occasional pulse-glide bout.
   let tx = px;
+  let seenObstacles = getPropObstacles();
   let roamTimer = 0;
   let octoMode: "crawl" | "swim" = "crawl";
   let swimSub: "gather" | "thrust" | "glide" | "settle" = "gather";
@@ -473,6 +496,29 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       // swim bout before settling back onto the substrate. Its vertical rides the
       // sand contour (groundY) while crawling/resting; swim bouts lift it off.
       const cr = cfg.crawl!;
+      if (seenObstacles !== getPropObstacles()) {
+        seenObstacles = getPropObstacles();
+        // A rotation swap covers the airborne case too — the settle gate
+        // steers a mid-swim octopus away from a footprint on its own.
+        if (octoMode === "crawl") {
+          if (insidePropFootprint(px, OCTO_HALF)) {
+            tx = nearestClearX(
+              px,
+              OCTO_HALF,
+              OCTO_STANDOFF,
+              undefined,
+              mX,
+              k.width() - mX,
+            );
+            restTimer = 0;
+            const dir = Math.sign(tx - px) || facing;
+            if (dir !== facing) curlTimer = 0.5;
+            beginTurn(dir);
+          } else {
+            tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+          }
+        }
+      }
       curlTimer -= dt;
       buryTimer = Math.max(0, buryTimer - dt);
       buryNow = BURY_DEPTH * (buryTimer / BURY_DUR); // sinks on impact, springs back
@@ -495,8 +541,21 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
               mX,
               k.width() - mX,
             );
-            if (dir !== facing) curlTimer = 0.5; // curl its arms through the turn
-            beginTurn(dir);
+            tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+            let hopDir = dir;
+            if (Math.abs(tx - px) < 12 * S) {
+              // A prop clamped the hop to a near-instant park — try the other
+              // direction once instead of settling right back on the spot.
+              hopDir = -dir;
+              tx = clamp(
+                px + hopDir * k.rand(60 * S, cr.hop) * tempo,
+                mX,
+                k.width() - mX,
+              );
+              tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+            }
+            if (hopDir !== facing) curlTimer = 0.5; // curl its arms through the turn
+            beginTurn(hopDir);
           }
         } else {
           // crawling toward the hop; close enough → settle and rest a while
@@ -640,13 +699,28 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           // and touch down.
           const inwardDir =
             px < mX + 18 * S ? 1 : px > k.width() - mX - 18 * S ? -1 : swimDir;
-          if (inwardDir !== swimDir) {
-            swimDir = inwardDir;
-            beginTurn(inwardDir);
+          // A prop under the touchdown point overrides the wall steer — landing
+          // on it isn't an option, so head for the nearer clear edge instead.
+          const inFootprint = insidePropFootprint(px, OCTO_HALF);
+          const steerDir = inFootprint
+            ? nearestClearX(
+                px,
+                OCTO_HALF,
+                OCTO_STANDOFF,
+                undefined,
+                mX,
+                k.width() - mX,
+              ) >= px
+              ? 1
+              : -1
+            : inwardDir;
+          if (steerDir !== swimDir) {
+            swimDir = steerDir;
+            beginTurn(steerDir);
           }
           vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
-          vy += cr.sink * dt;
-          if (py >= groundY(px) - 4 * S && vy >= 0) {
+          if (!inFootprint) vy += cr.sink * dt;
+          if (!inFootprint && py >= groundY(px) - 4 * S && vy >= 0) {
             octoMode = "crawl";
             descending = false;
             // touchdown: kick up a puff of sand and press the body into it

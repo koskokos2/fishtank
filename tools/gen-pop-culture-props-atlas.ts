@@ -1,14 +1,15 @@
-// Normalize the generated tribute prop concept sheet into the project's 128px
-// prop-atlas format, chroma-key the flat background, dither the sand-touching
-// lower edge into alpha, and embed the result for Kaplay.
+// Clean the curated high-detail pop-culture tribute source into the project's
+// 128px prop-atlas format and embed the result for Kaplay. The source is the
+// earlier, more characterful atlas; this pass preserves its composition,
+// details, and sand-contact grounding while removing generated defects such as
+// detached bubbles and purple/magenta matte casts.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng } from "./png";
 
 type Rect = { x: number; y: number; w: number; h: number };
 type SpriteDef = { name: string; row: number; col: number };
 
-const SOURCE = "art/pop-culture-props-atlas-chroma.png";
-const TRANSPARENT_SOURCE = "art/pop-culture-props-atlas-transparent.png";
+const SOURCE = "art/pop-culture-props-restored-128.png";
 const OUTPUT = "art/pop-culture-props-atlas-128.png";
 const MANIFEST = "art/pop-culture-props-atlas-128.json";
 const MODULE = "src/popCulturePropsAtlas.ts";
@@ -18,6 +19,7 @@ const TILE = 128;
 const WORK_TILE = 384;
 const BURIAL_BAND = 18;
 const KEY_TOLERANCE = 38;
+const COMPANION_CUBE_FRAME = 9;
 const BAYER = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -32,18 +34,6 @@ function isChroma(r: number, g: number, b: number) {
     (r > 238 && b > 238 && g < 44) ||
     (r > 180 && b > 180 && g < 108 && Math.abs(r - b) < 76)
   );
-}
-
-function chromaKey(rgba: Uint8Array) {
-  const out = new Uint8Array(rgba);
-  for (let i = 0; i < out.length; i += 4) {
-    if (!isChroma(out[i], out[i + 1], out[i + 2])) continue;
-    out[i] = 0;
-    out[i + 1] = 0;
-    out[i + 2] = 0;
-    out[i + 3] = 0;
-  }
-  return out;
 }
 
 function alphaBBox(rgba: Uint8Array, imageW: number, region: Rect): Rect {
@@ -64,9 +54,23 @@ function alphaBBox(rgba: Uint8Array, imageW: number, region: Rect): Rect {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-function downsample(work: Uint8Array): Uint8Array {
+function assertTransparentSource(rgba: Uint8Array, sourceName: string) {
+  let transparentPixels = 0;
+  let visibleKeyPixels = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    const alpha = rgba[i + 3];
+    if (alpha < 16) transparentPixels++;
+    else if (rgba[i] === 255 && rgba[i + 1] === 0 && rgba[i + 2] === 255) visibleKeyPixels++;
+  }
+  if (transparentPixels < (rgba.length / 4) * 0.25)
+    throw new Error(`${sourceName}: expected a real transparent source; did you pass the chroma PNG?`);
+  if (visibleKeyPixels)
+    throw new Error(`${sourceName}: contains ${visibleKeyPixels} visible exact chroma-key pixels`);
+}
+
+function downsample(work: Uint8Array, workSize = WORK_TILE): Uint8Array {
   const out = new Uint8Array(TILE * TILE * 4);
-  const scale = WORK_TILE / TILE;
+  const scale = workSize / TILE;
   for (let dy = 0; dy < TILE; dy++) {
     for (let dx = 0; dx < TILE; dx++) {
       let weight = 0;
@@ -76,7 +80,7 @@ function downsample(work: Uint8Array): Uint8Array {
       let blue = 0;
       for (let sy = dy * scale; sy < (dy + 1) * scale; sy++) {
         for (let sx = dx * scale; sx < (dx + 1) * scale; sx++) {
-          const si = (sy * WORK_TILE + sx) * 4;
+          const si = (sy * workSize + sx) * 4;
           const a = work[si + 3] / 255;
           weight++;
           alpha += a;
@@ -125,6 +129,85 @@ function removeTinyIslands(rgba: Uint8Array, minPixels = 5) {
   }
 }
 
+function removeFloatingSpecks(rgba: Uint8Array, maxPixels = 72) {
+  const { bottom } = alphaRows(rgba);
+  const seen = new Uint8Array(TILE * TILE);
+  for (let start = 0; start < TILE * TILE; start++) {
+    if (seen[start] || rgba[start * 4 + 3] < 16) continue;
+    const stack = [start];
+    const component: number[] = [];
+    let maxY = -1;
+    seen[start] = 1;
+    while (stack.length) {
+      const index = stack.pop()!;
+      component.push(index);
+      const x = index % TILE;
+      const y = Math.floor(index / TILE);
+      maxY = Math.max(maxY, y);
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if ((!ox && !oy) || x + ox < 0 || x + ox >= TILE || y + oy < 0 || y + oy >= TILE) continue;
+          const next = (y + oy) * TILE + x + ox;
+          if (seen[next] || rgba[next * 4 + 3] < 16) continue;
+          seen[next] = 1;
+          stack.push(next);
+        }
+      }
+    }
+    if (component.length > maxPixels || maxY >= bottom - 10) continue;
+    for (const index of component) rgba.fill(0, index * 4, index * 4 + 4);
+  }
+}
+
+function isBubbleFleckColor(r: number, g: number, b: number) {
+  return b >= 118 && b > r + 34 && b >= g + 4 && g >= 42;
+}
+
+function removeBubbleFlecks(rgba: Uint8Array, maxPixels = 42) {
+  const { bottom } = alphaRows(rgba);
+  const seen = new Uint8Array(TILE * TILE);
+  for (let start = 0; start < TILE * TILE; start++) {
+    if (seen[start]) continue;
+    const startIndex = start * 4;
+    if (rgba[startIndex + 3] < 16 || !isBubbleFleckColor(rgba[startIndex], rgba[startIndex + 1], rgba[startIndex + 2])) {
+      seen[start] = 1;
+      continue;
+    }
+    const stack = [start];
+    const component: number[] = [];
+    let maxY = -1;
+    seen[start] = 1;
+    while (stack.length) {
+      const index = stack.pop()!;
+      component.push(index);
+      const x = index % TILE;
+      const y = Math.floor(index / TILE);
+      maxY = Math.max(maxY, y);
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if ((!ox && !oy) || x + ox < 0 || x + ox >= TILE || y + oy < 0 || y + oy >= TILE) continue;
+          const next = (y + oy) * TILE + x + ox;
+          const ni = next * 4;
+          if (seen[next] || rgba[ni + 3] < 16 || !isBubbleFleckColor(rgba[ni], rgba[ni + 1], rgba[ni + 2])) continue;
+          seen[next] = 1;
+          stack.push(next);
+        }
+      }
+    }
+    if (component.length > maxPixels || maxY >= bottom - 10) continue;
+    for (const index of component) rgba.fill(0, index * 4, index * 4 + 4);
+  }
+}
+
+function clearTileBorderArtifacts(rgba: Uint8Array) {
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      if (x >= 2 && x < TILE - 2 && y >= 2 && y < TILE - 2) continue;
+      rgba.fill(0, (y * TILE + x) * 4, (y * TILE + x) * 4 + 4);
+    }
+  }
+}
+
 function purgeChromaCrumbs(rgba: Uint8Array) {
   for (let i = 0; i < rgba.length; i += 4) {
     if (rgba[i + 3] < 16 || !isChroma(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
@@ -132,6 +215,107 @@ function purgeChromaCrumbs(rgba: Uint8Array) {
     rgba[i + 1] = 0;
     rgba[i + 2] = 0;
     rgba[i + 3] = 0;
+  }
+}
+
+function isChromaHalo(r: number, g: number, b: number) {
+  return r > 120 && b > 120 && g < 135 && Math.abs(r - b) < 96 && Math.min(r, b) - g > 36;
+}
+
+function hasTransparentNeighbor(rgba: Uint8Array, x: number, y: number, radius: number) {
+  for (let oy = -radius; oy <= radius; oy++) {
+    for (let ox = -radius; ox <= radius; ox++) {
+      if ((!ox && !oy) || x + ox < 0 || x + ox >= TILE || y + oy < 0 || y + oy >= TILE) continue;
+      if (rgba[((y + oy) * TILE + x + ox) * 4 + 3] < 16) return true;
+    }
+  }
+  return false;
+}
+
+// Some edge pixels are anti-aliased or model-painted into "almost key" colours;
+// exact key removal misses those, but a global purple purge would eat intentional
+// coral/heart details. Only remove magenta-hued pixels that sit on the
+// transparent silhouette edge.
+function removeChromaHalo(rgba: Uint8Array) {
+  const out = new Uint8Array(rgba);
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const i = (y * TILE + x) * 4;
+      const alpha = rgba[i + 3];
+      if (alpha < 16 || alpha >= 246) continue;
+      if (!isChromaHalo(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+      if (!hasTransparentNeighbor(rgba, x, y, 2)) continue;
+      out.fill(0, i, i + 4);
+    }
+  }
+  rgba.set(out);
+}
+
+function isGeneratedPurple(r: number, g: number, b: number) {
+  return r > 70 && b > 70 && g < 125 && Math.min(r, b) - g > 18 && Math.abs(r - b) < 135;
+}
+
+function isDarkVioletCast(r: number, g: number, b: number) {
+  return b > g + 10 && r > g + 6 && Math.abs(r - b) < 92 && r < 156 && b < 176;
+}
+
+function isSoftVioletCast(r: number, g: number, b: number) {
+  return b > 150 && r > 116 && b > g + 34 && r > g + 18;
+}
+
+function isAllowedCubeHeartRegion(x: number, y: number) {
+  return (
+    (x >= 45 && x <= 63 && y >= 52 && y <= 79) ||
+    (x >= 84 && x <= 100 && y >= 57 && y <= 78) ||
+    (x >= 57 && x <= 87 && y >= 29 && y <= 45)
+  );
+}
+
+function isAllowedCubeHeart(frame: number, x: number, y: number, r: number, g: number, b: number) {
+  if (frame !== COMPANION_CUBE_FRAME || !isAllowedCubeHeartRegion(x, y)) return false;
+  return r >= 92 && b >= 72 && r > g + 18 && b > g + 8;
+}
+
+function isPortalCableRegion(frame: number, x: number, y: number) {
+  return frame === 11 && x >= 73 && x <= 121 && y >= 66 && y <= 106;
+}
+
+function neutralizePortalCablePixel(rgba: Uint8Array, i: number) {
+  const luminance = rgba[i] * 0.2126 + rgba[i + 1] * 0.7152 + rgba[i + 2] * 0.0722;
+  rgba[i] = Math.round(luminance * 0.58);
+  rgba[i + 1] = Math.round(luminance * 0.70);
+  rgba[i + 2] = Math.round(luminance * 0.86);
+  rgba[i + 3] = Math.max(rgba[i + 3], 190);
+}
+
+function neutralizePurpleMatte(rgba: Uint8Array, frame: number) {
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const i = (y * TILE + x) * 4;
+      const alpha = rgba[i + 3];
+      if (alpha < 16) continue;
+      const generatedPurple = isGeneratedPurple(rgba[i], rgba[i + 1], rgba[i + 2]);
+      const violetCast = isDarkVioletCast(rgba[i], rgba[i + 1], rgba[i + 2]);
+      const softVioletCast = isSoftVioletCast(rgba[i], rgba[i + 1], rgba[i + 2]);
+      if (!generatedPurple && !violetCast && !softVioletCast) continue;
+      if (isAllowedCubeHeart(frame, x, y, rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+      if (isPortalCableRegion(frame, x, y)) {
+        neutralizePortalCablePixel(rgba, i);
+        continue;
+      }
+
+      if ((generatedPurple || softVioletCast) && (alpha < 250 || hasTransparentNeighbor(rgba, x, y, 2))) {
+        rgba.fill(0, i, i + 4);
+        continue;
+      }
+
+      // If the generated model painted a purple shadow into an opaque object
+      // detail, keep the form but remove the hue bias.
+      const luminance = rgba[i] * 0.2126 + rgba[i + 1] * 0.7152 + rgba[i + 2] * 0.0722;
+      rgba[i] = Math.round(luminance * 0.78);
+      rgba[i + 1] = Math.round(luminance * 0.84);
+      rgba[i + 2] = Math.round(luminance * 0.92);
+    }
   }
 }
 
@@ -161,6 +345,65 @@ function ditherBurial(rgba: Uint8Array) {
   }
 }
 
+function normalizeTile(source: ReturnType<typeof decodePng>, bb: Rect, workSize = WORK_TILE): Uint8Array {
+  const work = new Uint8Array(workSize * workSize * 4);
+  const offX = Math.round((workSize - bb.w) / 2) - bb.x;
+  const offY = Math.round((workSize - bb.h) / 2) - bb.y;
+  for (let y = bb.y; y < bb.y + bb.h; y++) {
+    for (let x = bb.x; x < bb.x + bb.w; x++) {
+      const si = (y * source.w + x) * 4;
+      if (source.rgba[si + 3] < 16) continue;
+      const wx = x + offX;
+      const wy = y + offY;
+      if (wx < 0 || wx >= workSize || wy < 0 || wy >= workSize) continue;
+      const wi = (wy * workSize + wx) * 4;
+      work.set(source.rgba.subarray(si, si + 4), wi);
+    }
+  }
+  const tile = downsample(work, workSize);
+  purgeChromaCrumbs(tile);
+  removeChromaHalo(tile);
+  removeTinyIslands(tile);
+  ditherBurial(tile);
+  return tile;
+}
+
+function putTile(sheet: Uint8Array, sheetW: number, tile: Uint8Array, frame: number) {
+  const row = Math.floor(frame / COLS);
+  const col = frame % COLS;
+  for (let y = 0; y < TILE; y++) {
+    const from = y * TILE * 4;
+    const to = ((row * TILE + y) * sheetW + col * TILE) * 4;
+    sheet.set(tile.subarray(from, from + TILE * 4), to);
+  }
+}
+
+function cropFixedTile(source: ReturnType<typeof decodePng>, frame: number): Uint8Array {
+  const tile = new Uint8Array(TILE * TILE * 4);
+  const sourceCol = frame % COLS;
+  const sourceRow = Math.floor(frame / COLS);
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const si = ((sourceRow * TILE + y) * source.w + sourceCol * TILE + x) * 4;
+      const di = (y * TILE + x) * 4;
+      tile.set(source.rgba.subarray(si, si + 4), di);
+    }
+  }
+  return tile;
+}
+
+function cleanupRestoredTile(tile: Uint8Array, frame: number) {
+  // Restored tiles already have a hand-painted sand/contact rim. Keep that
+  // grounding, but remove the old loose bubbles and purple cast that made the
+  // source look chroma-contaminated.
+  removeFloatingSpecks(tile, 96);
+  removeBubbleFlecks(tile);
+  neutralizePurpleMatte(tile, frame);
+  removeTinyIslands(tile);
+  removeFloatingSpecks(tile, 96);
+  clearTileBorderArtifacts(tile);
+}
+
 function contentBounds(rgba: Uint8Array, row: number, col: number, sheetW: number) {
   let top = TILE;
   let bottom = -1;
@@ -183,48 +426,92 @@ function contentBounds(rgba: Uint8Array, row: number, col: number, sheetW: numbe
   return { top, bottom, contactLeft, contactRight };
 }
 
-const source = decodePng(readFileSync(SOURCE));
-if (source.w % COLS !== 0 || source.h % ROWS !== 0)
-  throw new Error(`${SOURCE}: expected dimensions divisible by ${COLS}x${ROWS}, got ${source.w}x${source.h}`);
+function assertNoRuntimeKeyPixels(rgba: Uint8Array) {
+  let exact = 0;
+  let near = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const a = rgba[i + 3];
+    if (a < 16) continue;
+    if (r === 255 && g === 0 && b === 255) exact++;
+    else if (r > 220 && g < 90 && b > 220) near++;
+  }
+  if (exact || near)
+    throw new Error(`chroma key leak in runtime atlas: ${exact} exact, ${near} near-key visible pixels`);
+}
 
-const transparent = chromaKey(source.rgba);
-writeFileSync(TRANSPARENT_SOURCE, encodePng(transparent, source.w, source.h));
+function isForbiddenPortalMagenta(r: number, g: number, b: number) {
+  // The portal projector's cable/handle is intentionally graphite-blue. Any
+  // visible magenta/purple family here means the generated subject art, not just
+  // the background extraction, drifted wrong.
+  return r > 112 && b > 112 && g < 150 && Math.abs(r - b) < 116 && Math.min(r, b) - g > 24;
+}
 
-const sourceTileW = source.w / COLS;
-const sourceTileH = source.h / ROWS;
-const sheetW = TILE * COLS;
-const sheet = new Uint8Array(sheetW * TILE * ROWS * 4);
-for (let row = 0; row < ROWS; row++) {
-  for (let col = 0; col < COLS; col++) {
-    const region: Rect = {
-      x: col * sourceTileW,
-      y: row * sourceTileH,
-      w: sourceTileW,
-      h: sourceTileH,
-    };
-    const bb = alphaBBox(transparent, source.w, region);
-    const work = new Uint8Array(WORK_TILE * WORK_TILE * 4);
-    const offX = Math.round((WORK_TILE - bb.w) / 2) - bb.x;
-    const offY = Math.round((WORK_TILE - bb.h) / 2) - bb.y;
-    for (let y = bb.y; y < bb.y + bb.h; y++) {
-      for (let x = bb.x; x < bb.x + bb.w; x++) {
-        const si = (y * source.w + x) * 4;
-        if (transparent[si + 3] < 16) continue;
-        const wi = ((y + offY) * WORK_TILE + x + offX) * 4;
-        work.set(transparent.subarray(si, si + 4), wi);
+function assertNoMagentaFamilyInFrame(rgba: Uint8Array, sheetW: number, frame: number) {
+  const row = Math.floor(frame / COLS);
+  const col = frame % COLS;
+  let count = 0;
+  const samples: string[] = [];
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const i = (((row * TILE + y) * sheetW) + col * TILE + x) * 4;
+      if (rgba[i + 3] < 16) continue;
+      if (!isForbiddenPortalMagenta(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+      count++;
+      if (samples.length < 8) {
+        const hex = [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]]
+          .map((value) => value.toString(16).padStart(2, "0")).join("");
+        samples.push(`${x},${y}:#${hex}`);
       }
     }
-    const tile = downsample(work);
-    purgeChromaCrumbs(tile);
-    removeTinyIslands(tile);
-    ditherBurial(tile);
+  }
+  if (count)
+    throw new Error(`portal projector frame contains ${count} visible magenta/purple-family pixels (${samples.join(", ")})`);
+}
+
+function assertNoGeneratedPurpleLeaks(rgba: Uint8Array, sheetW: number) {
+  let count = 0;
+  const samples: string[] = [];
+  for (let frame = 0; frame < COLS * ROWS; frame++) {
+    const row = Math.floor(frame / COLS);
+    const col = frame % COLS;
     for (let y = 0; y < TILE; y++) {
-      const from = y * TILE * 4;
-      const to = ((row * TILE + y) * sheetW + col * TILE) * 4;
-      sheet.set(tile.subarray(from, from + TILE * 4), to);
+      for (let x = 0; x < TILE; x++) {
+        const i = (((row * TILE + y) * sheetW) + col * TILE + x) * 4;
+        if (rgba[i + 3] < 16) continue;
+        if (!isGeneratedPurple(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+        if (isAllowedCubeHeart(frame, x, y, rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+        count++;
+        if (samples.length < 8) {
+          const hex = [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]]
+            .map((value) => value.toString(16).padStart(2, "0")).join("");
+          samples.push(`f${frame}@${x},${y}:#${hex}`);
+        }
+      }
     }
   }
+  if (count)
+    throw new Error(`pop-culture atlas contains ${count} generated purple-family leaks (${samples.join(", ")})`);
 }
+
+const source = decodePng(readFileSync(SOURCE));
+if (source.w !== TILE * COLS || source.h !== TILE * ROWS)
+  throw new Error(`${SOURCE}: expected ${TILE * COLS}x${TILE * ROWS}, got ${source.w}x${source.h}`);
+assertTransparentSource(source.rgba, SOURCE);
+
+const sheetW = TILE * COLS;
+const sheet = new Uint8Array(sheetW * TILE * ROWS * 4);
+for (let frame = 0; frame < COLS * ROWS; frame++) {
+  const tile = cropFixedTile(source, frame);
+  cleanupRestoredTile(tile, frame);
+  putTile(sheet, sheetW, tile, frame);
+}
+
+assertNoRuntimeKeyPixels(sheet);
+assertNoMagentaFamilyInFrame(sheet, sheetW, 11);
+assertNoGeneratedPurpleLeaks(sheet, sheetW);
 
 const png = encodePng(sheet, sheetW, TILE * ROWS);
 writeFileSync(OUTPUT, png);
@@ -241,4 +528,4 @@ const module = `// GENERATED by tools/gen-pop-culture-props-atlas.ts — do not 
   `export const POP_CULTURE_PROPS_ATLAS_ROWS = ${ROWS};\n` +
   `export const POP_CULTURE_PROPS_ATLAS_LAYOUT = {\n${entries}\n} as const;\n`;
 writeFileSync(MODULE, module);
-console.log(`wrote ${OUTPUT}, ${TRANSPARENT_SOURCE}, and ${MODULE}`);
+console.log(`wrote ${OUTPUT} and ${MODULE}`);

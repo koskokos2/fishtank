@@ -125,6 +125,7 @@ function putTile(sheet: Uint8Array, sheetW: number, tile: Uint8Array, frame: num
 
 function normalizeSingle(path: string): Uint8Array {
   const source = decodePng(readFileSync(path));
+  assertTransparentSource(source.rgba, path);
   const [bounds] = spriteBounds(source.rgba, source.w, source.h, 1, 1, path);
   // Single-sprite generations use most of their canvas. Fit them into a padded
   // power-of-128 work area so their final scale matches the original atlas.
@@ -212,9 +213,39 @@ function contentBounds(rgba: Uint8Array, row: number, col: number, sheetW: numbe
   return { top, bottom, contactLeft, contactRight };
 }
 
+function assertTransparentSource(rgba: Uint8Array, sourceName: string) {
+  let transparentPixels = 0;
+  let visibleKeyPixels = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (rgba[i + 3] < 16) transparentPixels++;
+    else if (rgba[i] === 255 && rgba[i + 1] === 0 && rgba[i + 2] === 255) visibleKeyPixels++;
+  }
+  if (transparentPixels < (rgba.length / 4) * 0.25)
+    throw new Error(`${sourceName}: expected a real transparent source; did you pass a chroma PNG?`);
+  if (visibleKeyPixels)
+    throw new Error(`${sourceName}: contains ${visibleKeyPixels} visible exact chroma-key pixels`);
+}
+
+function assertNoRuntimeKeyPixels(rgba: Uint8Array) {
+  let exact = 0;
+  let near = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const a = rgba[i + 3];
+    if (a < 16) continue;
+    if (r === 255 && g === 0 && b === 255) exact++;
+    else if (r > 220 && g < 90 && b > 220) near++;
+  }
+  if (exact || near)
+    throw new Error(`chroma key leak in eldritch runtime atlas: ${exact} exact, ${near} near-key visible pixels`);
+}
+
 const source = decodePng(readFileSync(SOURCE));
 if (source.w !== SOURCE_SIZE || source.h !== SOURCE_SIZE)
   throw new Error(`${SOURCE}: expected ${SOURCE_SIZE}x${SOURCE_SIZE}, got ${source.w}x${source.h}`);
+assertTransparentSource(source.rgba, SOURCE);
 
 const sheetW = TILE * 4;
 const sheet = new Uint8Array(sheetW * TILE * 4 * 4);
@@ -227,6 +258,7 @@ if (replacements.w !== SOURCE_SIZE || replacements.h !== SOURCE_SIZE)
   throw new Error(
     `${REPLACEMENTS}: expected ${SOURCE_SIZE}x${SOURCE_SIZE}, got ${replacements.w}x${replacements.h}`,
   );
+assertTransparentSource(replacements.rgba, REPLACEMENTS);
 const replacementBounds = spriteBounds(
   replacements.rgba,
   replacements.w,
@@ -249,6 +281,7 @@ replacementFrames.forEach((frame, index) =>
 // including the seven user-approved originals—remains byte-for-byte stable.
 putTile(sheet, sheetW, normalizeSingle(TOME_V3), 5);
 putTile(sheet, sheetW, normalizeSingle(CHAOS_POLYP_V3), 8);
+assertNoRuntimeKeyPixels(sheet);
 
 const png = encodePng(sheet, sheetW, TILE * 4);
 writeFileSync(OUTPUT, png);

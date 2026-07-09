@@ -207,6 +207,86 @@ Recommended pixel-art defaults:
 Do not leave transparent padding as arbitrary RGB. Transparent pixels still have
 color values, and filtering can blend those hidden colors into the edge.
 
+### Treat chroma-key sheets as temporary, not as atlas sources
+
+For generated prop atlases, prefer the Star Wars prop workflow: remove the key
+background first, commit a real `*-transparent.png` source, and let the atlas
+normalizer consume alpha only. The normalizer should find bounds, resample, and
+dither from transparent pixels; it should not be responsible for deciding which
+opaque magenta, green, or blue pixels are background.
+
+The pop-culture prop pass showed why this matters. That sheet was generated on a
+flat magenta background and the first normalizer tried to key it directly with
+RGB thresholds. Exact key pixels were easy to delete, but anti-aliased and
+model-painted "almost key" pixels survived around silhouettes. Making the
+threshold broader would also risk deleting intentional purple art such as coral,
+hearts, and glow accents. In contrast, the Star Wars sheet entered its normalizer
+as `art/star-wars-props-atlas-transparent.png`, with alpha already solved, so the
+runtime atlas inherited no chroma halo.
+
+The eldritch prop sheets are a useful distinction: the `*-chroma.png` files are
+traceable generation references and can visibly contain one or more matte/key
+tones, but they are not runtime sources. The generator must consume the
+`*-transparent.png` versions and the final `*-128.png` atlas must validate clean.
+Do not call a chroma reference "good" merely because it will not be loaded; call
+the runtime atlas good only after exact/near key pixels and forbidden hue leaks
+measure zero.
+
+Standard generated-atlas sequence:
+
+1. Generate on native transparent output when available. If only chroma-key
+   output is available, use a flat key color that is absent from the subject and
+   forbid that color in the prompt.
+2. Convert the chroma sheet to transparency immediately, before atlas
+   normalization. If the key colour is truly absent from the subject art, use a
+   border-sampled soft matte, despill, and a small edge contract. In Codex
+   desktop, prefer the bundled Python reported by `load_workspace_dependencies`
+   when system Python does not have Pillow, for example:
+
+   ```sh
+   /Users/km/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 \
+     /Users/km/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py \
+     --input art/example-atlas-chroma.png \
+     --out art/example-atlas-transparent.png \
+     --auto-key border \
+     --soft-matte \
+     --transparent-threshold 12 \
+     --opaque-threshold 220 \
+     --despill \
+     --edge-contract 1
+   ```
+
+   If the key colour overlaps intentional artwork, such as magenta/purple hearts,
+   coral, glow, or glyph details, do not use a global despill/key pass. Use the
+   connected-background converter instead:
+
+   ```sh
+   bun tools/remove-connected-chroma.ts \
+     art/example-atlas-chroma.png \
+     art/example-atlas-transparent.png
+   ```
+
+3. If the subject itself contains the wrong colour, regenerate or replace that
+   source art. Chroma cleanup can remove matte and spill, but it cannot make a
+   pink cable into a good graphite cable without lowering art quality. Focused
+   replacements should match or exceed the source sheet quality; do not paste in
+   a cleaner but simpler tile.
+4. Generate prop subjects as props with intentional contact grounding, not as
+   mini underwater scenes. A small integrated sand/rock/dither rim can be good
+   and may be necessary to match atlases such as Star Wars or eldritch props.
+   Avoid loose bubbles, floating specks, coral tufts, glitter, or side clutter
+   that is detached from the prop's contact patch; those become "hanging
+   bubbles" or inconsistent substrate after normalization.
+5. Point the atlas generator at `art/*-transparent.png`. Keep the chroma PNG only
+   as a traceable source/reference, not as the primary extraction input.
+6. If a generator must support chroma fallback, make it border/edge-aware:
+   remove only background-connected key pixels, clean key-coloured halo pixels
+   only on transparent edges, seed enclosed key-coloured holes, and never
+   globally purge a hue that might appear in the artwork.
+7. Validate the final runtime atlas: exact key pixels should be zero, near-key
+   opaque pixels should be zero, forbidden subject hues should fail loudly, and
+   the atlas must be inspected on dark, checkerboard, and saturated backgrounds.
+
 ### Be careful with rotation
 
 Many atlas packers can rotate sprites by 90 degrees for a tighter pack. That is
@@ -485,6 +565,8 @@ Before accepting an atlas change:
 - Check trimmed frames against untrimmed reference frames.
 - Check large-object recipes for gaps and overlaps.
 - Check edge pixels for color bleed or dark halos.
+- For any chroma-key-generated source, verify exact and near-key pixels are zero
+  in the final runtime atlas before accepting it.
 - Confirm the atlas did not exceed target texture size.
 - Confirm page count and runtime grouping still make sense.
 - Rebuild generated code or metadata from source.

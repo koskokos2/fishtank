@@ -8,10 +8,18 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { HERMIT_CRAB_GROUND_OFFSET } from "./hermitCrabAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
+import {
+  clampPathX,
+  getPropObstacles,
+  insidePropFootprint,
+  nearestClearX,
+} from "./propPlacement";
 
 const S = RES;
 const FRAMES = 6;
 const CRAB_SCALE = 0.5;
+const HALF = 30; // native px — sprite is a 128 cell at 0.5 scale, body ~50px wide
+const STANDOFF = 2 * S; // stop points land strictly clear of a footprint
 const EDGE = 62 * S;
 const MIN_TRIP = 55 * S;
 const MAX_TRIP = 190 * S;
@@ -44,6 +52,8 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
     0,
     MAX_DEPTH,
   );
+  // main.ts spawns one crab dead-centre on a prop slot; nudge clear of it.
+  x = nearestClearX(x, HALF, STANDOFF, substrateDepth, EDGE, k.width() - EDGE);
   let facing = k.choose([-1, 1]);
   let targetX = x;
   let targetDepth = substrateDepth;
@@ -54,6 +64,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
   let puffDistance = 0;
   let nextPuffDistance = k.rand(7, 11) * S;
   let angle = 0;
+  let seenObstacles = getPropObstacles();
   const speed = k.rand(10, 15) * S;
 
   const groundCentreY = (atX: number, depth: number) =>
@@ -95,10 +106,44 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
       k.width() - EDGE,
     );
     targetDepth = chooseOtherDepthTier(k, substrateDepth);
+    targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+    if (Math.abs(targetX - x) < 6 * S) {
+      // A prop clamped this trip to a stub — try the other direction once
+      // rather than parking here; a repeat stub just re-rolls next rest.
+      facing = -facing;
+      crab.flipX = facing > 0;
+      targetX = clamp(
+        x + facing * k.rand(MIN_TRIP, MAX_TRIP),
+        EDGE,
+        k.width() - EDGE,
+      );
+      targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+    }
   };
 
   crab.onUpdate(() => {
     const dt = k.dt();
+    if (seenObstacles !== getPropObstacles()) {
+      seenObstacles = getPropObstacles();
+      // A rotation swap may have dropped a prop on the current trip target
+      // (or, rarely, on a parked crab) — walk it clear rather than clip.
+      if (insidePropFootprint(x, HALF, substrateDepth)) {
+        targetX = nearestClearX(
+          x,
+          HALF,
+          STANDOFF,
+          substrateDepth,
+          EDGE,
+          k.width() - EDGE,
+        );
+        targetDepth = substrateDepth;
+        facing = targetX > x ? 1 : -1;
+        crab.flipX = facing > 0;
+        rest = 0;
+      } else {
+        targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+      }
+    }
     if (rest > 0) {
       rest -= dt;
       crab.frame = 1;
