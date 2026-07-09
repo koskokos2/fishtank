@@ -1,12 +1,12 @@
 // Procedural static backdrop, baked once into a single BW x BH sprite. Generated
 // as a raw RGBA buffer (headlessly previewable), then painted to an offscreen
-// canvas for kaplay. A warm tropical reef: a smooth water gradient, ruined
-// columns + a stone arch over the warm gold sand.
+// canvas for kaplay. A warm tropical reef: a smooth water gradient over warm
+// gold sand.
 // Organic ordered dithering gives the solid materials pixel texture without
 // filling the water with a high-resolution dot mesh.
 //
-// Authored in 640x360 design space and scaled by RES: macro features (columns,
-// arch, props, sand height) multiply by S so the composition is unchanged. Broad
+// Authored in 640x360 design space and scaled by RES: macro features (props,
+// sand height) multiply by S so the composition is unchanged. Broad
 // water gradients stay smooth at high RES; harder materials keep a broken-up
 // ordered dither for pixel texture.
 
@@ -148,11 +148,6 @@ const SAND: RGBA[] = [
   [180, 148, 88, 255], // body
   [206, 176, 110, 255], // sunlit
 ];
-const STONE: RGBA[] = [
-  [92, 82, 64, 255], // shadow
-  [138, 126, 100, 255], // mid
-  [184, 172, 144, 255], // lit sandstone
-];
 // --- buffer helpers ----------------------------------------------------------
 
 type Buf = RGBA[];
@@ -186,24 +181,11 @@ export const sandTopAt = (x: number) => {
 // swimmers (jellyfish 15, nautilus 16) and in front of the caustics (-95).
 export const groundZ = (baseY: number) => -90 + 80 * (baseY / BH);
 
-function sandShadow(x: number, y: number, top: number) {
+// The first few pixels below the waterline are slightly darker: loose silt and
+// grains slope away from the lit crest instead of forming a flat yellow band.
+function sandShadow(y: number, top: number) {
   const d = y - top;
-  let shade = 0;
-  const add = (cx: number, cy: number, rx: number, ry: number, strength: number) => {
-    const nx = (x - cx) / rx;
-    const ny = (y - cy) / ry;
-    const falloff = 1 - (nx * nx + ny * ny);
-    if (falloff > 0) shade += falloff * strength;
-  };
-
-  // Contact shadows under the ruins columns.
-  add(248 * S, top + 2 * S, 18 * S, 8 * S, 0.18);
-  add(392 * S, top + 2 * S, 16 * S, 7 * S, 0.14);
-
-  // The first few pixels below the waterline are slightly darker: loose silt and
-  // grains slope away from the lit crest instead of forming a flat yellow band.
-  shade += Math.max(0, 1 - d / (10 * S)) * 0.08;
-  return shade;
+  return Math.max(0, 1 - d / (10 * S)) * 0.08;
 }
 
 // --- painters (back to front) ------------------------------------------------
@@ -218,77 +200,6 @@ function paintWater(buf: Buf) {
       setPx(buf, x, y, smoothRamp(WATER, clamp01(g)));
     }
   }
-}
-
-// A weathered stone block, lit from the top.
-function block(buf: Buf, x0: number, y0: number, x1: number, y1: number) {
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
-      const v = (y1 - y) / Math.max(1, y1 - y0); // 1 at top, 0 at bottom
-      let L = 0.45 + 0.55 * v;
-      L *= 0.9 + 0.1 * fbm(x * 0.15, y * 0.15, 71);
-      setPx(buf, x, y, ditherRamp(STONE, clamp01(L), x, y));
-    }
-  }
-}
-
-function column(buf: Buf, cx: number, top: number, hw: number) {
-  const bottom = BH; // runs into the sand, which is painted over it later
-  for (let y = top; y < bottom; y++) {
-    for (let x = cx - hw; x <= cx + hw; x++) {
-      const u = (x - (cx - hw)) / (2 * hw); // 0..1 across the shaft
-      let L = 0.4 + 0.6 * Math.sin(u * Math.PI); // cylinder roundness
-      const flute = 0.5 + 0.5 * Math.cos(u * Math.PI * 2 * 4); // 4 grooves
-      L *= lerp(0.8, 1, flute);
-      L *= 0.9 + 0.1 * fbm(x * 0.1, y * 0.12, 73); // weathering
-      setPx(buf, x, y, ditherRamp(STONE, clamp01(L), x, y));
-    }
-  }
-  block(buf, cx - hw - 3 * S, top - 5 * S, cx + hw + 3 * S, top - 1 * S); // capital
-}
-
-function arch(
-  buf: Buf,
-  axc: number,
-  ayc: number,
-  ri: number,
-  ro: number,
-  missing: Set<number>,
-) {
-  const NB = 11;
-  const step = Math.PI / NB;
-  for (let y = ayc - ro - 1; y <= ayc; y++) {
-    for (let x = axc - ro - 1; x <= axc + ro + 1; x++) {
-      const dx = x - axc;
-      const dy = y - ayc;
-      const r = Math.hypot(dx, dy);
-      if (r < ri || r > ro) continue;
-      const ang = Math.atan2(-dy, dx);
-      if (ang < 0 || ang > Math.PI) continue;
-      const blk = Math.floor(ang / step);
-      if (missing.has(blk)) continue;
-      if (r > ro - 2 * S && fbm(x * 0.2, y * 0.2, 41) < 0.35) continue; // chipped edge
-      const ga = (ang % step) / step;
-      const mortar = ga < 0.08 || ga > 0.92;
-      const gr = (r - ri) / (ro - ri);
-      let L = (0.45 + 0.55 * Math.sin(ang)) * lerp(0.7, 1, gr);
-      if (mortar) L *= 0.5;
-      setPx(buf, x, y, ditherRamp(STONE, clamp01(L), x, y));
-    }
-  }
-}
-
-function paintRuins(buf: Buf) {
-  const cxL = 248 * S;
-  const cxR = 392 * S;
-  const hw = 9 * S;
-  const springline = 158 * S; // where the arch springs from the column tops
-  column(buf, cxL, springline, hw);
-  column(buf, cxR, 214 * S, hw); // right column broken short, below the springline
-  // Arch radius = half the column span, so its springs land on the column tops.
-  // Blocks 0-2 (the right-lower spring) are gone — collapsed toward the broken
-  // right column — leaving the arch intact over the left.
-  arch(buf, (cxL + cxR) / 2, springline, (cxR - cxL) / 2, (cxR - cxL) / 2 + 12 * S, new Set([0, 1, 2]));
 }
 
 function paintSand(buf: Buf) {
@@ -310,7 +221,7 @@ function paintSand(buf: Buf) {
         fine +
         coarse +
         fleck -
-        sandShadow(x, y, top);
+        sandShadow(y, top);
       setPx(buf, x, y, ditherRamp(SAND, clamp01(L), x, y));
     }
     if (x % (3 * S) < S) setPx(buf, x, top, SAND[2]); // broken sunlit crest
@@ -326,7 +237,6 @@ function paintSand(buf: Buf) {
 export function backdropPixels(seed = 1): RGBA[] {
   const buf: Buf = new Array(BW * BH);
   paintWater(buf);
-  paintRuins(buf);
   paintSand(buf);
   return buf;
 }
@@ -334,7 +244,7 @@ export function backdropPixels(seed = 1): RGBA[] {
 const CLEAR: RGBA = [0, 0, 0, 0];
 
 // DOM bake -> data URLs for kaplay's loadSprite. The scene splits into two
-// full-resolution layers: the opaque water+ruins back plate and a transparent
+// full-resolution layers: the opaque water back plate and a transparent
 // sand overlay (dunes only). Far plants render between the two so the dune crest
 // occludes their roots. Props remain live so the rotating pool can replace them.
 export async function makeBackdrop(
@@ -342,7 +252,6 @@ export async function makeBackdrop(
 ): Promise<{ back: string; sand: string }> {
   const backBuf: Buf = new Array(BW * BH);
   paintWater(backBuf);
-  paintRuins(backBuf);
 
   const sandBuf: Buf = new Array(BW * BH).fill(CLEAR);
   paintSand(sandBuf);

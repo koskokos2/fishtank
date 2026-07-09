@@ -165,6 +165,32 @@ export const PROP_WHITELIST: readonly WhitelistedProp[] = [
   ),
 ];
 
+// The two display-category props sit outside the rotation: spawned once in the
+// gaps between the rotating slot centres and never evicted. Their obstacle
+// entries live after the rotating slots'.
+const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
+  {
+    prop: atlasProps(
+      "star-wars",
+      "star-wars-props",
+      ["galactic_field_terminal"],
+      STAR_WARS_PROPS_ATLAS_CELL,
+      STAR_WARS_PROPS_ATLAS_LAYOUT,
+    )[0],
+    slot: { fx: 0.32, depth: 26 },
+  },
+  {
+    prop: atlasProps(
+      "sci-fi",
+      "sci-fi-props",
+      ["amber_wedge_console"],
+      SCI_FI_PROPS_ATLAS_CELL,
+      SCI_FI_PROPS_ATLAS_LAYOUT,
+    )[0],
+    slot: { fx: 0.64, depth: 34 },
+  },
+];
+
 // Use the lowest screen-space terrain point under the whole contact footprint,
 // so neither edge of a prop can float above a curved dune.
 function footprintFloor(width: number, left: number, layout: Layout) {
@@ -467,6 +493,12 @@ function dropInProp(
       }
     }
   });
+}
+
+export function spawnFixedProps(k: KAPLAYCtx) {
+  FIXED_PROPS.forEach(({ prop, slot }, index) =>
+    spawnProp(k, prop, slot, PROP_SLOTS.length + index),
+  );
 }
 
 export function spawnRotatingProps(k: KAPLAYCtx) {

@@ -175,6 +175,31 @@ stay as a 128 px grid. A common best-practice split is:
 For a tiny project, using the source grid directly at runtime is acceptable. As
 the sprite count grows, a generated packed runtime page is usually better.
 
+### Fixed source cells are guides, not proof of clean sprite bounds
+
+The sci-fi prop pass showed a different class of atlas defect from ordinary
+texture bleeding. The transparent source sheet was still arranged as a fixed
+grid, but one sprite physically crossed into its neighbour's source cell:
+`broken_maintenance_drone` had a manipulator extending left, while
+`spherical_sensor` inherited those hand pixels when the generator took a simple
+alpha bbox of the whole cell. The final symptom looked like runtime atlas bleed,
+but the cause was source extraction.
+
+When a generated source sheet uses visual grid cells, do not assume each cell is
+the true sprite boundary:
+
+- inspect source crops and final 128px crops side by side at native size and 4x;
+- if a sprite intentionally overhangs its nominal cell, expand that frame's
+  source extraction region instead of clipping the part;
+- if a neighbour pollutes a cell, guard or shrink that frame's source region
+  before bbox detection;
+- prefer connected-component or frame-specific extraction over global cell bboxes
+  when sprites are tightly packed or generated with imperfect gutters;
+- document frame-specific regions in the generator, because they are source
+  corrections, not arbitrary magic numbers;
+- add assertions around the repaired frames, such as expected side margins or a
+  maximum suspicious extent, so neighbour contamination fails loudly next time.
+
 ### Keep code indexes small
 
 Embedding atlas PNGs as base64 strings in generated TypeScript is convenient for
@@ -334,6 +359,21 @@ Standard generated-atlas sequence:
 7. Validate the final runtime atlas: exact key pixels should be zero, near-key
    opaque pixels should be zero, forbidden subject hues should fail loudly, and
    the atlas must be inspected on dark, checkerboard, and saturated backgrounds.
+
+There is one valid exception to "transparent source first": targeted recovery
+from the chroma source when the transparent pass already destroyed intentional
+key-adjacent subject colour. The folded sci-fi relic lost its purple secondary
+glow because that glow was too close to the magenta key family. In that case,
+the generator may consume the chroma frame only for that sprite, but it must:
+
+- remove only background-connected matte from the frame border;
+- clean key-coloured halo pixels only near transparent edges;
+- recolor the intentional accent into a safe palette range before normalization
+  when the original hue conflicts with the key;
+- protect the contact/substrate band from recolor so matte is not turned into a
+  glowing carpet;
+- clear detached flecks after downsampling;
+- keep the normal transparent-source path for every unaffected sprite.
 
 ### Use scripted repair for pixel artifacts, not for structural art problems
 

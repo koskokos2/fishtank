@@ -5,12 +5,12 @@ import {
   PLANT_ATLAS_CELL,
   PLANT_ATLAS_LAYOUT,
 } from "./plantAtlas";
-import { spawnRotatingProps } from "./propPlacement";
+import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 
 const S = RES;
 
 // The static scene is baked once into two sprites (see backdrop.ts): the
-// water+ruins back plate and a transparent sand overlay (the dunes).
+// water back plate and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
 // caustics, swaying plants, motes, and source-based bubbles. Depth is faked
 // with z-ordering.
@@ -26,6 +26,9 @@ export function setupTank(k: KAPLAYCtx) {
   // Six live prop slots draw from the combined whitelist. One random occupant
   // is replaced by a different whitelisted prop every five minutes.
   spawnRotatingProps(k);
+
+  // The two display consoles stay put in the gaps between the rotating slots.
+  spawnFixedProps(k);
 
   // Atlas plants keep the good depth language of the old procedural grass, but
   // each real frond now has its own root pivot and current phase. Their roots use
