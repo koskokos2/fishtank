@@ -1,6 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ } from "./backdrop";
 import type { PropPlacement } from "./propPlacement";
+import { drawScreenText, type ScreenQuad } from "./screenText";
 import {
   STAR_WARS_PROPS_ATLAS_CELL,
   STAR_WARS_PROPS_ATLAS_LAYOUT,
@@ -59,7 +60,7 @@ type DisplayWindow =
 
 // Cell-local geometry traced inside the final 128px art rather than inferred
 // from its bounding box. Both masks are inset from the bright bezel pixels.
-export const STAR_WARS_DISPLAY_WINDOWS: Record<StarWarsDisplayName, DisplayWindow> = {
+export const STAR_WARS_DISPLAY_WINDOWS = {
   hologram_strategy_table: {
     shape: "ellipse",
     cx: 65,
@@ -78,9 +79,42 @@ export const STAR_WARS_DISPLAY_WINDOWS: Record<StarWarsDisplayName, DisplayWindo
       { x: 40, y: 66 },
     ],
   },
-};
+} satisfies Record<StarWarsDisplayName, DisplayWindow>;
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+const FPS_SAMPLE_PERIOD = 0.25; // s between refreshes so the digits don't flicker
+
+export function spawnFpsReadout(
+  k: KAPLAYCtx,
+  rootX: number,
+  spriteY: number,
+  z: number,
+) {
+  const originX = rootX - STAR_WARS_PROPS_ATLAS_CELL / 2;
+  const originY = spriteY - STAR_WARS_PROPS_ATLAS_CELL;
+  const quad = STAR_WARS_DISPLAY_WINDOWS.galactic_field_terminal.points.map(
+    (point) => ({ x: originX + point.x, y: originY + point.y }),
+  ) as ScreenQuad;
+
+  let shown = 0;
+  let lastSample = -Infinity;
+  k.add([
+    k.z(z),
+    {
+      draw() {
+        const t = k.time();
+        if (t - lastSample >= FPS_SAMPLE_PERIOD) {
+          lastSample = t;
+          shown = Math.min(999, Math.round(k.debug.fps()));
+        }
+        // 2px glyph pixels, centred on the screen art's optical centre, which
+        // sits left and below the quad's geometric centre.
+        drawScreenText(k, quad, String(shown), 0.45, 0.56, 2, [114, 245, 232], 0.85);
+      },
+    },
+  ]);
+}
 
 export function spawnStarWarsProps(
   k: KAPLAYCtx,

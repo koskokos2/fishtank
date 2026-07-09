@@ -3,7 +3,7 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { clamp01 } from "./color";
 import { spawnSandPuff } from "./sandPuff";
 import { RES, VH } from "./res";
-import { SCI_FI_PROP_SPECS } from "./sciFiProps";
+import { SCI_FI_PROP_SPECS, spawnTemperatureReadout } from "./sciFiProps";
 import {
   SCI_FI_PROPS_ATLAS_CELL,
   SCI_FI_PROPS_ATLAS_LAYOUT,
@@ -13,7 +13,7 @@ import {
   ELDRITCH_PROPS_ATLAS_CELL,
   ELDRITCH_PROPS_ATLAS_LAYOUT,
 } from "./eldritchPropsAtlas";
-import { STAR_WARS_PROP_SPECS } from "./starWarsProps";
+import { STAR_WARS_PROP_SPECS, spawnFpsReadout } from "./starWarsProps";
 import {
   STAR_WARS_PROPS_ATLAS_CELL,
   STAR_WARS_PROPS_ATLAS_LAYOUT,
@@ -165,9 +165,8 @@ export const PROP_WHITELIST: readonly WhitelistedProp[] = [
   ),
 ];
 
-// The two display-category props sit outside the rotation: spawned once in the
-// gaps between the rotating slot centres and never evicted. Their obstacle
-// entries live after the rotating slots'.
+// The two display-category props sit outside the rotation: spawned once and
+// never evicted. Their obstacle entries live after the rotating slots'.
 const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
   {
     prop: atlasProps(
@@ -177,7 +176,9 @@ const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
       STAR_WARS_PROPS_ATLAS_CELL,
       STAR_WARS_PROPS_ATLAS_LAYOUT,
     )[0],
-    slot: { fx: 0.32, depth: 26 },
+    // Corner piece: the cell hangs a few px off the left edge, and a deep slot
+    // draws it in front of whatever occupies the fx 0.08 rotating slot behind.
+    slot: { fx: 0.035, depth: 46 },
   },
   {
     prop: atlasProps(
@@ -496,9 +497,13 @@ function dropInProp(
 }
 
 export function spawnFixedProps(k: KAPLAYCtx) {
-  FIXED_PROPS.forEach(({ prop, slot }, index) =>
-    spawnProp(k, prop, slot, PROP_SLOTS.length + index),
-  );
+  FIXED_PROPS.forEach(({ prop, slot }, index) => {
+    const object = spawnProp(k, prop, slot, PROP_SLOTS.length + index);
+    if (prop.name === "galactic_field_terminal")
+      spawnFpsReadout(k, object.pos.x, object.pos.y, object.z + 0.01);
+    if (prop.name === "amber_wedge_console")
+      spawnTemperatureReadout(k, object.pos.x, object.pos.y, object.z + 0.01);
+  });
 }
 
 export function spawnRotatingProps(k: KAPLAYCtx) {

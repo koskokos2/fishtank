@@ -27,7 +27,7 @@ export function setupTank(k: KAPLAYCtx) {
   // is replaced by a different whitelisted prop every five minutes.
   spawnRotatingProps(k);
 
-  // The two display consoles stay put in the gaps between the rotating slots.
+  // The two display consoles stay put, outside the rotating slots.
   spawnFixedProps(k);
 
   // Atlas plants keep the good depth language of the old procedural grass, but

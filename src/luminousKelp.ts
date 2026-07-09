@@ -14,7 +14,7 @@ const TRUNK_SWAY_RANGE = 2;
 // Pull neighbouring modules well into one another. The atlas deliberately has
 // soft, hairy ends, so this overlap reads as one continuous stem instead of a
 // stack of independently cut sprites.
-const JOINT_OVERLAP = 0.91;
+const JOINT_OVERLAP = 0.88;
 const REAR_Z = -180; // behind fish and the sand crest
 const FRONT_Z = 18; // selected stalks occlude passing fish
 
@@ -43,10 +43,14 @@ type GroveSlot = {
   podRichness: Range;
 };
 
-// Five tightly ordered root bands confine the grove to the rightmost quarter.
-// Values inside each band are rolled once per load; compact scales let the
-// crowns interweave densely without throwing stray branches into mid-screen.
+// A few low juvenile stalks soften the left edge, then five mature root bands
+// keep the dense forest in the rightmost quarter. Values inside each band are
+// rolled once per load; compact scales let crowns interweave densely without
+// throwing stray branches into the central swimming window.
 export const LUMINOUS_KELP_GROVE: readonly GroveSlot[] = [
+  { fx: 0.705, jitter: 0.006, scale: [0.46, 0.56], layer: "rear", surface: [0.43, 0.52], depth: [8, 13], podRichness: [0.16, 0.34] },
+  { fx: 0.738, jitter: 0.007, scale: [0.54, 0.66], layer: "rear", surface: [0.32, 0.43], depth: [9, 15], podRichness: [0.24, 0.46] },
+  { fx: 0.765, jitter: 0.006, scale: [0.6, 0.72], layer: "front", surface: [0.22, 0.34], depth: [16, 22], podRichness: [0.3, 0.54] },
   { fx: 0.785, jitter: 0.005, scale: [0.76, 0.86], layer: "rear", surface: [0.025, 0.075], depth: [6, 10], podRichness: [0.42, 0.68] },
   { fx: 0.83, jitter: 0.006, scale: [0.86, 0.98], layer: "front", surface: [-0.015, 0.04], depth: [17, 23], podRichness: [0.62, 0.88] },
   { fx: 0.875, jitter: 0.006, scale: [0.94, 1.06], layer: "rear", surface: [-0.055, 0.01], depth: [6, 11], podRichness: [0.72, 1] },
@@ -64,6 +68,14 @@ function transformedTip(origin: Point, angle: number, tip: Point, scale: number)
   };
 }
 
+function offsetDownStem(point: Point, angle: number, distance: number) {
+  const radians = (angle * Math.PI) / 180;
+  return {
+    x: point.x - Math.sin(radians) * distance,
+    y: point.y + Math.cos(radians) * distance,
+  };
+}
+
 const STEM_PARTS: PartName[] = ["straightStem", "straightStem", "leftStem", "rightStem"];
 
 export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
@@ -72,8 +84,9 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
   const targetY = spec.surface * k.height();
   const z = spec.layer === "front" ? FRONT_Z : REAR_Z;
   const rear = spec.layer === "rear";
+  const defaultOpacity = rear ? 0.88 : 0.98;
 
-  const makePart = (name: PartName, scale = spec.scale, zOffset = 0) => {
+  const makePart = (name: PartName, scale = spec.scale, zOffset = 0, opacity = defaultOpacity) => {
     const object = k.add([
       k.sprite("luminous-kelp", { frame: LUMINOUS_KELP_PART[name] }),
       k.pos(rootX, rootY),
@@ -81,7 +94,7 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
       k.rotate(0),
       k.scale(scale),
       k.color(...(rear ? [186, 207, 190] as const : [238, 249, 232] as const)),
-      k.opacity(rear ? 0.88 : 0.98),
+      k.opacity(opacity),
       k.z(z + zOffset),
     ]);
     return { name, object, scale, baseScale: scale };
@@ -132,13 +145,26 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
     makePart(name, spec.scale * k.rand(0.985, 1.015), 0.03 + index * 0.002),
   );
 
-  // A slim piece of matching stem texture bridges every module boundary. It
-  // sits above both neighbours and follows their averaged angle, concealing
-  // the otherwise visible cut without turning every joint into a leafy knot.
-  const jointBridges = stems.slice(0, -1).map((_, index) => ({
-    ...makePart("straightStem", spec.scale * k.rand(0.42, 0.49), 0.058 + index * 0.0002),
-    joint: index + 2,
-  }));
+  // Soft sleeves of matching stem texture bridge module boundaries. They tuck
+  // downward into the lower segment and fade toward the crown, so sparse upper
+  // stalks keep their open silhouette without exposing hard sprite cuts.
+  const seamJoints = [
+    ...stems.slice(0, -1).map((_, index) => index + 2),
+    stems.length + 1, // final stem-to-crown attachment
+  ];
+  const jointBridges = seamJoints.map((joint, index) => {
+    const topness = Math.min(1, joint / (stems.length + 1));
+    const bridgeScale = spec.scale * k.rand(0.5, 0.58);
+    const opacity = (rear ? 0.64 : 0.72) - topness * (rear ? 0.18 : 0.22);
+    const bridge = makePart("straightStem", bridgeScale, 0.057 + index * 0.0002, opacity);
+    bridge.object.scale.x = bridgeScale * k.rand(0.48, 0.58);
+    bridge.object.scale.y = bridgeScale * k.rand(0.86, 1.02);
+    return {
+      ...bridge,
+      joint,
+      tuck: spec.scale * k.rand(11, 17),
+    };
+  });
 
   // Dense side growth at alternating stem joints. Its scale is smaller than the
   // trunk so neighbouring plants interweave without becoming a solid rectangle.
@@ -241,7 +267,8 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
       const lowerAngle = angles[bridge.joint - 1] ?? 0;
       const upperAngle = angles[bridge.joint] ?? lowerAngle;
       const breathing = Math.sin(time * 0.29 + spec.phase + index * 0.61) * 0.18;
-      place(bridge, points[bridge.joint], (lowerAngle + upperAngle) * 0.5 + breathing);
+      const angle = (lowerAngle + upperAngle) * 0.5 + breathing;
+      place(bridge, offsetDownStem(points[bridge.joint], angle, bridge.tuck), angle);
     });
 
     branches.forEach((branch, index) => {

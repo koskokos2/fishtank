@@ -1,6 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ } from "./backdrop";
 import type { PropPlacement } from "./propPlacement";
+import { drawScreenText, type ScreenQuad } from "./screenText";
 import {
   SCI_FI_PROPS_ATLAS_CELL,
   SCI_FI_PROPS_ATLAS_LAYOUT,
@@ -84,6 +85,58 @@ export const SCI_FI_DISPLAY_WINDOWS: Record<SciFiDisplayName, DisplayWindow> = {
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+// Traced corners of the amber wedge console's dark glass, inset from the bezel.
+const AMBER_CONSOLE_SCREEN: ScreenQuad = [
+  { x: 45, y: 47 },
+  { x: 80, y: 48 },
+  { x: 70, y: 67 },
+  { x: 36, y: 63 },
+];
+
+// Open-Meteo: free, keyless, CORS-enabled current air temperature (°C).
+const TEMPERATURE_URL =
+  "https://api.open-meteo.com/v1/forecast?latitude=51.44162&longitude=0.14866&current=temperature_2m";
+const TEMPERATURE_REFRESH_SECONDS = 10 * 60;
+
+export function spawnTemperatureReadout(
+  k: KAPLAYCtx,
+  rootX: number,
+  spriteY: number,
+  z: number,
+) {
+  const originX = rootX - SCI_FI_PROPS_ATLAS_CELL / 2;
+  const originY = spriteY - SCI_FI_PROPS_ATLAS_CELL;
+  const quad = AMBER_CONSOLE_SCREEN.map((point) => ({
+    x: originX + point.x,
+    y: originY + point.y,
+  })) as ScreenQuad;
+
+  // "--" until the first fetch lands; a failed refresh keeps the last reading
+  // on screen until the next try.
+  let reading = "--";
+  const refresh = async () => {
+    try {
+      const response = await fetch(TEMPERATURE_URL);
+      if (!response.ok) return;
+      const celsius = (await response.json())?.current?.temperature_2m;
+      if (typeof celsius === "number") reading = String(Math.round(celsius));
+    } catch {}
+  };
+  refresh();
+  k.loop(TEMPERATURE_REFRESH_SECONDS, refresh);
+
+  k.add([
+    k.z(z),
+    {
+      draw() {
+        // 2px glyph pixels on the ~35x18px glass; "-12" (11 columns) still
+        // fits inside the bezel.
+        drawScreenText(k, quad, reading, 0.5, 0.5, 2, [240, 169, 63], 0.9);
+      },
+    },
+  ]);
+}
 
 export function spawnSciFiProps(
   k: KAPLAYCtx,

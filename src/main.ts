@@ -177,9 +177,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     spawnHermitCrab(k, k.width() * 0.24);
     spawnHermitCrab(k, k.width() * 0.76);
     spawnSeaSnail(k);
-    // Five surface-reaching stalks are reconstructed on every load from ordered
-    // random stem, branch, crown, tendril and pod modules. Alternating rear/front
-    // depth layers make fish disappear naturally into the uneven grove.
+    // A dense right-side kelp forest is reconstructed on every load from ordered
+    // random stem, branch, crown, tendril and pod modules. Small juvenile stalks
+    // taper the left edge, while alternating rear/front layers make fish disappear
+    // naturally into the uneven mature grove.
     spawnLuminousKelpGrove(k);
   });
 })();
