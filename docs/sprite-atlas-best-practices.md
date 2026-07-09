@@ -52,8 +52,8 @@ That means atlas grouping should follow runtime behavior:
   separate pages when they are drawn in different phases;
 - avoid a single mega-atlas if it forces unrelated assets to stay resident.
 
-For this project, the current split into fish, sea creatures, coral, ruins, and
-other thematic atlases is reasonable because those groups also map to different
+For this project, the current split into fish, nautilus, octopus, jellyfish, prop,
+and other thematic atlases is reasonable because those groups also map to different
 runtime systems and preview/generation tools.
 
 ### Keep the pixel grid sacred
