@@ -220,9 +220,9 @@ function renderJellyfish() {
   const frames = Array.from({ length: JELLYFISH_LAYER_FRAMES }, (_, i) => {
     const out: Buf = { data: new Uint8Array(cell * cell * 4), w: cell, h: cell };
     const offset = JELLYFISH_BELL_ATTACH_Y[i] - JELLYFISH_LAYER_ROOT_Y;
+    over(out, tile(JELLYFISH_BELL_START + i));
     over(out, tile(JELLYFISH_TENDRILS_START + ((i * 3 + 2) % JELLYFISH_LAYER_FRAMES)), offset);
     over(out, tile(JELLYFISH_ARMS_START + i), offset);
-    over(out, tile(JELLYFISH_BELL_START + i));
     return out;
   });
   renderFrames(frames, "jellyfish.png", "layered jellyfish frames");

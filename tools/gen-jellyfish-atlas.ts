@@ -169,7 +169,13 @@ for (let f = 0; f < FRAMES; f++) {
   const bell = resize(bellMaster, bellW, bellH);
   const bellX = f * TILE + Math.round((TILE - bellW) / 2);
   blit(sheet, sheetW, bell, bellX, BELL_TOP);
-  bellAttachY.push(BELL_TOP + bellH - 2);
+  // Attach the appendages well up inside the bell (not at its bottom edge) so
+  // their roots tuck under the dome margin; the runtime draws them over the
+  // bell, so they read as emerging from underneath rather than glued below.
+  // The raise is constant so the roots track the moving margin exactly — any
+  // per-frame variation reads as the tails sliding across the dome. The pulse
+  // reaction is a runtime offset on top of this (cephalopod.ts).
+  bellAttachY.push(BELL_TOP + bellH - 14);
 
   const armFrame = waveFrame(arms, f, 3.2, 2.5, 0.045, 1.1);
   blit(sheet, sheetW, armFrame, f * TILE, TILE);

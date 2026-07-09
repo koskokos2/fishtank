@@ -11,4 +11,4 @@ export const JELLYFISH_BELL_START = 0;
 export const JELLYFISH_ARMS_START = 16;
 export const JELLYFISH_TENDRILS_START = 32;
 export const JELLYFISH_LAYER_ROOT_Y = 47;
-export const JELLYFISH_BELL_ATTACH_Y = [52, 52, 53, 54, 56, 57, 59, 60, 60, 60, 59, 57, 56, 54, 53, 52] as const;
+export const JELLYFISH_BELL_ATTACH_Y = [40, 40, 41, 42, 44, 45, 47, 48, 48, 48, 47, 45, 44, 42, 41, 40] as const;

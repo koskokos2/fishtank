@@ -90,6 +90,11 @@ const JELLY_ARMS_FPS = 8;
 const JELLY_TENDRIL_FPS = 10;
 const JELLY_TURN_DUR = 0.55; // tuck/roll duration; flip happens halfway through
 const JELLY_FLARE = 0.5; // s the oral-arms flare shows before a startle retreat
+// Each contraction kicks the tails this far (atlas px) below their resting
+// tuck; they settle back with this time constant. The kick is fast and the
+// return slow, so the tails never read as sliding up across the dome.
+const JELLY_TAIL_PUSH = 6;
+const JELLY_TAIL_SETTLE = 0.9;
 
 // =========================== ENTITY ===========================
 type KindCfg = {
@@ -192,7 +197,10 @@ const KINDS: Record<string, KindCfg> = {
   },
   jellyfish: {
     sprite: "jellyfish-bell",
-    z: 15,
+    // Base of the per-jelly z bands (base - jellyIdx, appendages +0.1/+0.2);
+    // all bands stay below 13 so they never cut into the nautilus layer group,
+    // which reaches down to its cfg.z - 2.
+    z: 12,
     drag: 1.6,
     level: { min: 0.05, max: 0.7 }, // drifts the mid/upper column
     artDir: 1, // the jellyfish atlas leads right — tentacles trail left
@@ -234,8 +242,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
 
   // The picked scale rides every jelly layer and the appendage attach offset.
   // Other kinds stay at 1.
+  const jellyIdx = cfg.motion === "pulse" ? jellySpawned++ : 0;
   const jellyScale =
-    cfg.motion === "pulse" ? (JELLY_SCALES[jellySpawned++] ?? 0.5) : 1;
+    cfg.motion === "pulse" ? (JELLY_SCALES[jellyIdx] ?? 0.5) : 1;
+  // Each jellyfish gets its own whole-number z band (later/smaller spawns sit
+  // behind), so the tails — drawn above their own bell — can never interleave
+  // with an overlapping neighbour's dome.
+  const zBase = cfg.z - jellyIdx;
 
   const body = k.add([
     k.sprite(cfg.sprite),
@@ -243,10 +256,12 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     k.anchor("center"),
     k.rotate(0),
     k.scale(jellyScale),
-    k.z(cfg.z),
+    k.z(zBase),
   ]);
   // Jellyfish appendages are separate sprites sharing the bell's transform. They
   // stay on their own animation clocks instead of being frozen into bell poses.
+  // Both draw just above the bell: their roots attach up inside the dome and
+  // overlap its lower rim, reading as emerging from underneath it.
   const jellyTendrils =
     cfg.motion === "pulse"
       ? k.add([
@@ -255,7 +270,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           k.anchor("center"),
           k.rotate(0),
           k.scale(jellyScale),
-          k.z(cfg.z - 2),
+          k.z(zBase + 0.1),
         ])
       : null;
   const jellyArms =
@@ -266,7 +281,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           k.anchor("center"),
           k.rotate(0),
           k.scale(jellyScale),
-          k.z(cfg.z - 1),
+          k.z(zBase + 0.2),
         ])
       : null;
 
@@ -390,6 +405,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let jellyTurnTimer = 0; // dedicated turn state; pauses the pump until complete
   let jellyTurnTarget = facing;
   let jellyTurnFlipped = false;
+  let jellyTailPush = 0; // current downward tail offset from the last contraction
   let jellyArmsClock = k.rand(0, JELLYFISH_LAYER_FRAMES / JELLY_ARMS_FPS);
   let jellyTendrilClock = k.rand(0, JELLYFISH_LAYER_FRAMES / JELLY_TENDRIL_FPS);
   let flareTimer = 0; // startle wind-up: oral arms flare before the retreat
@@ -982,12 +998,21 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             ? 0.12 * Math.sin((Math.PI * flareTimer) / JELLY_FLARE)
             : 0));
 
+      if (pulsePhase === 0)
+        jellyTailPush =
+          JELLY_TAIL_PUSH * clamp(1 - pulseTimer / p.contract, 0, 1);
+      else jellyTailPush *= Math.exp(-dt / JELLY_TAIL_SETTLE);
+
       const attachOffset =
-        (JELLYFISH_BELL_ATTACH_Y[bellFrame] - JELLYFISH_LAYER_ROOT_Y) *
+        (JELLYFISH_BELL_ATTACH_Y[bellFrame] +
+          jellyTailPush -
+          JELLYFISH_LAYER_ROOT_Y) *
         jellyScale;
       const radians = (body.angle * Math.PI) / 180;
-      const ox = -Math.sin(radians) * attachOffset;
-      const oy = Math.cos(radians) * attachOffset;
+      // Whole-pixel offsets: the scaled attach distance goes fractional for the
+      // smaller jellies, and a half-pixel layer shift blurs the seam.
+      const ox = Math.round(-Math.sin(radians) * attachOffset);
+      const oy = Math.round(Math.cos(radians) * attachOffset);
       for (const layer of [jellyTendrils!, jellyArms!]) {
         layer.pos.x = body.pos.x + ox;
         layer.pos.y = body.pos.y + oy;
