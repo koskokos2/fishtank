@@ -1,8 +1,15 @@
 // Clean the curated high-detail pop-culture tribute source into the project's
-// 128px prop-atlas format and embed the result for Kaplay. The source is the
-// earlier, more characterful atlas; this pass preserves its composition,
-// details, and sand-contact grounding while removing generated defects such as
-// detached bubbles and purple/magenta matte casts.
+// 128px prop-atlas format and embed the result for Kaplay.
+//
+// Important workflow boundary:
+// - Use scripted repair for measurable pixel artifacts: chroma halos, detached
+//   specks, forbidden purple/magenta matte casts, or source pixels deleted by
+//   cleanup. The cube-heart and portal-cable exceptions below are intentionally
+//   narrow and validated.
+// - Do not use scripted repair for visual anatomy/attachment problems. If a
+//   part needs to feel physically integrated, regenerate the affected tile as a
+//   whole object and consume that source here. The robot head follows this rule:
+//   its antenna is part of a replacement tile, not a pasted-on cap.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng } from "./png";
 
@@ -10,6 +17,9 @@ type Rect = { x: number; y: number; w: number; h: number };
 type SpriteDef = { name: string; row: number; col: number };
 
 const SOURCE = "art/pop-culture-props-restored-128.png";
+// Full-tile replacement source. Keep this separate from the 128px runtime atlas
+// so future runs can reproduce the coherent robot/antenna drawing.
+const ROBOT_REPLACEMENT_SOURCE = "art/pop-culture-robot-head-regenerated.png";
 const OUTPUT = "art/pop-culture-props-atlas-128.png";
 const MANIFEST = "art/pop-culture-props-atlas-128.json";
 const MODULE = "src/popCulturePropsAtlas.ts";
@@ -19,6 +29,7 @@ const TILE = 128;
 const WORK_TILE = 384;
 const BURIAL_BAND = 18;
 const KEY_TOLERANCE = 38;
+const RETRO_ROBOT_FRAME = 6;
 const COMPANION_CUBE_FRAME = 9;
 const BAYER = [
   [0, 8, 2, 10],
@@ -409,6 +420,80 @@ function cropFixedTile(source: ReturnType<typeof decodePng>, frame: number): Uin
   return tile;
 }
 
+function transparentizeChromaSource(source: ReturnType<typeof decodePng>) {
+  const rgba = new Uint8Array(source.rgba);
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (!isChroma(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+    rgba.fill(0, i, i + 4);
+  }
+  return { ...source, rgba };
+}
+
+function resizeRegionIntoTile(source: ReturnType<typeof decodePng>, bb: Rect, target: Rect): Uint8Array {
+  const tile = new Uint8Array(TILE * TILE * 4);
+
+  for (let dy = 0; dy < target.h; dy++) {
+    for (let dx = 0; dx < target.w; dx++) {
+      let weight = 0;
+      let alpha = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      const fromY = bb.y + Math.floor((dy * bb.h) / target.h);
+      const toY = bb.y + Math.max(Math.floor(((dy + 1) * bb.h) / target.h), Math.floor((dy * bb.h) / target.h) + 1);
+      const fromX = bb.x + Math.floor((dx * bb.w) / target.w);
+      const toX = bb.x + Math.max(Math.floor(((dx + 1) * bb.w) / target.w), Math.floor((dx * bb.w) / target.w) + 1);
+      for (let sy = fromY; sy < toY; sy++) {
+        for (let sx = fromX; sx < toX; sx++) {
+          const si = (sy * source.w + sx) * 4;
+          const a = source.rgba[si + 3] / 255;
+          weight++;
+          alpha += a;
+          red += source.rgba[si] * a;
+          green += source.rgba[si + 1] * a;
+          blue += source.rgba[si + 2] * a;
+        }
+      }
+
+      const tx = target.x + dx;
+      const ty = target.y + dy;
+      if (tx < 0 || tx >= TILE || ty < 0 || ty >= TILE) continue;
+      const di = (ty * TILE + tx) * 4;
+      const outAlpha = alpha / weight;
+      tile[di + 3] = Math.round(outAlpha * 255);
+      if (alpha > 0) {
+        tile[di] = Math.round(red / alpha);
+        tile[di + 1] = Math.round(green / alpha);
+        tile[di + 2] = Math.round(blue / alpha);
+      }
+    }
+  }
+
+  return tile;
+}
+
+function buildRobotReplacementTile(source: ReturnType<typeof decodePng>) {
+  const transparent = transparentizeChromaSource(source);
+  const bb = alphaBBox(transparent.rgba, transparent.w, { x: 0, y: 0, w: transparent.w, h: transparent.h });
+  const targetH = 108;
+  const targetW = Math.round((bb.w / bb.h) * targetH);
+  const targetBottom = 112;
+  const target = {
+    x: Math.round((TILE - targetW) / 2),
+    y: targetBottom - targetH + 1,
+    w: targetW,
+    h: targetH,
+  };
+  const tile = resizeRegionIntoTile(transparent, bb, target);
+  purgeChromaCrumbs(tile);
+  removeChromaHalo(tile);
+  neutralizePurpleMatte(tile, RETRO_ROBOT_FRAME);
+  removeTinyIslands(tile);
+  ditherBurial(tile);
+  clearTileBorderArtifacts(tile);
+  return tile;
+}
+
 function cleanupRestoredTile(tile: Uint8Array, frame: number) {
   // Restored tiles already have a hand-painted sand/contact rim. Keep that
   // grounding, but remove the old loose bubbles and purple cast that made the
@@ -519,12 +604,13 @@ const source = decodePng(readFileSync(SOURCE));
 if (source.w !== TILE * COLS || source.h !== TILE * ROWS)
   throw new Error(`${SOURCE}: expected ${TILE * COLS}x${TILE * ROWS}, got ${source.w}x${source.h}`);
 assertTransparentSource(source.rgba, SOURCE);
+const robotReplacementSource = decodePng(readFileSync(ROBOT_REPLACEMENT_SOURCE));
 
 const sheetW = TILE * COLS;
 const sheet = new Uint8Array(sheetW * TILE * ROWS * 4);
 for (let frame = 0; frame < COLS * ROWS; frame++) {
-  const tile = cropFixedTile(source, frame);
-  cleanupRestoredTile(tile, frame);
+  const tile = frame === RETRO_ROBOT_FRAME ? buildRobotReplacementTile(robotReplacementSource) : cropFixedTile(source, frame);
+  if (frame !== RETRO_ROBOT_FRAME) cleanupRestoredTile(tile, frame);
   putTile(sheet, sheetW, tile, frame);
 }
 
