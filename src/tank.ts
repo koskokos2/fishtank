@@ -38,36 +38,52 @@ export function setupTank(k: KAPLAYCtx) {
 
   // Caustics: three overlapping sine fields on a coarse grid read as the
   // shimmering light mesh, brightest near the surface and fading with depth.
-  k.add([
-    k.pos(0, 0),
-    k.z(-95),
-    {
-      draw() {
-        const w = k.width();
-        const h = k.height();
-        const cell = 12 * S;
-        const t = k.time();
-        for (let x = 0; x < w; x += cell) {
-          for (let y = 0; y < h * 0.6; y += cell) {
-            const v =
-              Math.sin((x * 0.05) / S + t) +
-              Math.sin((y * 0.07) / S - t * 0.8) +
-              Math.sin(((x + y) * 0.04) / S + t * 1.3);
-            const depth = 1 - y / (h * 0.6);
-            const a = Math.max(0, v) * 0.05 * depth;
-            if (a > 0.01)
-              k.drawRect({
-                pos: k.vec2(x, y),
-                width: cell,
-                height: cell,
-                color: k.rgb(150, 220, 230),
-                opacity: a,
-              });
+  // The field is evaluated one texel per cell into a tiny image uploaded to a
+  // texture drawn as a single nearest-scaled quad — the hard cell edges come
+  // from the scaling, at a fraction of the cost of a drawRect per cell. The
+  // three sine terms depend only on the column, the row, and the diagonal, so
+  // each gets a small per-frame table instead of a sin per cell.
+  {
+    const cell = 12 * S;
+    const cols = Math.ceil(k.width() / cell);
+    const rows = Math.ceil((k.height() * 0.6) / cell);
+    const img = new ImageData(cols, rows);
+    const px = img.data;
+    for (let i = 0; i < cols * rows; i++) {
+      px[i * 4] = 150;
+      px[i * 4 + 1] = 220;
+      px[i * 4 + 2] = 230;
+    }
+    const tex = k.makeCanvas(cols, rows).fb.tex;
+    const colWave = new Float64Array(cols);
+    const rowWave = new Float64Array(rows);
+    const diagWave = new Float64Array(cols + rows - 1);
+    k.add([
+      k.pos(0, 0),
+      k.z(-95),
+      {
+        draw() {
+          const t = k.time();
+          for (let xi = 0; xi < cols; xi++)
+            colWave[xi] = Math.sin((xi * cell * 0.05) / S + t);
+          for (let yi = 0; yi < rows; yi++)
+            rowWave[yi] = Math.sin((yi * cell * 0.07) / S - t * 0.8);
+          for (let d = 0; d < cols + rows - 1; d++)
+            diagWave[d] = Math.sin((d * cell * 0.04) / S + t * 1.3);
+          for (let yi = 0; yi < rows; yi++) {
+            const depth = 1 - (yi * cell) / (k.height() * 0.6);
+            for (let xi = 0; xi < cols; xi++) {
+              const v = colWave[xi] + rowWave[yi] + diagWave[xi + yi];
+              const a = Math.max(0, v) * 0.05 * depth;
+              px[(yi * cols + xi) * 4 + 3] = a > 0.01 ? a * 255 : 0;
+            }
           }
-        }
+          tex.update(img);
+          k.drawUVQuad({ tex, width: cols * cell, height: rows * cell });
+        },
       },
-    },
-  ]);
+    ]);
+  }
 
   spawnMotes(k, 30);
   spawnPlantPearling(k, midPlants);

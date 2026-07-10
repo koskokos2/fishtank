@@ -159,7 +159,15 @@ const setPx = (buf: Buf, x: number, y: number, c: RGBA) => {
 
 // The sand surface height (buffer y) at column x — the dune contour. Exported so
 // benthic creatures (the octopus) can rest on the ground instead of floating.
+// Creatures sample it several times per frame and the fbm term is dozens of float
+// ops, so the per-column values are precomputed once; the result was already
+// rounded to whole pixels, so the lookup is exact at integer x.
 export const sandTopAt = (x: number) => {
+  const xi = Math.round(x);
+  return sandTopLUT[xi < 0 ? 0 : xi >= BW ? BW - 1 : xi];
+};
+
+const computeSandTop = (x: number) => {
   const u = x / Math.max(1, BW - 1);
   const slope = lerp(-13 * S, 11 * S, u);
   const swell =
@@ -179,6 +187,9 @@ export const sandTopAt = (x: number) => {
   const rise = fade(clamp01(u / LEFT_DUNE_START_U));
   return Math.round(lerp(BH - LEFT_DUNE_HEIGHT, baseTop, rise));
 };
+
+const sandTopLUT = new Int16Array(BW);
+for (let x = 0; x < BW; x++) sandTopLUT[x] = computeSandTop(x);
 
 // z from screen depth: whatever sits lower on screen is nearer the viewer, so
 // it must draw in front. Grounded objects pass their base (sand-contact line);

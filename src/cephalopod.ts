@@ -177,7 +177,7 @@ const KINDS: Record<string, KindCfg> = {
     },
   },
   nautilus: {
-    sprite: "nautilus-body",
+    sprite: "nautilus",
     z: 16,
     drag: 1.1,
     level: { min: 0.08, max: 0.78 },
@@ -191,7 +191,7 @@ const KINDS: Record<string, KindCfg> = {
     armsBias: 0,
   },
   jellyfish: {
-    sprite: "jellyfish-bell",
+    sprite: "jellyfish",
     z: 15,
     drag: 1.6,
     level: { min: 0.05, max: 0.7 }, // drifts the mid/upper column
@@ -264,7 +264,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const jellyTendrils =
     cfg.motion === "pulse"
       ? k.add([
-          k.sprite("jellyfish-tendrils"),
+          k.sprite("jellyfish"),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
@@ -275,7 +275,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const jellyArms =
     cfg.motion === "pulse"
       ? k.add([
-          k.sprite("jellyfish-arms"),
+          k.sprite("jellyfish"),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
@@ -290,7 +290,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const nautJet =
     cfg.motion === "jet"
       ? k.add([
-          k.sprite("nautilus-jet"),
+          k.sprite("nautilus"),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
@@ -302,7 +302,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const nautSiphon =
     cfg.motion === "jet"
       ? k.add([
-          k.sprite("nautilus-siphon"),
+          k.sprite("nautilus"),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
@@ -313,7 +313,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const nautTentacles =
     cfg.motion === "jet"
       ? k.add([
-          k.sprite("nautilus-tentacles"),
+          k.sprite("nautilus"),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),

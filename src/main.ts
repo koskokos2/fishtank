@@ -62,6 +62,9 @@ const k = kaplay({
   height: VH,
   crisp: true,
   background: [6, 24, 43],
+  // An ambient scene doesn't need ProMotion rates; capping halves the CPU work
+  // on 120 Hz displays.
+  maxFPS: 60,
 });
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
@@ -114,19 +117,18 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  // The octopus uses a pose sheet. Jellyfish and nautilus load one atlas through
-  // several sprite names so their anatomical layers can advance independently.
+  // The octopus uses a pose sheet. The jellyfish and nautilus anatomical layers
+  // are separate game objects that each set their own frame, so one atlas load
+  // per creature serves every layer.
   k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
-  for (const layer of ["bell", "arms", "tendrils"])
-    k.loadSprite(`jellyfish-${layer}`, JELLYFISH_ATLAS, {
-      sliceX: JELLYFISH_ATLAS_COLS,
-      sliceY: JELLYFISH_ATLAS_ROWS,
-    });
-  for (const layer of ["body", "tentacles", "siphon", "jet"])
-    k.loadSprite(`nautilus-${layer}`, NAUTILUS_ATLAS, {
-      sliceX: NAUTILUS_ATLAS_COLS,
-      sliceY: NAUTILUS_ATLAS_ROWS,
-    });
+  k.loadSprite("jellyfish", JELLYFISH_ATLAS, {
+    sliceX: JELLYFISH_ATLAS_COLS,
+    sliceY: JELLYFISH_ATLAS_ROWS,
+  });
+  k.loadSprite("nautilus", NAUTILUS_ATLAS, {
+    sliceX: NAUTILUS_ATLAS_COLS,
+    sliceY: NAUTILUS_ATLAS_ROWS,
+  });
   k.loadSprite("hermit-crab", HERMIT_CRAB_ATLAS, {
     sliceX: HERMIT_CRAB_FRAMES,
   });
