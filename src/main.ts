@@ -47,6 +47,7 @@ import {
 } from "./popCulturePropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { setupTank } from "./tank";
+import { off, uncapped } from "./profiling";
 import { VW, VH } from "./res";
 
 const FISH_COUNT = 10;
@@ -63,8 +64,11 @@ const k = kaplay({
   crisp: true,
   background: [6, 24, 43],
   // An ambient scene doesn't need ProMotion rates; capping halves the CPU work
-  // on 120 Hz displays.
-  maxFPS: 60,
+  // on 120 Hz displays. 62 rather than 60: the cap skips a vsync tick whenever
+  // the elapsed time is under 1/maxFPS, and on a 120 Hz panel the second 8.33 ms
+  // tick lands a hair under a 16.67 ms threshold, demoting the scene to every
+  // third tick (40 fps). A 16.13 ms threshold keeps it on every second tick.
+  maxFPS: uncapped ? undefined : 62,
 });
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
@@ -167,22 +171,27 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   setupTank(k);
 
   k.onLoad(() => {
-    for (let i = 0; i < FISH_COUNT; i++) spawnRandomFish(false);
+    if (!off("fish"))
+      for (let i = 0; i < FISH_COUNT; i++) spawnRandomFish(false);
     // A few cephalopods drift among the fish as larger accent creatures.
-    spawnCephalopod(k, "nautilus");
-    spawnCephalopod(k, "octopus");
-    spawnCephalopod(k, "jellyfish");
-    spawnCephalopod(k, "jellyfish");
-    spawnCephalopod(k, "jellyfish");
+    if (!off("cephs")) {
+      spawnCephalopod(k, "nautilus");
+      spawnCephalopod(k, "octopus");
+      spawnCephalopod(k, "jellyfish");
+      spawnCephalopod(k, "jellyfish");
+      spawnCephalopod(k, "jellyfish");
+    }
     // Start the pair far apart so both are immediately readable before their
     // independent routes eventually carry them around the full substrate.
-    spawnHermitCrab(k, k.width() * 0.24);
-    spawnHermitCrab(k, k.width() * 0.76);
-    spawnSeaSnail(k);
+    if (!off("crabs")) {
+      spawnHermitCrab(k, k.width() * 0.24);
+      spawnHermitCrab(k, k.width() * 0.76);
+      spawnSeaSnail(k);
+    }
     // A dense right-side kelp forest is reconstructed on every load from ordered
     // random stem, branch, crown, tendril and pod modules. Small juvenile stalks
     // taper the left edge, while alternating rear/front layers make fish disappear
     // naturally into the uneven mature grove.
-    spawnLuminousKelpGrove(k);
+    if (!off("kelp")) spawnLuminousKelpGrove(k);
   });
 })();

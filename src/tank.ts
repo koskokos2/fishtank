@@ -3,6 +3,7 @@ import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
+import { off } from "./profiling";
 
 const S = RES;
 
@@ -15,26 +16,32 @@ export function setupTank(k: KAPLAYCtx) {
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
-  k.add([k.sprite("backdrop"), k.pos(0, 0), k.z(-200)]);
-  k.add([k.sprite("backdrop-sand"), k.pos(0, 0), k.z(-150)]);
+  if (!off("backdrop")) k.add([k.sprite("backdrop"), k.pos(0, 0), k.z(-200)]);
+  if (!off("sand")) k.add([k.sprite("backdrop-sand"), k.pos(0, 0), k.z(-150)]);
 
   // Six live prop slots draw from the combined whitelist. One random occupant
   // is replaced by a different whitelisted prop every five minutes.
-  spawnRotatingProps(k);
+  if (!off("props")) {
+    spawnRotatingProps(k);
 
-  // The two display consoles stay put, outside the rotating slots.
-  spawnFixedProps(k);
+    // The two display consoles stay put, outside the rotating slots.
+    spawnFixedProps(k);
+  }
 
   // Atlas plants keep the good depth language of the old procedural grass, but
   // each real frond now has its own root pivot and current phase. Their roots use
   // the actual dune contour and sit several pixels inside the dense sand, where
   // the atlas' dithered alpha edge reveals the procedural substrate beneath.
-  const midPlants = MID_PLANTS.map((spec) => spawnPlantCluster(k, spec));
-  FOREGROUND_PLANTS.forEach((spec) => spawnPlantCluster(k, spec));
+  const midPlants = off("plants")
+    ? []
+    : MID_PLANTS.map((spec) => spawnPlantCluster(k, spec));
+  if (!off("plants")) {
+    FOREGROUND_PLANTS.forEach((spec) => spawnPlantCluster(k, spec));
 
-  // Lone shoots scattered between the clusters so the seabed reads as evenly
-  // planted rather than tufted only at the set piece clumps.
-  spawnSinglePlants(k, 15);
+    // Lone shoots scattered between the clusters so the seabed reads as evenly
+    // planted rather than tufted only at the set piece clumps.
+    spawnSinglePlants(k, 15);
+  }
 
   // Caustics: three overlapping sine fields on a coarse grid read as the
   // shimmering light mesh, brightest near the surface and fading with depth.
@@ -43,7 +50,7 @@ export function setupTank(k: KAPLAYCtx) {
   // from the scaling, at a fraction of the cost of a drawRect per cell. The
   // three sine terms depend only on the column, the row, and the diagonal, so
   // each gets a small per-frame table instead of a sin per cell.
-  {
+  if (!off("caustics")) {
     const cell = 12 * S;
     const cols = Math.ceil(k.width() / cell);
     const rows = Math.ceil((k.height() * 0.6) / cell);
@@ -85,10 +92,12 @@ export function setupTank(k: KAPLAYCtx) {
     ]);
   }
 
-  spawnMotes(k, 30);
-  spawnPlantPearling(k, midPlants);
-  spawnSubstrateSeeps(k);
-  spawnRuinLeaks(k);
+  if (!off("motes")) spawnMotes(k, 30);
+  if (!off("bubbles")) {
+    spawnPlantPearling(k, midPlants);
+    spawnSubstrateSeeps(k);
+    spawnRuinLeaks(k);
+  }
 }
 
 type PlantName = keyof typeof PLANT_ATLAS_LAYOUT;
