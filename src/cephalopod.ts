@@ -238,8 +238,18 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     minY + (swimFloorAt(atX) - minY) * cfg.level.max;
   // Octopus only: the seated height on the sand contour at column x — its body
   // centre rides OCTO_SIT above the dune so the arms drape onto the ground.
-  const groundY = (x: number) =>
-    sandTopAt(clamp(x, 0, k.width() - 1)) - OCTO_SIT;
+  // Follows the highest sand under the whole body (centre ± half-width), so on a
+  // steep dune the wide frame rides on top of the slope instead of burying its
+  // uphill edge; on the near-flat bed the samples coincide.
+  const groundY = (x: number) => {
+    const w = k.width() - 1;
+    const sand = Math.max(
+      sandTopAt(clamp(x, 0, w)),
+      sandTopAt(clamp(x - OCTO_HALF, 0, w)),
+      sandTopAt(clamp(x + OCTO_HALF, 0, w)),
+    );
+    return sand - OCTO_SIT;
+  };
   const spawnX = k.rand(60 * S, k.width() - 60 * S);
   const spawnY =
     cfg.motion === "crawl"
@@ -375,6 +385,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let subTimer = 0;
   let pulsesLeft = 0;
   let descending = false; // pulses spent → stroking down toward the sand (mirrors the sideways push)
+  let liftedOff = false; // this swim bout has cleared the sand → contact may end it
   let swimDir = facing;
   let curlTimer = 0; // briefly show the curled "turn" pose after a turn
   // Per-octopus tempo so two on screen don't fall into lockstep: one is durably
@@ -607,6 +618,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             swimSub = "gather";
             subTimer = cr.gather;
             descending = false;
+            liftedOff = false;
             pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
             swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
             swimRoamLeft = swimRoaming
@@ -734,24 +746,27 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           }
           vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
           if (!inFootprint) vy += cr.sink * dt;
-          if (!inFootprint && py >= groundY(px) - 4 * S && vy >= 0) {
-            octoMode = "crawl";
-            descending = false;
-            // touchdown: kick up a puff of sand and press the body into it
-            spawnSandPuff(
-              k,
-              px,
-              sandTopAt(clamp(px, 0, k.width() - 1)),
-              2,
-              2,
-              2,
-            );
-            buryTimer = BURY_DUR;
-            restLong = false;
-            restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
-            tx = px; // hop afresh from where it landed
-            swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]) * tempo;
-          }
+        }
+        // Touch down from any sub-state the moment the body meets the sand: a bout
+        // that drifts over the rising dune settles on contact instead of pinning
+        // to the crest. `liftedOff` gates it so a just-launched bunch (py still at
+        // the ground) can't re-land before it has climbed.
+        if (py < groundY(px) - 8 * S) liftedOff = true;
+        if (
+          liftedOff &&
+          !insidePropFootprint(px, OCTO_HALF) &&
+          py >= groundY(px) - 4 * S &&
+          vy >= 0
+        ) {
+          octoMode = "crawl";
+          descending = false;
+          // touchdown: kick up a puff of sand and press the body into it
+          spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)), 2, 2, 2);
+          buryTimer = BURY_DUR;
+          restLong = false;
+          restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
+          tx = px; // hop afresh from where it landed
+          swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]) * tempo;
         }
       }
       allowPitch = octoMode === "swim"; // level while crawling, pitch while gliding
