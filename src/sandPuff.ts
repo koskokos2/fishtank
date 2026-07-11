@@ -1,4 +1,4 @@
-import type { KAPLAYCtx } from "kaplay";
+import type { KAPLAYCtx, Color, Vec2 } from "kaplay";
 import { off, profile, registerDebugStat, withDrawProfile } from "./profiling";
 import { RES } from "./res";
 
@@ -10,16 +10,19 @@ const SAND_PUFF: [number, number, number][] = [
   [206, 176, 110],
 ];
 
+// The three sand tones resolved to shared Color objects once (needs a k), so the
+// hot per-grain draw reuses them instead of allocating a Color every frame.
+let toneColors: Color[] | null = null;
+
 type Grain = {
-  x: number;
-  y: number;
+  pos: Vec2;
   vx: number;
   vy: number;
   gravity: number;
   originY: number;
   age: number;
   size: number;
-  tone: [number, number, number];
+  color: Color;
   opacity: number;
 };
 
@@ -47,6 +50,8 @@ export function spawnSandPuff(
   grainBoost = 0,
 ) {
   if (off("puffs")) return;
+  if (!toneColors)
+    toneColors = SAND_PUFF.map((t) => k.rgb(t[0], t[1], t[2]));
 
   const minN = Math.max(2, Math.round(112 * scale));
   const maxN = Math.max(minN + 1, Math.round(176 * scale));
@@ -55,15 +60,14 @@ export function spawnSandPuff(
   for (let i = 0; i < n; i++) {
     const y = sandY - k.rand(0, 3) * S;
     grains.push({
-      x: x + k.rand(-16, 16) * S,
-      y,
+      pos: k.vec2(x + k.rand(-16, 16) * S, y),
       vx: k.rand(-14, 14) * S,
       vy: -k.rand(16, 34) * S * riseMul,
       gravity: (k.rand(34, 54) * S) / Math.max(0.01, settleMul),
       originY: y,
       age: 0,
       size: k.randi(1, 3) + grainBoost,
-      tone: k.choose(SAND_PUFF),
+      color: k.choose(toneColors),
       opacity: k.rand(0.75, 1),
     });
   }
@@ -84,12 +88,12 @@ export function spawnSandPuff(
             g.vy += g.gravity * dt;
             g.vx -= g.vx * drag * dt;
             g.vy -= g.vy * drag * dt;
-            g.x += g.vx * dt;
-            g.y += g.vy * dt;
+            g.pos.x += g.vx * dt;
+            g.pos.y += g.vy * dt;
             if (g.age > 0.6 * settleMul)
               g.opacity -= dt * (0.7 / Math.max(0.01, settleMul));
             if (
-              (g.vy > 0 && g.y >= g.originY) ||
+              (g.vy > 0 && g.pos.y >= g.originY) ||
               g.age > 2.4 * settleMul ||
               g.opacity <= 0
             ) {
@@ -108,10 +112,10 @@ export function spawnSandPuff(
         withDrawProfile("puffs", () => {
           for (const g of grains)
             k.drawRect({
-              pos: k.vec2(g.x, g.y),
+              pos: g.pos,
               width: g.size,
               height: g.size,
-              color: k.rgb(g.tone[0], g.tone[1], g.tone[2]),
+              color: g.color,
               opacity: g.opacity,
             });
         });

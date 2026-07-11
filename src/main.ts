@@ -160,6 +160,58 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     makeBackdrop(BACKDROP_SEED),
   ]);
 
+  // Benthic + rooted-plant sprites — the two crawlers, every prop, and the plant
+  // and kelp groves — are all drawn in the bottom z-band, interleaved by depth
+  // (crawlers and props by their sand-contact line, plant/kelp roots by theirs).
+  // Kaplay's batch renderer flushes on every texture-page switch, so if these land
+  // on different atlas pages the whole band degenerates into ~one draw call per
+  // object. That per-flush cost is the dominant frame cost on a weak GPU (the Pi's
+  // driver pays heavily per flush). loadSprite packs on async image decode, so
+  // call order alone doesn't pin the page. Awaiting these in sequence, before any
+  // other sprite loads, packs them contiguously onto the first atlas page (they
+  // fit one 2048x2048 page together) — so the entire bottom band batches with far
+  // fewer flushes regardless of z-interleaving.
+  const loadSpriteSeq = (
+    name: string,
+    src: string,
+    opt: Parameters<typeof k.loadSprite>[2],
+  ) =>
+    new Promise<void>((resolve) => {
+      k.loadSprite(name, src, opt).onLoad(() => resolve());
+    });
+  await loadSpriteSeq("luminous-kelp", LUMINOUS_KELP_ATLAS, {
+    sliceX: LUMINOUS_KELP_COLS,
+    sliceY: LUMINOUS_KELP_ROWS,
+  });
+  await loadSpriteSeq("plant-atlas-v2", PLANT_ATLAS, {
+    sliceX: PLANT_ATLAS_COLS,
+    sliceY: PLANT_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("hermit-crab", HERMIT_CRAB_ATLAS, {
+    sliceX: HERMIT_CRAB_FRAMES,
+  });
+  await loadSpriteSeq("sea-snail", SEA_SNAIL_ATLAS, { sliceX: SEA_SNAIL_FRAMES });
+  await loadSpriteSeq("sci-fi-props", SCI_FI_PROPS_ATLAS, {
+    sliceX: SCI_FI_PROPS_ATLAS_COLS,
+    sliceY: SCI_FI_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("eldritch-props", ELDRITCH_PROPS_ATLAS, {
+    sliceX: ELDRITCH_PROPS_ATLAS_COLS,
+    sliceY: ELDRITCH_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("star-wars-props", STAR_WARS_PROPS_ATLAS, {
+    sliceX: STAR_WARS_PROPS_ATLAS_COLS,
+    sliceY: STAR_WARS_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("pop-culture-props", POP_CULTURE_PROPS_ATLAS, {
+    sliceX: POP_CULTURE_PROPS_ATLAS_COLS,
+    sliceY: POP_CULTURE_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("small-props", SMALL_PROPS_ATLAS, {
+    sliceX: 4,
+    sliceY: 4,
+  });
+
   k.loadSprite("backdrop", backdrop.back);
   k.loadSprite("backdrop-sand", backdrop.sand);
   fishSheets.forEach((sheet, i) => {
@@ -179,40 +231,6 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   k.loadSprite("nautilus", NAUTILUS_ATLAS, {
     sliceX: NAUTILUS_ATLAS_COLS,
     sliceY: NAUTILUS_ATLAS_ROWS,
-  });
-  k.loadSprite("hermit-crab", HERMIT_CRAB_ATLAS, {
-    sliceX: HERMIT_CRAB_FRAMES,
-  });
-  k.loadSprite("sea-snail", SEA_SNAIL_ATLAS, {
-    sliceX: SEA_SNAIL_FRAMES,
-  });
-  k.loadSprite("luminous-kelp", LUMINOUS_KELP_ATLAS, {
-    sliceX: LUMINOUS_KELP_COLS,
-    sliceY: LUMINOUS_KELP_ROWS,
-  });
-  k.loadSprite("plant-atlas-v2", PLANT_ATLAS, {
-    sliceX: PLANT_ATLAS_COLS,
-    sliceY: PLANT_ATLAS_ROWS,
-  });
-  k.loadSprite("sci-fi-props", SCI_FI_PROPS_ATLAS, {
-    sliceX: SCI_FI_PROPS_ATLAS_COLS,
-    sliceY: SCI_FI_PROPS_ATLAS_ROWS,
-  });
-  k.loadSprite("eldritch-props", ELDRITCH_PROPS_ATLAS, {
-    sliceX: ELDRITCH_PROPS_ATLAS_COLS,
-    sliceY: ELDRITCH_PROPS_ATLAS_ROWS,
-  });
-  k.loadSprite("star-wars-props", STAR_WARS_PROPS_ATLAS, {
-    sliceX: STAR_WARS_PROPS_ATLAS_COLS,
-    sliceY: STAR_WARS_PROPS_ATLAS_ROWS,
-  });
-  k.loadSprite("pop-culture-props", POP_CULTURE_PROPS_ATLAS, {
-    sliceX: POP_CULTURE_PROPS_ATLAS_COLS,
-    sliceY: POP_CULTURE_PROPS_ATLAS_ROWS,
-  });
-  k.loadSprite("small-props", SMALL_PROPS_ATLAS, {
-    sliceX: 4,
-    sliceY: 4,
   });
 
   setupTank(k, ENTITY_COUNTS);
