@@ -1,4 +1,4 @@
-import type { KAPLAYCtx } from "kaplay";
+import type { KAPLAYCtx, Quad, Vec2, Color } from "kaplay";
 import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
@@ -454,14 +454,36 @@ function collectSinglePlants(k: KAPLAYCtx, count: number, out: Frond[]) {
   }
 }
 
+// One frond ready to draw: its live sway source plus every constant hoisted out
+// of the per-frame hot loop. pos/scale/color/quad/size never change, so they are
+// built once here rather than reallocated each frame (matters ~10x more on the
+// Pi's JavaScriptCore than on a fast desktop GPU/JIT).
+type FrondDraw = {
+  frond: Frond;
+  quad?: Quad;
+  width: number;
+  height: number;
+  pos: Vec2;
+  scale: Vec2;
+  color: Color;
+  opacity: number;
+};
+
 // Draw the whole plant field from a few z-banded controllers instead of one
 // game object per frond. Fronds are bucketed into coarse depth bands so they
 // still interleave with fish by depth (a fish occludes a band it swims nearer
 // than), while ~150 scene-graph nodes collapse to a handful. Within a band the
 // fronds are sorted by exact z so nearer fronds overlay farther ones, and all
-// share the plant-atlas-v2 texture so Kaplay batches them into few draw calls.
+// draw straight from the shared plant-atlas texture via drawUVQuad so Kaplay
+// batches them into few draw calls — bypassing drawSprite's per-frond string
+// lookup and per-call object allocation.
 function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
   if (!fronds.length) return;
+  // Resolved once: setupTank runs in onLoad, so the atlas is ready. tex + frame
+  // quads let us feed drawUVQuad directly; drawSprite(frame) is equivalent to
+  // drawUVQuad with quad=frame and size=tex.wh*frame.wh, but re-resolves by name
+  // and allocates a fresh opts object every frond every frame.
+  const data = k.getSprite("plant-atlas-v2")?.data;
   const BAND = 6;
   const bands = new Map<number, Frond[]>();
   for (const frond of fronds) {
@@ -473,6 +495,19 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
 
   for (const [bandZ, group] of bands) {
     group.sort((a, b) => a.z - b.z);
+    const items: FrondDraw[] = group.map((frond) => {
+      const quad = data?.frames[frond.frame];
+      return {
+        frond,
+        quad,
+        width: data && quad ? data.tex.width * quad.w : 0,
+        height: data && quad ? data.tex.height * quad.h : 0,
+        pos: k.vec2(frond.drawX, frond.drawY),
+        scale: k.vec2(frond.scaleX, frond.scaleY),
+        color: k.rgb(frond.tint[0], frond.tint[1], frond.tint[2]),
+        opacity: frond.opacity,
+      };
+    });
     k.add([
       k.z(bandZ),
       {
@@ -490,18 +525,34 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
         },
         draw() {
           withDrawProfile("plants", () => {
-            for (const f of group) {
+            if (data) {
+              for (const it of items)
+                k.drawUVQuad({
+                  tex: data.tex,
+                  quad: it.quad,
+                  width: it.width,
+                  height: it.height,
+                  pos: it.pos,
+                  anchor: "bot",
+                  scale: it.scale,
+                  angle: it.frond.currentAngle,
+                  color: it.color,
+                  opacity: it.opacity,
+                });
+              return;
+            }
+            // Fallback if the atlas somehow isn't resolved yet.
+            for (const it of items)
               k.drawSprite({
                 sprite: "plant-atlas-v2",
-                frame: f.frame,
-                pos: k.vec2(f.drawX, f.drawY),
+                frame: it.frond.frame,
+                pos: it.pos,
                 anchor: "bot",
-                scale: k.vec2(f.scaleX, f.scaleY),
-                angle: f.currentAngle,
-                color: k.rgb(f.tint[0], f.tint[1], f.tint[2]),
-                opacity: f.opacity,
+                scale: it.scale,
+                angle: it.frond.currentAngle,
+                color: it.color,
+                opacity: it.opacity,
               });
-            }
           });
         },
       },
