@@ -4,6 +4,25 @@ import { Webview } from "webview-bun";
 
 const PORT = 8421;
 
+// The Linux target embeds WebKitGTK, which — unlike the Chromium the web build
+// usually runs in — leans on the CPU for compositing unless accelerated
+// compositing is forced on. Nudge WebKit toward the GPU before the web process
+// spawns. This var is WebKitGTK-only; it's inert on macOS/WKWebView. Set
+// FISHTANK_NO_GPU_TWEAKS=1 to skip it. If the Pi's V3D + DMABUF path misbehaves,
+// try WEBKIT_DISABLE_DMABUF_RENDERER=1 ./fishtank (it passes straight through).
+if (process.platform === "linux" && !process.env.FISHTANK_NO_GPU_TWEAKS) {
+  process.env.WEBKIT_FORCE_COMPOSITING_MODE ??= "1";
+}
+
+// Thread the scene's runtime tuning knobs (res.ts's ?res=1|2, plus ?plants=,
+// ?fish=, ?prof, ?gpu, …) through to the bundled build without a rebuild, so a
+// weak device can drop the buffer density and entity counts:
+//   FISHTANK_QUERY="res=2&plants=40" ./fishtank
+//   FISHTANK_RES=2 ./fishtank
+const query = new URLSearchParams(process.env.FISHTANK_QUERY ?? "");
+if (process.env.FISHTANK_RES) query.set("res", process.env.FISHTANK_RES);
+const QUERY_STRING = query.toString();
+
 type ServerMessage =
   | { type: "ready"; port: number }
   | { type: "error"; message: string };
@@ -40,7 +59,7 @@ const port = await new Promise<number>((resolve, reject) => {
 
 const webview = new Webview();
 webview.title = "Fishtank";
-webview.navigate(`http://127.0.0.1:${port}/`);
+webview.navigate(`http://127.0.0.1:${port}/${QUERY_STRING ? `?${QUERY_STRING}` : ""}`);
 webview.run();
 
 worker.terminate();
