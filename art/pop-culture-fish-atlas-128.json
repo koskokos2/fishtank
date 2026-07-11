@@ -1,0 +1,25 @@
+{
+  "image": "pop-culture-fish-atlas-128.png",
+  "sourceImage": "pop-culture-fish-atlas-transparent.png",
+  "chromaReference": "pop-culture-fish-atlas-chroma.png",
+  "tileSize": 128,
+  "sourceWidth": 1073,
+  "sourceHeight": 1465,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    { "name": "rocket_glam", "row": 0, "col": 0, "category": "popCultureFish", "role": "starGlassesShowman" },
+    { "name": "country_dreamer", "row": 0, "col": 1, "category": "popCultureFish", "role": "blondeCountryIcon" },
+    { "name": "diamond_diva", "row": 0, "col": 2, "category": "popCultureFish", "role": "pearledCinemaIcon" },
+    { "name": "golden_wrestler", "row": 1, "col": 0, "category": "popCultureFish", "role": "mustachedWrestlingIcon" },
+    { "name": "cyber_hunter", "row": 1, "col": 1, "category": "popCultureFish", "role": "redEyedMachine" },
+    { "name": "reggae_legend", "row": 1, "col": 2, "category": "popCultureFish", "role": "dreadlockedReggaeIcon" },
+    { "name": "vegas_king", "row": 2, "col": 0, "category": "popCultureFish", "role": "whiteSuitRockIcon" },
+    { "name": "stardust_hero", "row": 2, "col": 1, "category": "popCultureFish", "role": "lightningPaintedGlamIcon" },
+    { "name": "soul_beehive", "row": 2, "col": 2, "category": "popCultureFish", "role": "beehiveSoulIcon" },
+    { "name": "smooth_criminal", "row": 3, "col": 0, "category": "popCultureFish", "role": "fedoraDanceIcon" },
+    { "name": "fame_monster", "row": 3, "col": 1, "category": "popCultureFish", "role": "bowHairedPopIcon" },
+    { "name": "purple_reign", "row": 3, "col": 2, "category": "popCultureFish", "role": "purpleRoyalIcon" }
+  ]
+}

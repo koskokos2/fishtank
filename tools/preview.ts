@@ -86,6 +86,11 @@ import {
   ALIEN_FISH_ATLAS_LAYOUT,
 } from "../src/alienFishAtlas";
 import {
+  POP_CULTURE_FISH_ATLAS,
+  POP_CULTURE_FISH_ATLAS_CELL,
+  POP_CULTURE_FISH_ATLAS_LAYOUT,
+} from "../src/popCultureFishAtlas";
+import {
   OCTOPUS_ATLAS,
   OCTOPUS_FRAMES,
   OCTOPUS_FRAME_W,
@@ -1033,33 +1038,37 @@ function renderFishGrid() {
   const atlas2 = decodePng(dataUrlToBuffer(FISH_EXTRA_ATLAS));
   const atlas3 = decodePng(dataUrlToBuffer(FISH_BONUS_ATLAS));
   const atlas4 = decodePng(dataUrlToBuffer(ALIEN_FISH_ATLAS));
+  const atlas5 = decodePng(dataUrlToBuffer(POP_CULTURE_FISH_ATLAS));
+
+  const atlases = [
+    { pixels: atlas1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
+    { pixels: atlas2, cell: FISH_EXTRA_ATLAS_CELL, layout: FISH_EXTRA_ATLAS_LAYOUT },
+    { pixels: atlas3, cell: FISH_BONUS_ATLAS_CELL, layout: FISH_BONUS_ATLAS_LAYOUT },
+    { pixels: atlas4, cell: ALIEN_FISH_ATLAS_CELL, layout: ALIEN_FISH_ATLAS_LAYOUT },
+    {
+      pixels: atlas5,
+      cell: POP_CULTURE_FISH_ATLAS_CELL,
+      layout: POP_CULTURE_FISH_ATLAS_LAYOUT,
+    },
+  ];
 
   const kinds = opt("SPECIES")
     ? FISH_KINDS.filter((k) => k.name === opt("SPECIES"))
     : FISH_KINDS;
 
   const sheets = kinds.map((k) => {
-    const inExtra = k.name in FISH_EXTRA_ATLAS_LAYOUT;
-    const inBonus = k.name in FISH_BONUS_ATLAS_LAYOUT;
-    const inAlien = k.name in ALIEN_FISH_ATLAS_LAYOUT;
-    const atlas = inAlien ? atlas4 : inBonus ? atlas3 : inExtra ? atlas2 : atlas1;
-    const cell = inAlien
-      ? ALIEN_FISH_ATLAS_CELL
-      : inBonus
-      ? FISH_BONUS_ATLAS_CELL
-      : inExtra
-        ? FISH_EXTRA_ATLAS_CELL
-        : FISH_ATLAS_CELL;
-    const { row, col } = inAlien
-      ? ALIEN_FISH_ATLAS_LAYOUT[k.name]
-      : inBonus
-      ? FISH_BONUS_ATLAS_LAYOUT[k.name]
-      : inExtra
-        ? FISH_EXTRA_ATLAS_LAYOUT[k.name]
-        : FISH_ATLAS_LAYOUT[k.name];
-    const bb = cellBBox(atlas.rgba, atlas.w, col * cell, row * cell, cell);
+    const atlas = atlases.find(({ layout }) => k.name in layout);
+    if (!atlas) throw new Error(`missing fish atlas entry: ${k.name}`);
+    const { row, col } = atlas.layout[k.name];
+    const bb = cellBBox(
+      atlas.pixels.rgba,
+      atlas.pixels.w,
+      col * atlas.cell,
+      row * atlas.cell,
+      atlas.cell,
+    );
     return shearSheet(
-      copyRect(atlas.rgba, atlas.w, bb.x, bb.y, bb.bw, bb.bh),
+      copyRect(atlas.pixels.rgba, atlas.pixels.w, bb.x, bb.y, bb.bw, bb.bh),
       k.motion,
     );
   });

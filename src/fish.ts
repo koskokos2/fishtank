@@ -16,6 +16,11 @@ import {
   ALIEN_FISH_ATLAS_LAYOUT,
 } from "./alienFishAtlas";
 import {
+  POP_CULTURE_FISH_ATLAS,
+  POP_CULTURE_FISH_ATLAS_CELL,
+  POP_CULTURE_FISH_ATLAS_LAYOUT,
+} from "./popCultureFishAtlas";
+import {
   cellBBox,
   copyRect,
   motionBeatScale,
@@ -39,7 +44,7 @@ export type FishKind = {
   motion: FishMotionProfile;
 };
 
-// Names must match one of the four atlas layouts. Every fish faces left.
+// Names must match one of the five atlas layouts. Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
@@ -385,6 +390,91 @@ export const FISH_KINDS: FishKind[] = [
     length: 8,
     motion: "standard",
   }, // fast  — tiny robotic surface scout
+  // --- pop-culture atlas ---
+  {
+    name: "rocket_glam",
+    level: { min: 0.12, max: 0.5 },
+    speed: 1.05,
+    length: 22,
+    motion: "flowing",
+  }, // med   — star-shaded show fish with a sweeping dorsal fin
+  {
+    name: "country_dreamer",
+    level: { min: 0.2, max: 0.62 },
+    speed: 0.7,
+    length: 24,
+    motion: "flowing",
+  }, // slow  — broad pale fins and a flowing crest
+  {
+    name: "diamond_diva",
+    level: { min: 0.18, max: 0.58 },
+    speed: 0.75,
+    length: 22,
+    motion: "paddle",
+  }, // slow  — compact black-and-pearl midwater hoverer
+  {
+    name: "golden_wrestler",
+    level: { min: 0.48, max: 0.82 },
+    speed: 1.25,
+    length: 24,
+    motion: "standard",
+  }, // fast  — powerful lower-water charger
+  {
+    name: "cyber_hunter",
+    level: { min: 0.35, max: 0.72 },
+    speed: 1.4,
+    length: 25,
+    motion: "standard",
+  }, // fast  — mechanical pursuit fish with a bright red eye
+  {
+    name: "reggae_legend",
+    level: { min: 0.28, max: 0.72 },
+    speed: 0.85,
+    length: 26,
+    motion: "flowing",
+  }, // med   — long crest trails through the midwater current
+  {
+    name: "vegas_king",
+    level: { min: 0.12, max: 0.55 },
+    speed: 1.1,
+    length: 24,
+    motion: "flowing",
+  }, // fast  — white-and-gold upper-water show fish
+  {
+    name: "stardust_hero",
+    level: { min: 0.18, max: 0.62 },
+    speed: 1.2,
+    length: 23,
+    motion: "standard",
+  }, // fast  — red-crested glam cruiser
+  {
+    name: "soul_beehive",
+    level: { min: 0.25, max: 0.66 },
+    speed: 0.8,
+    length: 22,
+    motion: "flowing",
+  }, // med   — tall dark crest and compact body
+  {
+    name: "smooth_criminal",
+    level: { min: 0.42, max: 0.8 },
+    speed: 1.15,
+    length: 25,
+    motion: "standard",
+  }, // fast  — sharp-turning black-and-white cruiser
+  {
+    name: "fame_monster",
+    level: { min: 0.1, max: 0.52 },
+    speed: 0.9,
+    length: 23,
+    motion: "flowing",
+  }, // med   — bow-crested pale show fish
+  {
+    name: "purple_reign",
+    level: { min: 0.3, max: 0.72 },
+    speed: 0.75,
+    length: 22,
+    motion: "paddle",
+  }, // slow  — ornate purple hoverer with a curled tail
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -392,11 +482,12 @@ export const FISH_KINDS: FishKind[] = [
 // Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
 // decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const [img1, img2, img3, img4] = await Promise.all([
+  const [img1, img2, img3, img4, img5] = await Promise.all([
     loadImage(FISH_ATLAS),
     loadImage(FISH_EXTRA_ATLAS),
     loadImage(FISH_BONUS_ATLAS),
     loadImage(ALIEN_FISH_ATLAS),
+    loadImage(POP_CULTURE_FISH_ATLAS),
   ]);
 
   const toPixels = (img: HTMLImageElement) => {
@@ -417,26 +508,26 @@ export async function makeFishSheets(): Promise<string[]> {
   const a2 = toPixels(img2);
   const a3 = toPixels(img3);
   const a4 = toPixels(img4);
+  const a5 = toPixels(img5);
+
+  const atlases = [
+    { pixels: a1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
+    { pixels: a2, cell: FISH_EXTRA_ATLAS_CELL, layout: FISH_EXTRA_ATLAS_LAYOUT },
+    { pixels: a3, cell: FISH_BONUS_ATLAS_CELL, layout: FISH_BONUS_ATLAS_LAYOUT },
+    { pixels: a4, cell: ALIEN_FISH_ATLAS_CELL, layout: ALIEN_FISH_ATLAS_LAYOUT },
+    {
+      pixels: a5,
+      cell: POP_CULTURE_FISH_ATLAS_CELL,
+      layout: POP_CULTURE_FISH_ATLAS_LAYOUT,
+    },
+  ];
 
   return FISH_KINDS.map((kind) => {
-    const inExtra = kind.name in FISH_EXTRA_ATLAS_LAYOUT;
-    const inBonus = kind.name in FISH_BONUS_ATLAS_LAYOUT;
-    const inAlien = kind.name in ALIEN_FISH_ATLAS_LAYOUT;
-    const { full, width } = inAlien ? a4 : inBonus ? a3 : inExtra ? a2 : a1;
-    const cell = inAlien
-      ? ALIEN_FISH_ATLAS_CELL
-      : inBonus
-      ? FISH_BONUS_ATLAS_CELL
-      : inExtra
-        ? FISH_EXTRA_ATLAS_CELL
-        : FISH_ATLAS_CELL;
-    const { row, col } = inAlien
-      ? ALIEN_FISH_ATLAS_LAYOUT[kind.name]
-      : inBonus
-      ? FISH_BONUS_ATLAS_LAYOUT[kind.name]
-      : inExtra
-        ? FISH_EXTRA_ATLAS_LAYOUT[kind.name]
-        : FISH_ATLAS_LAYOUT[kind.name];
+    const atlas = atlases.find(({ layout }) => kind.name in layout);
+    if (!atlas) throw new Error(`missing fish atlas entry: ${kind.name}`);
+    const { full, width } = atlas.pixels;
+    const { cell } = atlas;
+    const { row, col } = atlas.layout[kind.name];
     const bb = cellBBox(full, width, col * cell, row * cell, cell);
     const fish = copyRect(full, width, bb.x, bb.y, bb.bw, bb.bh);
     return bufToDataURL(shearSheet(fish, kind.motion));
