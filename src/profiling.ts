@@ -494,7 +494,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     gear.textContent = "⚙";
     gear.style.cssText =
       "position:fixed;right:8px;top:8px;z-index:9;background:none;border:none;" +
-      "color:#000a;font:15px monospace;cursor:pointer;padding:2px 6px;" +
+      "color:#fff;font:15px monospace;cursor:pointer;padding:2px 6px;" +
       `border-radius:4px;display:${initialSettingsPanelOpen ? "none" : "block"}`;
     document.body.append(gear);
     const close = document.createElement("button");
