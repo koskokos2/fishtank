@@ -1,5 +1,6 @@
 {
   "chat.tools.terminal.autoApprove": {
-    "npx ctx7@latest": true
+    "npx ctx7@latest": true,
+    "agent-browser": true
   }
 }
