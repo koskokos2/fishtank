@@ -194,8 +194,9 @@ for (let x = 0; x < BW; x++) sandTopLUT[x] = computeSandTop(x);
 // z from screen depth: whatever sits lower on screen is nearer the viewer, so
 // it must draw in front. Grounded objects pass their base (sand-contact line);
 // fish pass their own y — they never descend below the crest, so they slip
-// behind anything rooted on the dune. The band stays behind the hovering
-// swimmers (jellyfish 15, nautilus 16) and in front of the caustics (-95).
+// behind anything rooted on the dune. This band stays in front of the caustics
+// (-95), so background swimmers can sit just below groundZ(0) and still read
+// as part of the water column.
 export const groundZ = (baseY: number) => -90 + 80 * (baseY / BH);
 
 // The first few pixels below the waterline are slightly darker: loose silt and
@@ -230,7 +231,8 @@ function paintSand(buf: Buf) {
       const trough = Math.pow(1 - ripple, 7) * (1 - depth) * 0.06;
       const fine = (hash2(x, y, 7) - 0.5) * 0.08;
       const coarse = (fbm(x * 0.09, y * 0.08, 37, 3) - 0.5) * 0.12;
-      const fleck = hash2(Math.floor(x / S), Math.floor(y / S), 43) > 0.985 ? -0.18 : 0;
+      const fleck =
+        hash2(Math.floor(x / S), Math.floor(y / S), 43) > 0.985 ? -0.18 : 0;
       let L =
         lerp(0.94, 0.36, depth) +
         rippleLine -

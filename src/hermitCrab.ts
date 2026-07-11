@@ -1,13 +1,15 @@
 // Hermit crab: a strictly benthic crawler. Its travelled distance drives the
 // six-pose gait, while its centre follows the dune contour plus a changing
-// substrate depth. This lets it wander through the back, middle, and foreground
-// tiers occupied by the seabed props instead of tracing only the sand crest. Stops are
-// real stops (one stable frame), so the legs never paddle while it is parked.
+// substrate depth. Depth ranges over the whole local bed (substrate.ts), so it
+// covers every sand column — including the tall left-dune face — instead of
+// tracing only the sand crest. Stops are real stops (one stable frame), so the
+// legs never paddle while it is parked.
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { HERMIT_CRAB_GROUND_OFFSET } from "./hermitCrabAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
+import { chooseSubstrateDepth, maxSubstrateDepthAt } from "./substrate";
 import {
   clampPathX,
   getPropObstacles,
@@ -20,38 +22,23 @@ const FRAMES = 6;
 const CRAB_SCALE = 0.5;
 const HALF = 30; // native px — sprite is a 128 cell at 0.5 scale, body ~50px wide
 const STANDOFF = 2 * S; // stop points land strictly clear of a footprint
-const EDGE = 62 * S;
+// Wall margin: just keeps the body on-screen. Props near the walls are handled
+// by the obstacle system, not by widening this.
+const EDGE = 12 * S;
+// Only force an inward turn within this of a wall, so the crab lingers on the
+// near-wall dune instead of bouncing back the moment it approaches.
+const TURN_MARGIN = 22 * S;
 const MIN_TRIP = 55 * S;
 const MAX_TRIP = 190 * S;
 const FRAME_STEP = 2.2 * S; // travelled pixels per gait pose
 const SLOPE_SPAN = 20 * S;
-// These match the three prop-placement bands in backdrop.ts. A little jitter
-// prevents the crab from revealing them as three perfectly mechanical lanes.
-const DEPTH_TIERS = [2, 17, 38].map((depth) => depth * S);
-const DEPTH_JITTER = 3 * S;
-const MAX_DEPTH = 43 * S;
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
-const chooseOtherDepthTier = (k: KAPLAYCtx, currentDepth: number) => {
-  const alternatives = DEPTH_TIERS.filter(
-    (tier) => Math.abs(tier - currentDepth) > 8 * S,
-  );
-  return clamp(
-    k.choose(alternatives) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
-    0,
-    MAX_DEPTH,
-  );
-};
-
 export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
   let x = clamp(startX ?? k.rand(EDGE, k.width() - EDGE), EDGE, k.width() - EDGE);
-  let substrateDepth = clamp(
-    k.choose(DEPTH_TIERS) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
-    0,
-    MAX_DEPTH,
-  );
+  let substrateDepth = chooseSubstrateDepth(k, x);
   // main.ts spawns one crab dead-centre on a prop slot; nudge clear of it.
   x = nearestClearX(x, HALF, STANDOFF, substrateDepth, EDGE, k.width() - EDGE);
   let facing = k.choose([-1, 1]);
@@ -91,9 +78,9 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
     // send it inward. A reversal happens only after the current rest, avoiding
     // a visible one-frame flip in the middle of a stride.
     const dir =
-      x < EDGE + MIN_TRIP
+      x < EDGE + TURN_MARGIN
         ? 1
-        : x > k.width() - EDGE - MIN_TRIP
+        : x > k.width() - EDGE - TURN_MARGIN
           ? -1
           : k.chance(0.72)
             ? facing
@@ -105,7 +92,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
       EDGE,
       k.width() - EDGE,
     );
-    targetDepth = chooseOtherDepthTier(k, substrateDepth);
+    targetDepth = chooseSubstrateDepth(k, targetX, substrateDepth);
     targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
     if (Math.abs(targetX - x) < 6 * S) {
       // A prop clamped this trip to a stub — try the other direction once
@@ -119,6 +106,9 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
       );
       targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
     }
+    // A clamp may have landed the stop where the bed is thinner than the
+    // chosen depth; keep the target inside the local bed.
+    targetDepth = Math.min(targetDepth, maxSubstrateDepthAt(targetX));
   };
 
   crab.onUpdate(() => {
@@ -156,6 +146,10 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
       const ratio = remaining > 0 ? step / remaining : 0;
       x += remainingX * ratio;
       substrateDepth += remainingDepth * ratio;
+      // Both trip endpoints fit their local bed, but the straight line between
+      // them can dip below it where the crest falls away mid-trip; ride the
+      // bottom margin there instead.
+      substrateDepth = Math.min(substrateDepth, maxSubstrateDepthAt(x));
       const travelled = Math.hypot(x - lastX, substrateDepth - lastDepth);
       gaitDistance += travelled;
       puffDistance += travelled;

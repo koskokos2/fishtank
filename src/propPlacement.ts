@@ -50,6 +50,8 @@ export type WhitelistedProp = {
   layout: Layout;
 };
 
+// obstacleDepth widens a deep slot's avoidance band: the obstacle spans from
+// it down to the base at `depth`, so crawlers keep clear of the whole body.
 type PropSlot = { fx: number; depth: number; obstacleDepth?: number };
 
 const ROTATION_SECONDS = 2 * 60;
@@ -70,10 +72,17 @@ const SWAY_FADE = 60 * RES; // design px of descent over which sway/rock decays 
 const SETTLE_DIP = 3 * RES;
 const SETTLE_DUR = 0.35;
 
-export type PropObstacle = { x0: number; x1: number; depth: number }; // buffer px; depth = px below sand surface
+// Buffer px; depthLo..depthHi is the band below the local sand crest the prop
+// blocks, spanning from its avoidance tier to its buried base.
+export type PropObstacle = {
+  x0: number;
+  x1: number;
+  depthLo: number;
+  depthHi: number;
+};
 let obstacles: readonly PropObstacle[] = []; // fresh array identity per change = cheap version stamp
 const slotObstacles: PropObstacle[] = [];
-const DEPTH_BAND = 10 * RES; // creature within 10 design px of prop depth = conflict
+const DEPTH_BAND = 10 * RES; // creature within 10 design px of the prop's band = conflict
 
 // Six evenly spaced centres leave roomy prop silhouettes across the 1920px
 // virtual width. Alternating depth breaks up the row while keeping every base
@@ -176,8 +185,8 @@ const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
       STAR_WARS_PROPS_ATLAS_CELL,
       STAR_WARS_PROPS_ATLAS_LAYOUT,
     )[0],
-    // Corner HUD piece: tuck the sprite almost into the bottom-left corner while
-    // keeping its avoidance footprint in the normal foreground substrate tier.
+    // Corner HUD piece: tuck the sprite almost into the bottom-left corner,
+    // with an avoidance band from the foreground tier down to its buried base.
     slot: { fx: 0.025, depth: 128, obstacleDepth: 46 },
   },
   {
@@ -226,7 +235,25 @@ export function getPropObstacles(): readonly PropObstacle[] {
 }
 
 function conflicts(o: PropObstacle, depth: number | undefined) {
-  return depth === undefined || Math.abs(depth - o.depth) < DEPTH_BAND;
+  return (
+    depth === undefined ||
+    (depth > o.depthLo - DEPTH_BAND && depth < o.depthHi + DEPTH_BAND)
+  );
+}
+
+// A trip interpolates depth linearly, so it conflicts when the depth interval
+// it sweeps overlaps the obstacle's band — checking only the endpoints would
+// let a steep trip cut straight through a prop's band mid-way.
+function conflictsSwept(
+  o: PropObstacle,
+  fromDepth: number | undefined,
+  toDepth: number | undefined,
+) {
+  if (fromDepth === undefined || toDepth === undefined) return true;
+  return (
+    Math.max(fromDepth, toDepth) > o.depthLo - DEPTH_BAND &&
+    Math.min(fromDepth, toDepth) < o.depthHi + DEPTH_BAND
+  );
 }
 
 export function insidePropFootprint(
@@ -284,7 +311,7 @@ export function clampPathX(
   const sweepHi = Math.max(fromX, toX);
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (!conflicts(o, fromDepth) && !conflicts(o, toDepth)) continue;
+    if (!conflictsSwept(o, fromDepth, toDepth)) continue;
     const lo = o.x0 - halfWidth;
     const hi = o.x1 + halfWidth;
     if (fromX >= lo && fromX <= hi) continue; // already inside; self-heal handles escape
@@ -321,10 +348,12 @@ function claimSlot(
   placement: PropPlacement,
 ) {
   const left = Math.round(placement.rootX - prop.cell / 2);
+  const avoid = (slot.obstacleDepth ?? slot.depth) * RES;
   slotObstacles[slotIndex] = {
     x0: left + prop.layout.contactLeft,
     x1: left + prop.layout.contactRight,
-    depth: (slot.obstacleDepth ?? slot.depth) * RES,
+    depthLo: Math.min(avoid, slot.depth * RES),
+    depthHi: Math.max(avoid, slot.depth * RES),
   };
   obstacles = [...slotObstacles];
 }

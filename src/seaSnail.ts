@@ -17,7 +17,12 @@ const S = RES;
 const FRAMES = 6;
 const HALF = 30;
 const STANDOFF = 2 * S; // stop points land strictly clear of a footprint
-const EDGE = 38 * S;
+// Wall margin. The left value just clears the fixed corner-HUD prop's footprint
+// (~125px expanded) so the snail can range up onto the left dune, not stop short of it.
+const EDGE = 44 * S;
+// Only force an inward turn within this of a wall, so the snail lingers on the
+// near-wall dune instead of bouncing back the moment it approaches.
+const TURN_MARGIN = 22 * S;
 const MIN_TRIP = 35 * S;
 const MAX_TRIP = 125 * S;
 const FRAME_STEP = 1.6 * S;
@@ -80,9 +85,9 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
 
   const chooseTrip = () => {
     const dir =
-      x < EDGE + MIN_TRIP
+      x < EDGE + TURN_MARGIN
         ? 1
-        : x > k.width() - EDGE - MIN_TRIP
+        : x > k.width() - EDGE - TURN_MARGIN
           ? -1
           : k.chance(0.82)
             ? facing

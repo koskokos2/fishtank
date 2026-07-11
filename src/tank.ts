@@ -3,7 +3,7 @@ import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
-import { off } from "./profiling";
+import { off, num } from "./profiling";
 
 const S = RES;
 
@@ -32,16 +32,21 @@ export function setupTank(k: KAPLAYCtx) {
   // each real frond now has its own root pivot and current phase. Their roots use
   // the actual dune contour and sit several pixels inside the dense sand, where
   // the atlas' dithered alpha edge reveals the procedural substrate beneath.
-  const midPlants = off("plants")
-    ? []
-    : MID_PLANTS.map((spec) => spawnPlantCluster(k, spec));
-  if (!off("plants")) {
-    FOREGROUND_PLANTS.forEach((spec) => spawnPlantCluster(k, spec));
+  // The ?plants= budget fills mid clusters first, then foreground clumps, then
+  // the lone shoots (default 7 + 4 + 15 = 26).
+  const plantBudget = off("plants") ? 0 : num("plants", 26);
+  const midPlants = MID_PLANTS.slice(0, plantBudget).map((spec) =>
+    spawnPlantCluster(k, spec),
+  );
+  FOREGROUND_PLANTS.slice(0, Math.max(0, plantBudget - MID_PLANTS.length)).forEach(
+    (spec) => spawnPlantCluster(k, spec),
+  );
 
-    // Lone shoots scattered between the clusters so the seabed reads as evenly
-    // planted rather than tufted only at the set piece clumps.
-    spawnSinglePlants(k, 15);
-  }
+  // Lone shoots scattered between the clusters so the seabed reads as evenly
+  // planted rather than tufted only at the set piece clumps.
+  const singleShoots =
+    plantBudget - MID_PLANTS.length - FOREGROUND_PLANTS.length;
+  if (singleShoots > 0) spawnSinglePlants(k, singleShoots);
 
   // Caustics: three overlapping sine fields on a coarse grid read as the
   // shimmering light mesh, brightest near the surface and fading with depth.

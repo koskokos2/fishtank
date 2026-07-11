@@ -47,10 +47,10 @@ import {
 } from "./popCulturePropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { setupTank } from "./tank";
-import { off, uncapped, capFPS } from "./profiling";
+import { off, uncapped, capFPS, num } from "./profiling";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = 10;
+const FISH_COUNT = num("fish", 10);
 const BACKDROP_SEED = 1;
 
 // The scene needs no MSAA (pixel art), covers the canvas opaquely (no page
@@ -195,18 +195,17 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       for (let i = 0; i < FISH_COUNT; i++) spawnRandomFish(false);
     // A few cephalopods drift among the fish as larger accent creatures.
     if (!off("cephs")) {
-      spawnCephalopod(k, "nautilus");
-      spawnCephalopod(k, "octopus");
-      spawnCephalopod(k, "jellyfish");
-      spawnCephalopod(k, "jellyfish");
-      spawnCephalopod(k, "jellyfish");
+      for (let i = 0; i < num("naut", 1); i++) spawnCephalopod(k, "nautilus");
+      for (let i = 0; i < num("octo", 1); i++) spawnCephalopod(k, "octopus");
+      for (let i = 0; i < num("jelly", 5); i++) spawnCephalopod(k, "jellyfish");
     }
-    // Start the pair far apart so both are immediately readable before their
+    // Spread the crabs evenly so each is immediately readable before their
     // independent routes eventually carry them around the full substrate.
     if (!off("crabs")) {
-      spawnHermitCrab(k, k.width() * 0.24);
-      spawnHermitCrab(k, k.width() * 0.76);
-      spawnSeaSnail(k);
+      const crabCount = num("crabs", 2);
+      for (let i = 0; i < crabCount; i++)
+        spawnHermitCrab(k, k.width() * ((i + 0.5) / crabCount));
+      for (let i = 0; i < num("snail", 1); i++) spawnSeaSnail(k);
     }
     // A dense right-side kelp forest is reconstructed on every load from ordered
     // random stem, branch, crown, tendril and pod modules. Small juvenile stalks

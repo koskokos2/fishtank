@@ -10,18 +10,20 @@
 #   - connected display mode -> warn when scanout is above 1080p (bandwidth)
 #   - available runtimes     -> cog (WPE/KMS) > chromium kiosk > default browser
 #
-# Usage: launch-web.sh [--cap N] [--browser auto|cog|chromium|default]
+# Usage: launch-web.sh [--res 1|2|3] [--cap N] [--browser auto|cog|chromium|default]
 #                      [--url URL] [--debug] [--dry-run]
+#   --res      buffer resolution via ?res= (default 3 = 1920x1080)
 #   --cap      force the fps cap (needs a deploy that understands ?cap)
-#   --debug    append ?gpu&uncap&fps: GL renderer string + big live fps readout
+#   --debug    append ?debug&uncap: live perf panel (fps, frame ms, draws, heap, GL)
 #   --dry-run  print every probe and the final command without launching
 set -euo pipefail
 
 URL_BASE="https://fish.kns.li/"
-CAP="" BROWSER="auto" DEBUG=0 DRY=0
+RES=3 CAP="" BROWSER="auto" DEBUG=0 DRY=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --res) RES="$2"; shift 2 ;;
     --cap) CAP="$2"; shift 2 ;;
     --browser) BROWSER="$2"; shift 2 ;;
     --url) URL_BASE="$2"; shift 2 ;;
@@ -74,7 +76,8 @@ fi
 note "fps cap" "$CAP"
 
 QUERY="?cap=$CAP"
-[ "$DEBUG" = 1 ] && QUERY="?gpu&uncap&fps"
+[ "$DEBUG" = 1 ] && QUERY="?debug&uncap"
+[ "$RES" != 3 ] && QUERY="$QUERY&res=$RES"
 URL="${URL_BASE%/}/$QUERY"
 
 # --- pick the runtime --------------------------------------------------------

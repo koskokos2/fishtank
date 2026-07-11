@@ -13,7 +13,7 @@
 //    tendril layers. The bell follows propulsion while both appendage layers keep
 //    flowing on independent clocks through coasts, pulses, and turns.
 
-import type { KAPLAYCtx } from "kaplay";
+import type { GameObj, KAPLAYCtx } from "kaplay";
 import { OCTOPUS_IDLE_FRAMES, OCTOPUS_POSE } from "./octopusAtlas";
 import {
   JELLYFISH_ARMS_START,
@@ -90,6 +90,11 @@ const JELLY_ARMS_FPS = 8;
 const JELLY_TENDRIL_FPS = 10;
 const JELLY_TURN_DUR = 0.55; // tuck/roll duration; flip happens halfway through
 const JELLY_FLARE = 0.5; // s the oral-arms flare shows before a startle retreat
+const JELLY_OPACITY = 0.5; // jellyfish render translucent for an ethereal look
+const JELLY_OPACITY_STEP = 0.05;
+const JELLY_MIN_OPACITY = 0.1;
+// Keep every jellyfish layer behind the groundZ-sorted fish and benthic creatures.
+const JELLY_BACK_Z = groundZ(0) - 2;
 
 // =========================== ENTITY ===========================
 type KindCfg = {
@@ -192,7 +197,7 @@ const KINDS: Record<string, KindCfg> = {
   },
   jellyfish: {
     sprite: "jellyfish",
-    z: 15,
+    z: JELLY_BACK_Z,
     drag: 1.6,
     level: { min: 0.05, max: 0.7 }, // drifts the mid/upper column
     artDir: 1, // the jellyfish atlas leads right — tentacles trail left
@@ -220,6 +225,12 @@ const TILT_STEP = 7;
 // second 70%, and every one after that 50%.
 const JELLY_SCALES = [1, 0.7];
 let jellySpawned = 0;
+
+// Live jellyfish bells, so each can drift away from the others. They keep a
+// personal space (~a couple of body-widths) and repel any neighbour inside it,
+// which spreads the group across the tank instead of letting them clump.
+const jellyBells: GameObj[] = [];
+const JELLY_PERSONAL = 130 * S;
 
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
@@ -256,10 +267,18 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       ? groundY(spawnX)
       : k.rand(bandTop(spawnX), bandBot(spawnX));
 
-  // The picked scale rides every jelly layer and the appendage attach offset.
-  // Other kinds stay at 1.
+  // Spawn order controls jelly depth cues: scale and opacity ride every layer.
+  // Other kinds stay at full scale/opacity.
+  const jellyIndex = cfg.motion === "pulse" ? jellySpawned++ : 0;
   const jellyScale =
-    cfg.motion === "pulse" ? (JELLY_SCALES[jellySpawned++] ?? 0.5) : 1;
+    cfg.motion === "pulse" ? (JELLY_SCALES[jellyIndex] ?? 0.5) : 1;
+  const jellyOpacity =
+    cfg.motion === "pulse"
+      ? Math.max(
+          JELLY_MIN_OPACITY,
+          JELLY_OPACITY - jellyIndex * JELLY_OPACITY_STEP,
+        )
+      : 1;
 
   const body = k.add([
     k.sprite(cfg.sprite),
@@ -269,6 +288,10 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     k.scale(jellyScale),
     k.z(cfg.z),
   ]);
+  if (cfg.motion === "pulse") {
+    jellyBells.push(body);
+    body.use(k.opacity(jellyOpacity));
+  }
   // Jellyfish appendages are separate sprites sharing the bell's transform. They
   // stay on their own animation clocks instead of being frozen into bell poses.
   const jellyTendrils =
@@ -279,6 +302,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           k.anchor("center"),
           k.rotate(0),
           k.scale(jellyScale),
+          k.opacity(jellyOpacity),
           k.z(cfg.z - 2),
         ])
       : null;
@@ -290,6 +314,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           k.anchor("center"),
           k.rotate(0),
           k.scale(jellyScale),
+          k.opacity(jellyOpacity),
           k.z(cfg.z - 1),
         ])
       : null;
@@ -370,10 +395,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   let nautTurnTarget = facing;
   let nautTurnFlipped = false;
   let nautTurnTilt = 1;
-  let nautTentacleClock = k.rand(
-    0,
-    NAUTILUS_LAYER_FRAMES / NAUT_TENTACLE_FPS,
-  );
+  let nautTentacleClock = k.rand(0, NAUTILUS_LAYER_FRAMES / NAUT_TENTACLE_FPS);
 
   // crawl-kind (octopus) state: a crawl target, and a swim sub-machine for the
   // occasional pulse-glide bout.
@@ -798,7 +820,23 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       }
       if (jellyTxTimer <= 0 && jellyTurnTimer <= 0) {
         jellyTxTimer = k.rand(p.roam[0], p.roam[1]) * 5;
+        // Aim for open water: sample a few columns and keep the one sitting
+        // farthest from every other jelly, so targets spread across the tank
+        // instead of coinciding.
         tx = k.rand(mX, k.width() - mX);
+        let best = -1;
+        for (let i = 0; i < 4; i++) {
+          const cand = k.rand(mX, k.width() - mX);
+          let near = Infinity;
+          for (const other of jellyBells) {
+            if (other === body) continue;
+            near = Math.min(near, Math.abs(cand - other.pos.x));
+          }
+          if (near > best) {
+            best = near;
+            tx = cand;
+          }
+        }
         const dir = tx > px ? 1 : -1;
         if (dir !== facing) requestJellyTurn(dir);
       }
@@ -869,6 +907,26 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             ? -(1 - (k.width() - px) / wallZone)
             : 0;
       vx += wallPush * p.drift * 0.9 * dt;
+
+      // Personal space: drift away from any other jelly inside JELLY_PERSONAL,
+      // ramping from nothing at the edge to full push on contact. This steady
+      // repulsion spreads the group out and keeps them from swimming side by
+      // side, even as their roam targets wander independently.
+      let sepX = 0;
+      let sepY = 0;
+      for (const other of jellyBells) {
+        if (other === body) continue;
+        const dx = px - other.pos.x;
+        const dy = py - other.pos.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= JELLY_PERSONAL * JELLY_PERSONAL || d2 === 0) continue;
+        const d = Math.sqrt(d2);
+        const f = 1 - d / JELLY_PERSONAL; // 0 at edge → 1 on contact
+        sepX += (dx / d) * f;
+        sepY += (dy / d) * f;
+      }
+      vx += sepX * (p.driftX ?? p.drift) * 0.8 * dt;
+      vy += sepY * p.thrust * 0.35 * dt;
       allowPitch = false; // upright, radially symmetric
     } else {
       // NAUTILUS: arms-first cruise / tail-first pulse machine.
@@ -967,9 +1025,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     if (cfg.motion === "crawl")
       body.z = groundZ(sandTopAt(clamp(px, 0, k.width() - 1)));
     body.angle =
-      cfg.motion === "crawl"
-        ? Math.round(ang / TILT_STEP) * TILT_STEP
-        : ang; // hovering creatures ease continuously rather than ticking by 7°
+      cfg.motion === "crawl" ? Math.round(ang / TILT_STEP) * TILT_STEP : ang; // hovering creatures ease continuously rather than ticking by 7°
 
     // Jellyfish: the bell follows the propulsion phase while the two appendage
     // rows run continuously and independently. All three share one transform;
@@ -1000,7 +1056,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       const armsFrame =
         Math.floor(jellyArmsClock * JELLY_ARMS_FPS) % JELLYFISH_LAYER_FRAMES;
       const tendrilFrame =
-        Math.floor(jellyTendrilClock * JELLY_TENDRIL_FPS) % JELLYFISH_LAYER_FRAMES;
+        Math.floor(jellyTendrilClock * JELLY_TENDRIL_FPS) %
+        JELLYFISH_LAYER_FRAMES;
       jellyArms!.frame = JELLYFISH_ARMS_START + armsFrame;
       jellyTendrils!.frame = JELLYFISH_TENDRILS_START + tendrilFrame;
       // The startle wind-up spreads only the oral arms; their wave clock keeps
@@ -1059,8 +1116,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         else if (nautJetAge < NAUT_JET_RECOVER)
           siphonExtension =
             1 -
-            (nautJetAge - NAUT_JET_POWER) /
-              (NAUT_JET_RECOVER - NAUT_JET_POWER);
+            (nautJetAge - NAUT_JET_POWER) / (NAUT_JET_RECOVER - NAUT_JET_POWER);
         else if (jetTimer < NAUT_JET_ANTICIPATE)
           siphonExtension = 1 - jetTimer / NAUT_JET_ANTICIPATE;
       }
@@ -1069,7 +1125,11 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       );
       nautSiphon!.frame = NAUTILUS_SIPHON_START + siphonFrame;
 
-      if (mode === "jet" && nautTurnTimer <= 0 && nautJetAge < NAUT_JET_RECOVER) {
+      if (
+        mode === "jet" &&
+        nautTurnTimer <= 0 &&
+        nautJetAge < NAUT_JET_RECOVER
+      ) {
         const plumeProgress = clamp(nautJetAge / NAUT_JET_RECOVER, 0, 1);
         nautJet!.frame =
           NAUTILUS_JET_START +
@@ -1132,7 +1192,6 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       }
       body.frame = frame;
     }
-
   });
 
   return body;

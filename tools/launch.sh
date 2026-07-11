@@ -11,9 +11,9 @@
 #
 # Usage: tools/launch.sh [--res 1|2|3] [--cap N] [--browser auto|cog|chromium|default]
 #                        [--port N] [--debug] [--dry-run]
-#   --res      force a resolution tier (1=640x360, 2=1280x720, 3=1920x1080)
+#   --res      buffer resolution via ?res= (1=640x360, 2=1280x720, 3=1920x1080)
 #   --cap      force the fps cap (default: 32 on a Pi, 62 elsewhere)
-#   --debug    append ?gpu&uncap&fps: GL renderer string + big live fps readout
+#   --debug    append ?debug&uncap: live perf panel (fps, frame ms, draws, heap, GL)
 #   --dry-run  print every probe and the final command without launching
 set -euo pipefail
 
@@ -83,22 +83,21 @@ if [ -z "$RES" ]; then
   fi
 fi
 case "$RES" in
-  1) DIR="dist-r1" ;;
-  2) DIR="dist-r2" ;;
-  3) DIR="dist" ;;
+  1|2|3) ;;
   *) echo "invalid --res $RES (want 1, 2, or 3)"; exit 2 ;;
 esac
+DIR="dist"
 if [ ! -f "$ROOT/$DIR/index.html" ]; then
-  echo "build missing: $ROOT/$DIR - build it first (bun run build for dist;"
-  echo "for dist-r1/r2 set RES in src/res.ts and 'bun build index.html --outdir <dir> --minify')"
+  echo "build missing: $ROOT/$DIR - run 'bun run build' first"
   exit 1
 fi
 [ -z "$CAP" ] && { [ "$IS_PI" = 1 ] && CAP=32 || CAP=62; }
-note build "$DIR (RES $RES)"
+note res "$RES ($((640 * RES))x$((360 * RES)))"
 note "fps cap" "$CAP"
 
 QUERY="?cap=$CAP"
-[ "$DEBUG" = 1 ] && QUERY="?gpu&uncap&fps"
+[ "$DEBUG" = 1 ] && QUERY="?debug&uncap"
+[ "$RES" != 3 ] && QUERY="$QUERY&res=$RES"
 URL="http://127.0.0.1:$PORT/index.html$QUERY"
 
 # --- pick the runtime --------------------------------------------------------
