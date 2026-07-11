@@ -61,9 +61,7 @@ export type WhitelistedProp = {
   layout: Layout;
 };
 
-// obstacleDepth widens a deep slot's avoidance band: the obstacle spans from
-// it down to the base at `depth`, so crawlers keep clear of the whole body.
-type PropSlot = { fx: number; depth: number; obstacleDepth?: number };
+type PropSlot = { fx: number; depth: number };
 
 const ROTATION_SECONDS = 2 * 60;
 
@@ -83,23 +81,20 @@ const SWAY_FADE = 60 * RES; // design px of descent over which sway/rock decays 
 const SETTLE_DIP = 3 * RES;
 const SETTLE_DUR = 0.35;
 
-// Buffer px; depthLo..depthHi is the band below the local sand crest the prop
-// blocks, spanning from its avoidance tier to its buried base.
-export type PropObstacle = {
-  x0: number;
-  x1: number;
-  depthLo: number;
-  depthHi: number;
-};
+// A prop blocks only the ground plane it stands on: its contact line, stored
+// as absolute screen y (baseY). A crawler in the same column at a shallower
+// ground line is behind the prop (occluded), a deeper one is in front — both
+// are fine; only standing through the base is not.
+export type PropObstacle = { x0: number; x1: number; baseY: number }; // buffer px
 let obstacles: readonly PropObstacle[] = []; // fresh array identity per change = cheap version stamp
 const slotObstacles: PropObstacle[] = [];
-const DEPTH_BAND = 10 * RES; // creature within 10 design px of the prop's band = conflict
+const DEPTH_BAND = 10 * RES; // creature ground line within 10 design px of the plane = conflict
 
 // Six evenly spaced centres leave roomy prop silhouettes across the 1920px
 // virtual width. Alternating depth breaks up the row while keeping every base
 // comfortably inside the 58px-deep design-space bed.
 export const PROP_SLOTS: readonly PropSlot[] = [
-  { fx: 0.132, depth: 130, obstacleDepth: 46 },
+  { fx: 0.132, depth: 130 },
   { fx: 0.24, depth: 42 },
   { fx: 0.4, depth: 24 },
   { fx: 0.56, depth: 50 },
@@ -199,9 +194,8 @@ const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
       STAR_WARS_PROPS_ATLAS_CELL,
       STAR_WARS_PROPS_ATLAS_LAYOUT,
     )[0],
-    // Corner HUD piece: tuck the sprite almost into the bottom-left corner,
-    // with an avoidance band from the foreground tier down to its buried base.
-    slot: { fx: 0.025, depth: 128, obstacleDepth: 46 },
+    // Corner HUD piece: tucked almost into the bottom-left corner.
+    slot: { fx: 0.025, depth: 128 },
   },
   {
     prop: atlasProps(
@@ -248,25 +242,12 @@ export function getPropObstacles(): readonly PropObstacle[] {
   return obstacles;
 }
 
-function conflicts(o: PropObstacle, depth: number | undefined) {
+// Depth is relative to the crest at the creature's own x, so it converts to a
+// ground line (screen y) before comparing against the prop's contact plane.
+function conflicts(o: PropObstacle, x: number, depth: number | undefined) {
   return (
     depth === undefined ||
-    (depth > o.depthLo - DEPTH_BAND && depth < o.depthHi + DEPTH_BAND)
-  );
-}
-
-// A trip interpolates depth linearly, so it conflicts when the depth interval
-// it sweeps overlaps the obstacle's band — checking only the endpoints would
-// let a steep trip cut straight through a prop's band mid-way.
-function conflictsSwept(
-  o: PropObstacle,
-  fromDepth: number | undefined,
-  toDepth: number | undefined,
-) {
-  if (fromDepth === undefined || toDepth === undefined) return true;
-  return (
-    Math.max(fromDepth, toDepth) > o.depthLo - DEPTH_BAND &&
-    Math.min(fromDepth, toDepth) < o.depthHi + DEPTH_BAND
+    Math.abs(sandTopAt(x) + depth - o.baseY) < DEPTH_BAND
   );
 }
 
@@ -277,7 +258,7 @@ export function insidePropFootprint(
 ): boolean {
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (!conflicts(o, depth)) continue;
+    if (!conflicts(o, x, depth)) continue;
     if (x >= o.x0 - halfWidth && x <= o.x1 + halfWidth) return true;
   }
   return false;
@@ -297,7 +278,7 @@ export function nearestClearX(
 ): number {
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (!conflicts(o, depth)) continue;
+    if (!conflicts(o, x, depth)) continue;
     const lo = o.x0 - halfWidth;
     const hi = o.x1 + halfWidth;
     if (x < lo || x > hi) continue;
@@ -323,13 +304,30 @@ export function clampPathX(
   let result = toX;
   const sweepLo = Math.min(fromX, toX);
   const sweepHi = Math.max(fromX, toX);
+  // The creature's ground line along the trip: crest at x plus the linearly
+  // interpolated depth.
+  const pathY = (x: number) =>
+    sandTopAt(x) +
+    (fromDepth ?? 0) +
+    ((toDepth ?? 0) - (fromDepth ?? 0)) *
+      (toX === fromX ? 0 : (x - fromX) / (toX - fromX));
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (!conflictsSwept(o, fromDepth, toDepth)) continue;
     const lo = o.x0 - halfWidth;
     const hi = o.x1 + halfWidth;
     if (fromX >= lo && fromX <= hi) continue; // already inside; self-heal handles escape
     if (sweepLo > hi || sweepHi < lo) continue; // swept interval doesn't enter this footprint
+    if (fromDepth !== undefined && toDepth !== undefined) {
+      // Where the trip actually crosses the footprint, does its ground line
+      // meet the prop's contact plane? Sampled at the segment's ends and
+      // middle — enough for the gentle crest curvature under a footprint.
+      const xa = Math.min(Math.max(lo, sweepLo), sweepHi);
+      const xb = Math.min(Math.max(hi, sweepLo), sweepHi);
+      const ys = [pathY(xa), pathY((xa + xb) / 2), pathY(xb)];
+      const yLo = Math.min(...ys);
+      const yHi = Math.max(...ys);
+      if (yHi <= o.baseY - DEPTH_BAND || yLo >= o.baseY + DEPTH_BAND) continue;
+    }
     result =
       toX >= fromX
         ? Math.min(result, lo - standoff)
@@ -357,17 +355,14 @@ function refillPropCycle(k: KAPLAYCtx, visibleIds: ReadonlySet<string>) {
 
 function claimSlot(
   prop: WhitelistedProp,
-  slot: PropSlot,
   slotIndex: number,
   placement: PropPlacement,
 ) {
   const left = Math.round(placement.rootX - prop.cell / 2);
-  const avoid = (slot.obstacleDepth ?? slot.depth) * RES;
   slotObstacles[slotIndex] = {
     x0: left + prop.layout.contactLeft,
     x1: left + prop.layout.contactRight,
-    depthLo: Math.min(avoid, slot.depth * RES),
-    depthHi: Math.max(avoid, slot.depth * RES),
+    baseY: placement.rootY,
   };
   obstacles = [...slotObstacles];
 }
@@ -381,7 +376,7 @@ function spawnProp(
   z?: number,
 ) {
   const placement = placeProp(k.width(), prop, slot);
-  claimSlot(prop, slot, slotIndex, placement);
+  claimSlot(prop, slotIndex, placement);
   return k.add([
     profileDraw("props"),
     k.sprite(prop.sprite, { frame: prop.frame }),

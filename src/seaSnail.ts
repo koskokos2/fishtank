@@ -1,12 +1,14 @@
-// Sea snail (nudibranch): a small, slow benthic crawler. It wanders through the
-// back, middle, and foreground substrate tiers. The pose cycle advances by total
-// distance travelled, so its muscular foot wave cannot slide while stationary.
+// Sea snail (nudibranch): a small, slow benthic crawler. It wanders the whole
+// local bed (substrate.ts) — every sand column between the dune crest and the
+// bottom margin. The pose cycle advances by total distance travelled, so its
+// muscular foot wave cannot slide while stationary.
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
 import { profile, profileDraw, profileDrawEnd } from "./profiling";
+import { chooseSubstrateDepth, maxSubstrateDepthAt } from "./substrate";
 import {
   clampPathX,
   getPropObstacles,
@@ -18,9 +20,9 @@ const S = RES;
 const FRAMES = 6;
 const HALF = 30;
 const STANDOFF = 2 * S; // stop points land strictly clear of a footprint
-// Wall margin. The left value just clears the fixed corner-HUD prop's footprint
-// (~125px expanded) so the snail can range up onto the left dune, not stop short of it.
-const EDGE = 44 * S;
+// Wall margin: just keeps the body on-screen. Props near the walls are handled
+// by the obstacle system, not by widening this.
+const EDGE = 12 * S;
 // Only force an inward turn within this of a wall, so the snail lingers on the
 // near-wall dune instead of bouncing back the moment it approaches.
 const TURN_MARGIN = 22 * S;
@@ -28,30 +30,12 @@ const MIN_TRIP = 35 * S;
 const MAX_TRIP = 125 * S;
 const FRAME_STEP = 1.6 * S;
 const SLOPE_SPAN = 17 * S;
-const DEPTH_TIERS = [2, 17, 38].map((depth) => depth * S);
-const DEPTH_JITTER = 3 * S;
-const MAX_DEPTH = 43 * S;
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
-const chooseOtherDepthTier = (k: KAPLAYCtx, currentDepth: number) => {
-  const alternatives = DEPTH_TIERS.filter(
-    (tier) => Math.abs(tier - currentDepth) > 8 * S,
-  );
-  return clamp(
-    k.choose(alternatives) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
-    0,
-    MAX_DEPTH,
-  );
-};
-
 export function spawnSeaSnail(k: KAPLAYCtx) {
   let x = k.rand(EDGE, k.width() - EDGE);
-  let substrateDepth = clamp(
-    k.choose(DEPTH_TIERS) + k.rand(-DEPTH_JITTER, DEPTH_JITTER),
-    0,
-    MAX_DEPTH,
-  );
+  let substrateDepth = chooseSubstrateDepth(k, x);
   x = nearestClearX(x, HALF, STANDOFF, substrateDepth, EDGE, k.width() - EDGE);
   let facing = k.choose([-1, 1]);
   let targetX = x;
@@ -100,7 +84,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
       EDGE,
       k.width() - EDGE,
     );
-    targetDepth = chooseOtherDepthTier(k, substrateDepth);
+    targetDepth = chooseSubstrateDepth(k, targetX, substrateDepth);
     targetX = clampPathX(
       x,
       targetX,
@@ -126,6 +110,9 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
         targetDepth,
       );
     }
+    // A clamp may have landed the stop where the bed is thinner than the
+    // chosen depth; keep the target inside the local bed.
+    targetDepth = Math.min(targetDepth, maxSubstrateDepthAt(targetX));
   };
 
   snail.onUpdate(() =>
@@ -169,6 +156,10 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
         const ratio = remaining > 0 ? step / remaining : 0;
         x += remainingX * ratio;
         substrateDepth += remainingDepth * ratio;
+        // Both trip endpoints fit their local bed, but the straight line between
+        // them can dip below it where the crest falls away mid-trip; ride the
+        // bottom margin there instead.
+        substrateDepth = Math.min(substrateDepth, maxSubstrateDepthAt(x));
         const travelled = Math.hypot(x - lastX, substrateDepth - lastDepth);
         gaitDistance += travelled;
         puffDistance += travelled;

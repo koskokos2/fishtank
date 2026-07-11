@@ -71,8 +71,8 @@ type LongFrameBreakdown = {
 };
 type FrameProbeSample = {
   ts: number;
-  startDelay: number;
-  glDrawMs: number;
+  beforeProbeMs: number;
+  glSubmitMs: number;
 };
 type FrameProbe = {
   consume(ts: number): FrameProbeSample | undefined;
@@ -90,6 +90,7 @@ type ProfileRoot = {
   update: () => void;
   draw: () => void;
 };
+type DebugStatReader = () => string;
 
 const MB = 1024 * 1024;
 const formatBytes = (bytes: number) => {
@@ -144,7 +145,7 @@ const profileGrid = (
   label: string,
   entries: readonly (readonly [string, number])[],
 ) => {
-  const labelWidth = 8;
+  const labelWidth = 10;
   const nameWidth = 12;
   const valueWidth = 7;
   const rows: string[] = [];
@@ -268,8 +269,15 @@ const smoothedDrawProfileAverages: ProfileAverages = new Map();
 const smoothedGlProfileAverages: ProfileAverages = new Map();
 const smoothedEngineProfileAverages: ProfileAverages = new Map();
 const drawProfileStack: DrawProfileFrame[] = [];
+const debugStatReaders = new Map<string, DebugStatReader>();
 let frameProbe: FrameProbe | null = null;
 const profiledRoots = new WeakSet<ProfileRoot>();
+let rafProfileInstalled = false;
+let rafCallbackTotalMs = 0;
+
+export const registerDebugStat = (name: string, read: DebugStatReader) => {
+  debugStatReaders.set(name, read);
+};
 
 export const profile = <T>(name: string, fn: () => T): T => {
   if (!debugProfiling) return fn();
@@ -344,16 +352,16 @@ const installFrameProbe = () => {
   const samples: FrameProbeSample[] = [];
   let current: FrameProbeSample | null = null;
   const tick = (ts: number) => {
-    current = { ts, startDelay: performance.now() - ts, glDrawMs: 0 };
+    current = { ts, beforeProbeMs: performance.now() - ts, glSubmitMs: 0 };
     samples.push(current);
     if (samples.length > 360) samples.shift();
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 
-  const addGlDrawTime = (ms: number) => {
+  const addGlSubmitTime = (ms: number) => {
     if (!debugProfiling) return;
-    if (current) current.glDrawMs += ms;
+    if (current) current.glSubmitMs += ms;
     addProfileTime(
       glProfileTotals,
       drawProfileStack[drawProfileStack.length - 1]?.name ?? "unscoped",
@@ -369,7 +377,7 @@ const installFrameProbe = () => {
       try {
         return drawArrays.call(this, mode, first, count);
       } finally {
-        addGlDrawTime(performance.now() - start);
+        addGlSubmitTime(performance.now() - start);
       }
     };
     const drawElements = proto.drawElements;
@@ -378,7 +386,7 @@ const installFrameProbe = () => {
       try {
         return drawElements.call(this, mode, count, type, offset);
       } finally {
-        addGlDrawTime(performance.now() - start);
+        addGlSubmitTime(performance.now() - start);
       }
     };
   };
@@ -403,10 +411,29 @@ const installFrameProbe = () => {
   };
 };
 
+const installRafProfiler = () => {
+  if (rafProfileInstalled || typeof requestAnimationFrame === "undefined")
+    return;
+  rafProfileInstalled = true;
+  const originalRequestAnimationFrame = requestAnimationFrame.bind(globalThis);
+  globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) =>
+    originalRequestAnimationFrame((time) => {
+      if (!debugProfiling) return callback(time);
+      const start = performance.now();
+      try {
+        return callback(time);
+      } finally {
+        rafCallbackTotalMs += performance.now() - start;
+      }
+    })) as typeof requestAnimationFrame;
+};
+
 const setDebugProfiling = (enabled: boolean) => {
   debugProfiling = enabled;
-  if (enabled && !frameProbe && typeof requestAnimationFrame !== "undefined")
-    frameProbe = installFrameProbe();
+  if (enabled && typeof requestAnimationFrame !== "undefined") {
+    installRafProfiler();
+    if (!frameProbe) frameProbe = installFrameProbe();
+  }
   if (!enabled) {
     jsProfileTotals.clear();
     drawProfileTotals.clear();
@@ -421,6 +448,7 @@ const setDebugProfiling = (enabled: boolean) => {
     smoothedGlProfileAverages.clear();
     smoothedEngineProfileAverages.clear();
     drawProfileStack.length = 0;
+    rafCallbackTotalMs = 0;
   }
 };
 
@@ -443,10 +471,9 @@ if (params.has("fps") && !params.has("debug"))
 // ?debug overlays a live performance panel: rendered fps vs rAF tick rate
 // (a gap means the frame cap is skipping ticks, and the tick rate is the
 // display's real refresh), main-thread frame cost with p95 over a rolling
-// window (measured as the delay between the vsync timestamp and this late-
-// registered rAF callback — kaplay's callback runs first in the tick), GL
-// draw calls, named update/draw/GL breakdowns, Kaplay root overhead, object
-// count, JS heap, buffer size, and the renderer string.
+// window, late-rAF probe timing, named update/draw breakdowns, Kaplay root
+// overhead, approximate untracked time before the panel probe, GL submit-call
+// timing, object count, JS heap, buffer size, and the renderer string.
 if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
   addEventListener("load", () => {
     const box = document.createElement("div");
@@ -804,6 +831,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       lastDuration: 0,
       lastKind: undefined as number | undefined,
     };
+    let gcIntervalMs = 0;
     let gcStatus = "not exposed";
     if (
       typeof PerformanceObserver !== "undefined" &&
@@ -819,6 +847,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
             nativeGc.lastAt = performance.now();
             nativeGc.lastDuration = entry.duration;
             nativeGc.lastKind = kind;
+            gcIntervalMs += entry.duration;
           }
         }).observe({ type: "gc", buffered: true });
         gcStatus = "native";
@@ -873,8 +902,15 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       }
       return `gc     ${gcStatus}`;
     };
+    const debugStatsText = () => {
+      if (!debugStatReaders.size) return "";
+      return `stats  ${[...debugStatReaders.entries()]
+        .map(([name, read]) => `${name} ${read()}`)
+        .join("  ")}`;
+    };
 
     const longFrames: LongFrameBreakdown[] = [];
+    let browserRenderIntervalMs = 0;
     let longFrameStatus = supportedEntryTypes.includes("long-animation-frame")
       ? "waiting"
       : "not exposed";
@@ -886,8 +922,10 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         new PerformanceObserver((list) => {
           if (!debugProfiling) return;
           for (const entry of list.getEntries() as LongAnimationFrameEntry[]) {
-            longFrames.push(makeLongFrameBreakdown(entry));
+            const frame = makeLongFrameBreakdown(entry);
+            longFrames.push(frame);
             if (longFrames.length > 40) longFrames.shift();
+            browserRenderIntervalMs += frame.renderOther + frame.styleLayout;
           }
         }).observe({ type: "long-animation-frame", buffered: true });
       } catch (error) {
@@ -913,21 +951,25 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     };
 
     const costs: number[] = [];
-    const preCosts: number[] = [];
-    const jsCosts: number[] = [];
-    const glDrawCosts: number[] = [];
+    const beforeProbeCosts: number[] = [];
+    const afterProbeCosts: number[] = [];
+    const glSubmitCosts: number[] = [];
+    const meterCosts: number[] = [];
     let ticks = 0;
     const tick = (ts: number) => {
       const now = performance.now();
       const elapsed = now - ts;
       const frameStart = frameProbe?.consume(ts);
-      const pre = frameStart?.startDelay ?? 0;
-      const glDraw = frameStart?.glDrawMs ?? 0;
+      const beforeProbe = frameStart?.beforeProbeMs ?? 0;
+      const glSubmit = frameStart?.glSubmitMs ?? 0;
       if (debugProfiling) {
         pushRolling(costs, elapsed);
-        pushRolling(preCosts, pre);
-        pushRolling(glDrawCosts, glDraw);
-        pushRolling(jsCosts, Math.max(0, elapsed - pre - glDraw));
+        pushRolling(beforeProbeCosts, beforeProbe);
+        pushRolling(glSubmitCosts, glSubmit);
+        pushRolling(
+          afterProbeCosts,
+          Math.max(0, elapsed - beforeProbe - glSubmit),
+        );
         ticks++;
       }
       requestAnimationFrame(tick);
@@ -936,9 +978,13 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
 
     let lastT = performance.now();
     setInterval(() => {
+      const meterStart = performance.now();
       if (!debugProfiling) {
         ticks = 0;
         lastT = performance.now();
+        gcIntervalMs = 0;
+        browserRenderIntervalMs = 0;
+        rafCallbackTotalMs = 0;
         return;
       }
       const now = performance.now();
@@ -986,48 +1032,72 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         seenEngineProfileNames,
         smoothedEngineProfileAverages,
       );
-      const preAvg = avgOf(preCosts);
-      const jsAvg = avgOf(jsCosts);
-      const glAvg = avgOf(glDrawCosts);
+      const beforeProbeAvg = avgOf(beforeProbeCosts);
+      const afterProbeAvg = avgOf(afterProbeCosts);
+      const glSubmitAvg = avgOf(glSubmitCosts);
+      const gcPauseAvg = gcStatus === "native" ? gcIntervalMs / frameCount : 0;
+      const browserRenderAvg = browserRenderIntervalMs / frameCount;
+      const meterAvg = avgOf(meterCosts);
+      const rafCallbacksAvg = rafCallbackTotalMs / frameCount;
+      gcIntervalMs = 0;
+      browserRenderIntervalMs = 0;
+      rafCallbackTotalMs = 0;
       const appUpdateAvg = sumProfile(jsByApp);
       const appDrawAvg = sumProfile(drawByApp);
-      const appGlAvg = sumProfile(glByApp);
-      const appDrawNoGlAvg = Math.max(0, appDrawAvg - appGlAvg);
-      const engineOtherAvg = Math.max(0, jsAvg - appUpdateAvg - appDrawNoGlAvg);
       const rootUpdateAvg = engineByApp.get("root update") ?? 0;
       const rootFixedAvg = engineByApp.get("root fixed") ?? 0;
       const rootDrawAvg = engineByApp.get("root draw") ?? 0;
       const engineUpdateWalkAvg = Math.max(0, rootUpdateAvg - appUpdateAvg);
       const engineDrawWalkAvg = Math.max(0, rootDrawAvg - appDrawAvg);
-      const engineFrameMiscAvg = Math.max(
+      const engineWalkAvg =
+        engineUpdateWalkAvg + rootFixedAvg + engineDrawWalkAvg;
+      const rootMeasuredAvg = rootUpdateAvg + rootFixedAvg + rootDrawAvg;
+      const accountGapAvg = beforeProbeAvg - rootMeasuredAvg;
+      const rafOtherAvg = Math.max(0, rafCallbacksAvg - rootMeasuredAvg);
+      const unknownGapAvg = Math.max(
         0,
-        engineOtherAvg - engineUpdateWalkAvg - rootFixedAvg - engineDrawWalkAvg,
+        accountGapAvg - rafOtherAvg - gcPauseAvg - meterAvg,
       );
+      const accountGapEntry: readonly [string, number] =
+        accountGapAvg >= 0
+          ? ["browser/other", accountGapAvg]
+          : ["timing overlap", -accountGapAvg];
       const fps = d ? Math.round(d.fps()) : "?";
       const fpsText = `fps    ${fps} (raf ${hz}Hz)`;
       fpsPanel.textContent = `fps: ${fps}`;
       detailPanel.textContent = [
         fpsText,
         `frame  ${formatMs(avg)} p95 ${formatMs(p95)}`,
-        `parts  pre ${formatMs(preAvg)} js ${formatMs(
-          jsAvg,
-        )} draw-cpu ${formatMs(appDrawAvg)} gl ${formatMs(glAvg)}`,
-        profileGrid(
-          "js by",
-          profileEntries(jsByApp, JS_PROFILE_ORDER, [
-            ["engine/other", engineOtherAvg],
-          ]),
-        ),
-        profileGrid("engine", [
-          ["update walk", engineUpdateWalkAvg],
-          ["fixed walk", rootFixedAvg],
-          ["draw walk", engineDrawWalkAvg],
-          ["frame/misc", engineFrameMiscAvg],
+        profileGrid("timing", [
+          ["before meter", beforeProbeAvg],
+          ["after meter", afterProbeAvg],
+          ["gpu calls", glSubmitAvg],
         ]),
-        profileGrid("draw by", profileEntries(drawByApp, DRAW_PROFILE_ORDER)),
-        profileGrid("gl by", profileEntries(glByApp, DRAW_PROFILE_ORDER)),
+        profileGrid("where", [
+          ["app updates", appUpdateAvg],
+          ["app drawing", appDrawAvg],
+          ["scene overhead", engineWalkAvg],
+          ["game total", rootMeasuredAvg],
+          accountGapEntry,
+        ]),
+        profileGrid("browser", [
+          ["other JS", rafOtherAvg],
+          ["gc pauses", gcPauseAvg],
+          ["meter cost", meterAvg],
+          ["unknown gap", unknownGapAvg],
+          ["render/layout", browserRenderAvg],
+        ]),
+        profileGrid("updates", profileEntries(jsByApp, JS_PROFILE_ORDER)),
+        profileGrid("overhead", [
+          ["call updates", engineUpdateWalkAvg],
+          ["timer phase", rootFixedAvg],
+          ["call draws", engineDrawWalkAvg],
+        ]),
+        profileGrid("drawing", profileEntries(drawByApp, DRAW_PROFILE_ORDER)),
+        profileGrid("gpu calls", profileEntries(glByApp, DRAW_PROFILE_ORDER)),
         longFrameText(),
         `draws  ${d ? d.drawCalls() : "?"}  objs ${d ? d.numObjects() : "?"}`,
+        debugStatsText(),
         heap
           ? `heap   ${formatBytes(heap.usedJSHeapSize)}/${formatBytes(
               heap.totalJSHeapSize,
@@ -1035,10 +1105,15 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
           : "heap   n/a",
         pageMemoryText(),
         gcText(now, heap),
+        "note   overhead = framework time to call object updates/draws",
+        "       timer phase = engine timer/interval-style work due this frame",
+        "       browser/other = before meter minus game total; render/layout is extra",
+        "       game total = updates + drawing + overhead; gpu calls are CPU-side",
         `${canvas?.width ?? "?"}x${canvas?.height ?? "?"} ${renderer}`,
       ]
         .filter(Boolean)
         .join("\n");
+      pushRolling(meterCosts, (performance.now() - meterStart) / frameCount);
     }, 500);
   });
 

@@ -1,5 +1,5 @@
 import type { KAPLAYCtx } from "kaplay";
-import { off, profile, withDrawProfile } from "./profiling";
+import { off, profile, registerDebugStat, withDrawProfile } from "./profiling";
 import { RES } from "./res";
 
 const S = RES;
@@ -22,6 +22,13 @@ type Grain = {
   tone: [number, number, number];
   opacity: number;
 };
+
+let activeBursts = 0;
+let activeGrains = 0;
+registerDebugStat(
+  "puffs",
+  () => `${activeBursts} bursts ${activeGrains} grains`,
+);
 
 // A short-lived burst of crisp sand grains. Scale controls particle count, while
 // riseMul and settleMul let a heavy landing and a tiny crawling scuff share the
@@ -60,6 +67,8 @@ export function spawnSandPuff(
       opacity: k.rand(0.75, 1),
     });
   }
+  activeBursts++;
+  activeGrains += grains.length;
 
   const drag = 2.6;
   const puff = k.add([
@@ -86,9 +95,13 @@ export function spawnSandPuff(
             ) {
               grains[i] = grains[grains.length - 1];
               grains.pop();
+              activeGrains--;
             }
           }
-          if (grains.length === 0) puff.destroy();
+          if (grains.length === 0) {
+            activeBursts--;
+            puff.destroy();
+          }
         });
       },
       draw() {
