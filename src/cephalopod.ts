@@ -33,6 +33,7 @@ import {
 import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { RES } from "./res";
+import { profile, profileDraw, profileDrawEnd } from "./profiling";
 import {
   clampPathX,
   getPropObstacles,
@@ -80,6 +81,7 @@ const NAUT_TURN_HOLD = 1.45;
 const NAUT_JET_POWER = 0.22;
 const NAUT_JET_RECOVER = 0.62;
 const NAUT_JET_ANTICIPATE = 0.55;
+const NAUT_SCALE = 0.5;
 
 // =========================== JELLYFISH ART ===========================
 // The layered atlas has sixteen deterministic frames per row. The bell row is
@@ -279,13 +281,16 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           JELLY_OPACITY - jellyIndex * JELLY_OPACITY_STEP,
         )
       : 1;
+  const bodyScale = cfg.motion === "jet" ? NAUT_SCALE : jellyScale;
 
   const body = k.add([
+    profileDraw("cephs"),
     k.sprite(cfg.sprite),
+    profileDrawEnd(),
     k.pos(spawnX, spawnY),
     k.anchor("center"),
     k.rotate(0),
-    k.scale(jellyScale),
+    k.scale(bodyScale),
     k.z(cfg.z),
   ]);
   if (cfg.motion === "pulse") {
@@ -297,7 +302,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const jellyTendrils =
     cfg.motion === "pulse"
       ? k.add([
+          profileDraw("cephs"),
           k.sprite("jellyfish"),
+          profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
@@ -309,7 +316,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const jellyArms =
     cfg.motion === "pulse"
       ? k.add([
+          profileDraw("cephs"),
           k.sprite("jellyfish"),
+          profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
@@ -325,11 +334,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const nautJet =
     cfg.motion === "jet"
       ? k.add([
+          profileDraw("cephs"),
           k.sprite("nautilus"),
+          profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
-          k.scale(1),
+          k.scale(NAUT_SCALE),
           k.opacity(0),
           k.z(cfg.z - 2),
         ])
@@ -337,22 +348,26 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const nautSiphon =
     cfg.motion === "jet"
       ? k.add([
+          profileDraw("cephs"),
           k.sprite("nautilus"),
+          profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
-          k.scale(1),
+          k.scale(NAUT_SCALE),
           k.z(cfg.z - 1),
         ])
       : null;
   const nautTentacles =
     cfg.motion === "jet"
       ? k.add([
+          profileDraw("cephs"),
           k.sprite("nautilus"),
+          profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
           k.rotate(0),
-          k.scale(1),
+          k.scale(NAUT_SCALE),
           // The root cuff sits behind the head; only the free tentacles emerge
           // beyond the mouth folds, concealing the component seam.
           k.z(cfg.z - 0.5),
@@ -511,688 +526,705 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     jetTimer = 0;
   };
 
-  body.onUpdate(() => {
-    const dt = k.dt();
-    const drag = cfg.drag;
-    const mX = 40 * S;
-    let allowPitch = true; // crawl forces this off; swim turns it back on
-    let buryNow = 0; // octopus: current press-into-sand depth (px), eases to 0
-    if (cfg.motion === "jet") {
-      nautTurnTimer = Math.max(0, nautTurnTimer - dt);
-      nautJetAge += dt;
-      if (!nautTurnFlipped && nautTurnTimer <= NAUT_TURN_HOLD * 0.5) {
-        facing = nautTurnTarget;
-        body.flipX = facing !== artDir;
-        for (const layer of [nautTentacles!, nautSiphon!, nautJet!])
-          layer.flipX = body.flipX;
-        nautTurnFlipped = true;
-      }
-    }
-    if (cfg.motion === "pulse" && jellyTurnTimer > 0) {
-      jellyTurnTimer = Math.max(0, jellyTurnTimer - dt);
-      if (!jellyTurnFlipped && jellyTurnTimer <= JELLY_TURN_DUR * 0.5) {
-        beginTurn(jellyTurnTarget);
-        jellyTurnFlipped = true;
-      }
-    }
-
-    if (cfg.motion === "crawl") {
-      // OCTOPUS: a benthic crawler. It hops a short way along the sand, then parks
-      // and rests ON the ground (usually a few seconds, sometimes much longer),
-      // arms gently swaying — and now and then pushes off into a short pulse-glide
-      // swim bout before settling back onto the substrate. Its vertical rides the
-      // sand contour (groundY) while crawling/resting; swim bouts lift it off.
-      const cr = cfg.crawl!;
-      if (seenObstacles !== getPropObstacles()) {
-        seenObstacles = getPropObstacles();
-        // A rotation swap covers the airborne case too — the settle gate
-        // steers a mid-swim octopus away from a footprint on its own.
-        if (octoMode === "crawl") {
-          if (insidePropFootprint(px, OCTO_HALF)) {
-            tx = nearestClearX(
-              px,
-              OCTO_HALF,
-              OCTO_STANDOFF,
-              undefined,
-              mX,
-              k.width() - mX,
-            );
-            restTimer = 0;
-            const dir = Math.sign(tx - px) || facing;
-            if (dir !== facing) curlTimer = 0.5;
-            beginTurn(dir);
-          } else {
-            tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
-          }
+  body.onUpdate(() =>
+    profile("cephs", () => {
+      const dt = k.dt();
+      const drag = cfg.drag;
+      const mX = 40 * S;
+      let allowPitch = true; // crawl forces this off; swim turns it back on
+      let buryNow = 0; // octopus: current press-into-sand depth (px), eases to 0
+      if (cfg.motion === "jet") {
+        nautTurnTimer = Math.max(0, nautTurnTimer - dt);
+        nautJetAge += dt;
+        if (!nautTurnFlipped && nautTurnTimer <= NAUT_TURN_HOLD * 0.5) {
+          facing = nautTurnTarget;
+          body.flipX = facing !== artDir;
+          for (const layer of [nautTentacles!, nautSiphon!, nautJet!])
+            layer.flipX = body.flipX;
+          nautTurnFlipped = true;
         }
       }
-      curlTimer -= dt;
-      buryTimer = Math.max(0, buryTimer - dt);
-      buryNow = BURY_DEPTH * (buryTimer / BURY_DUR); // sinks on impact, springs back
-      if (octoMode === "crawl") {
-        if (restTimer > 0) {
-          // PARKED & RESTING: hold still; a swim never interrupts a rest, so the
-          // long rests actually last.
-          restTimer -= dt;
-          vx += (0 - vx) * 4 * dt;
-          if (restTimer <= 0) {
-            // rest over → hop a moderate way along the sand (biased off the walls)
-            const dir =
-              px < mX * 2
-                ? 1
-                : px > k.width() - mX * 2
-                  ? -1
-                  : k.choose([-1, 1]);
-            tx = clamp(
-              px + dir * k.rand(60 * S, cr.hop) * tempo,
-              mX,
-              k.width() - mX,
-            );
-            tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
-            let hopDir = dir;
-            if (Math.abs(tx - px) < 12 * S) {
-              // A prop clamped the hop to a near-instant park — try the other
-              // direction once instead of settling right back on the spot.
-              hopDir = -dir;
-              tx = clamp(
-                px + hopDir * k.rand(60 * S, cr.hop) * tempo,
-                mX,
-                k.width() - mX,
-              );
-              tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
-            }
-            if (hopDir !== facing) curlTimer = 0.5; // curl its arms through the turn
-            beginTurn(hopDir);
-          }
-        } else {
-          // crawling toward the hop; close enough → settle and rest a while
-          const dx = tx - px;
-          if (Math.abs(dx) < 12 * S) {
-            restLong = k.chance(longRestChance);
-            restTimer =
-              (restLong
-                ? k.rand(cr.rest.longSecs[0], cr.rest.longSecs[1])
-                : k.rand(cr.rest.secs[0], cr.rest.secs[1])) * tempo;
-            vx += (0 - vx) * 4 * dt;
-          } else {
-            const sp = cr.speed * Math.min(1, Math.abs(dx) / (12 * S));
-            vx += (Math.sign(dx) * sp - vx) * 4 * dt;
-
-            // While crawling over the substrate, kick up small periodic puffs so
-            // movement reads as contact with the sand instead of gliding over it.
-            crawlPuffTimer -= dt;
-            if (crawlPuffTimer <= 0 && Math.abs(vx) > cr.speed * 0.35) {
-              spawnSandPuff(
-                k,
-                px + facing * 8 * S,
-                sandTopAt(clamp(px, 0, k.width() - 1)),
-                0.32,
-                1,
-                2,
-              );
-              crawlPuffTimer = k.rand(0.12, 0.28);
-            }
-          }
-          // only push off for a swim while actively moving (rests are protected)
-          swimCooldown -= dt;
-          if (swimCooldown <= 0) {
-            octoMode = "swim";
-            swimSub = "gather";
-            subTimer = cr.gather;
-            descending = false;
-            liftedOff = false;
-            pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
-            swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
-            swimRoamLeft = swimRoaming
-              ? k.rand(cr.roamSecs[0], cr.roamSecs[1])
-              : 0;
-            swimHover = k.rand(cr.roamHover[0], cr.roamHover[1]);
-            swimVigorous = swimRoaming || pulsesLeft >= 2; // energetic pose row
-            swimDir =
-              px < mX * 2
-                ? 1
-                : px > k.width() - mX * 2
-                  ? -1
-                  : k.choose([-1, 1]);
-            if (swimDir !== facing) curlTimer = 0.4; // curl through the launch turn
-            beginTurn(swimDir);
-          }
+      if (cfg.motion === "pulse" && jellyTurnTimer > 0) {
+        jellyTurnTimer = Math.max(0, jellyTurnTimer - dt);
+        if (!jellyTurnFlipped && jellyTurnTimer <= JELLY_TURN_DUR * 0.5) {
+          beginTurn(jellyTurnTarget);
+          jellyTurnFlipped = true;
         }
-        // ride the sand contour: a P-controller eases py to the seated ground height
-        // (offset down by buryNow right after a landing, so it presses in and recovers)
-        vy = clamp(
-          (groundY(px) + buryNow - py) * 8,
-          -cr.speed * 4,
-          cr.speed * 4,
-        );
-      } else {
-        // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
-        // (glide). After the last pulse a single dive glides back down to the sand;
-        // a roaming excursion instead redirects and keeps wandering until its time
-        // runs out, then glides down.
-        const wallNear = 72 * S;
-        if (px < mX + wallNear && swimDir < 0) {
-          swimDir = 1;
-          beginTurn(1);
-        } else if (px > k.width() - mX - wallNear && swimDir > 0) {
-          swimDir = -1;
-          beginTurn(-1);
-        }
+      }
 
-        if (swimRoaming) swimRoamLeft -= dt;
-        subTimer -= dt;
-        if (swimSub === "gather") {
-          if (subTimer <= 0) {
-            swimSub = "thrust";
-            subTimer = cr.thrust;
-            vx += swimDir * cr.impulse; // forward power stroke
-            if (descending) {
-              // Stroking back down to the sand: the power stroke now drives the
-              // body downward, the mirror of the lift below.
-              vy += cr.impulse * cr.vert;
-            } else {
-              // A roamer only lifts until it reaches its hover line above the sand,
-              // then strokes are horizontal (no gravity here, so altitude holds).
-              const hoverY = groundY(px) - swimHover;
-              const climb = swimRoaming
-                ? clamp((py - hoverY) / (30 * S), 0, 1)
-                : 1;
-              vy -= cr.impulse * cr.vert * climb;
-            }
-          }
-        } else if (swimSub === "thrust") {
-          if (subTimer <= 0) {
-            swimSub = "glide";
-            subTimer = k.rand(cr.glide[0], cr.glide[1]);
-          }
-        } else if (swimSub === "glide") {
-          if (subTimer <= 0) {
-            if (descending) {
-              // Keep bunching and stroking down until close to the sand; only then
-              // stop pushing and let it settle the last stretch.
-              if (py < groundY(px) - OCTO_DESCEND_STOP) {
-                swimSub = "gather";
-                subTimer = cr.gather;
-              } else swimSub = "settle";
-            } else {
-              pulsesLeft -= 1;
-              if (pulsesLeft > 0) {
-                swimSub = "gather";
-                subTimer = cr.gather;
-              } else if (swimRoaming && swimRoamLeft > 0) {
-                // keep roaming: a short bout in a fresh inward direction
-                pulsesLeft = Math.round(k.rand(1, 2));
-                swimSub = "gather";
-                subTimer = cr.gather;
-                const dir =
-                  px < mX * 2
-                    ? 1
-                    : px > k.width() - mX * 2
-                      ? -1
-                      : k.choose([-1, 1]);
-                if (dir !== swimDir) curlTimer = 0.4; // curl through the turn
-                swimDir = dir;
-                beginTurn(dir);
-              } else if (py < groundY(px) - OCTO_DESCEND_STOP) {
-                // still high above the sand → descend with downward push-pulses
-                descending = true;
-                swimSub = "gather";
-                subTimer = cr.gather;
-              } else swimSub = "settle";
-            }
-          }
-        } else {
-          // SETTLE: very close to the sand now (the push-pulses quit above it).
-          // Stop stroking, keep a little forward glide while sinking the last bit,
-          // and touch down.
-          const inwardDir =
-            px < mX + 18 * S ? 1 : px > k.width() - mX - 18 * S ? -1 : swimDir;
-          // A prop under the touchdown point overrides the wall steer — landing
-          // on it isn't an option, so head for the nearer clear edge instead.
-          const inFootprint = insidePropFootprint(px, OCTO_HALF);
-          const steerDir = inFootprint
-            ? nearestClearX(
+      if (cfg.motion === "crawl") {
+        // OCTOPUS: a benthic crawler. It hops a short way along the sand, then parks
+        // and rests ON the ground (usually a few seconds, sometimes much longer),
+        // arms gently swaying — and now and then pushes off into a short pulse-glide
+        // swim bout before settling back onto the substrate. Its vertical rides the
+        // sand contour (groundY) while crawling/resting; swim bouts lift it off.
+        const cr = cfg.crawl!;
+        if (seenObstacles !== getPropObstacles()) {
+          seenObstacles = getPropObstacles();
+          // A rotation swap covers the airborne case too — the settle gate
+          // steers a mid-swim octopus away from a footprint on its own.
+          if (octoMode === "crawl") {
+            if (insidePropFootprint(px, OCTO_HALF)) {
+              tx = nearestClearX(
                 px,
                 OCTO_HALF,
                 OCTO_STANDOFF,
                 undefined,
                 mX,
                 k.width() - mX,
-              ) >= px
-              ? 1
-              : -1
-            : inwardDir;
-          if (steerDir !== swimDir) {
-            swimDir = steerDir;
-            beginTurn(steerDir);
-          }
-          vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
-          if (!inFootprint) vy += cr.sink * dt;
-        }
-        // Touch down from any sub-state the moment the body meets the sand: a bout
-        // that drifts over the rising dune settles on contact instead of pinning
-        // to the crest. `liftedOff` gates it so a just-launched bunch (py still at
-        // the ground) can't re-land before it has climbed.
-        if (py < groundY(px) - 8 * S) liftedOff = true;
-        if (
-          liftedOff &&
-          !insidePropFootprint(px, OCTO_HALF) &&
-          py >= groundY(px) - 4 * S &&
-          vy >= 0
-        ) {
-          octoMode = "crawl";
-          descending = false;
-          // touchdown: kick up a puff of sand and press the body into it
-          spawnSandPuff(k, px, sandTopAt(clamp(px, 0, k.width() - 1)), 2, 2, 2);
-          buryTimer = BURY_DUR;
-          restLong = false;
-          restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
-          tx = px; // hop afresh from where it landed
-          swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]) * tempo;
-        }
-      }
-      allowPitch = octoMode === "swim"; // level while crawling, pitch while gliding
-    } else if (cfg.motion === "pulse") {
-      // JELLYFISH: a rhythmic bell-pump. Each cycle is contraction (main upward
-      // thrust) → relaxation (a smaller passive-recapture thrust) → coast. Between
-      // pulses it sinks slowly (negative buoyancy); the baked pulse-cycle frames
-      // track the phase so the pump you see is the push that moves it.
-      const p = cfg.pulse!;
-      // How much it still needs to climb toward its target depth: 1 = well below
-      // (pulse up hard), 0 = at or above it (no lift — just hover and sink). This
-      // gates the thrust so the jelly bobs around its depth instead of pulsing
-      // against the surface, the way a real medusa coasts once it's high enough.
-      const climb = clamp((py - depth) / (40 * S), 0, 1);
-
-      roamTimer -= dt;
-      jellyTxTimer -= dt;
-      // The horizontal target persists until the jelly actually arrives — it
-      // travels only a few px per second, so re-rolling tx on the depth cadence
-      // would re-aim it long before it got anywhere (uniform re-rolls from an
-      // off-center spot mostly land on the center side, herding every jelly to
-      // mid-tank). Arrival re-aims immediately, instead of crossing the old
-      // target and reversing thrust while still visibly facing the other way;
-      // the long timer is a fallback so one far target can't pin it forever.
-      if (Math.abs(tx - px) < 12 * S && jellyTurnTimer <= 0) jellyTxTimer = 0;
-      if (roamTimer <= 0 && jellyTurnTimer <= 0) {
-        roamTimer = k.rand(p.roam[0], p.roam[1]);
-        depth = k.rand(bandTop(px), bandBot(px)); // roam the column
-      }
-      if (jellyTxTimer <= 0 && jellyTurnTimer <= 0) {
-        jellyTxTimer = k.rand(p.roam[0], p.roam[1]) * 5;
-        // Aim for open water: sample a few columns and keep the one sitting
-        // farthest from every other jelly, so targets spread across the tank
-        // instead of coinciding.
-        tx = k.rand(mX, k.width() - mX);
-        let best = -1;
-        for (let i = 0; i < 4; i++) {
-          const cand = k.rand(mX, k.width() - mX);
-          let near = Infinity;
-          for (const other of jellyBells) {
-            if (other === body) continue;
-            near = Math.min(near, Math.abs(cand - other.pos.x));
-          }
-          if (near > best) {
-            best = near;
-            tx = cand;
-          }
-        }
-        const dir = tx > px ? 1 : -1;
-        if (dir !== facing) requestJellyTurn(dir);
-      }
-
-      // Rare startle: flare the oral arms mid-coast, then spring away with quick
-      // boosted recoil pulses. The flare pauses the pump; its expiry zeroes the
-      // coast so the first recoil pulse fires immediately.
-      startleTimer -= dt;
-      if (
-        startleTimer <= 0 &&
-        pulsePhase === 2 &&
-        startlePulses === 0 &&
-        jellyTurnTimer <= 0
-      ) {
-        flareTimer = JELLY_FLARE;
-        startlePulses = 2;
-        startleTimer = k.rand(p.startle.every[0], p.startle.every[1]);
-      }
-
-      if (flareTimer > 0) {
-        flareTimer -= dt;
-        if (flareTimer <= 0) pulseTimer = 0;
-      } else if (jellyTurnTimer <= 0) {
-        pulseTimer -= dt;
-        if (pulseTimer <= 0) {
-          if (pulsePhase === 2) {
-            const willRecoil = startlePulses > 0;
-            const away = px > k.width() / 2 ? -1 : 1; // retreat toward open water
-            // If a startle needs a reversal, finish the visible turn before firing
-            // the recoil. pulseTimer stays at zero and resumes immediately after.
-            if (willRecoil && away !== facing) {
-              requestJellyTurn(away);
-              pulseTimer = 0;
+              );
+              restTimer = 0;
+              const dir = Math.sign(tx - px) || facing;
+              if (dir !== facing) curlTimer = 0.5;
+              beginTurn(dir);
             } else {
-              pulsePhase = 0; // coast → contract: the active power stroke
-              pulseTimer = p.contract;
-              if (willRecoil) {
-                startlePulses -= 1;
-                vy -= p.thrust * p.startle.boost;
-                vx += away * p.thrust * 0.5;
-              } else {
-                vy -= p.thrust * climb; // only push up as much as it needs to climb
-                vx += facing * (p.driftX ?? p.drift); // steer in the visible direction
+              tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+            }
+          }
+        }
+        curlTimer -= dt;
+        buryTimer = Math.max(0, buryTimer - dt);
+        buryNow = BURY_DEPTH * (buryTimer / BURY_DUR); // sinks on impact, springs back
+        if (octoMode === "crawl") {
+          if (restTimer > 0) {
+            // PARKED & RESTING: hold still; a swim never interrupts a rest, so the
+            // long rests actually last.
+            restTimer -= dt;
+            vx += (0 - vx) * 4 * dt;
+            if (restTimer <= 0) {
+              // rest over → hop a moderate way along the sand (biased off the walls)
+              const dir =
+                px < mX * 2
+                  ? 1
+                  : px > k.width() - mX * 2
+                    ? -1
+                    : k.choose([-1, 1]);
+              tx = clamp(
+                px + dir * k.rand(60 * S, cr.hop) * tempo,
+                mX,
+                k.width() - mX,
+              );
+              tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+              let hopDir = dir;
+              if (Math.abs(tx - px) < 12 * S) {
+                // A prop clamped the hop to a near-instant park — try the other
+                // direction once instead of settling right back on the spot.
+                hopDir = -dir;
+                tx = clamp(
+                  px + hopDir * k.rand(60 * S, cr.hop) * tempo,
+                  mX,
+                  k.width() - mX,
+                );
+                tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+              }
+              if (hopDir !== facing) curlTimer = 0.5; // curl its arms through the turn
+              beginTurn(hopDir);
+            }
+          } else {
+            // crawling toward the hop; close enough → settle and rest a while
+            const dx = tx - px;
+            if (Math.abs(dx) < 12 * S) {
+              restLong = k.chance(longRestChance);
+              restTimer =
+                (restLong
+                  ? k.rand(cr.rest.longSecs[0], cr.rest.longSecs[1])
+                  : k.rand(cr.rest.secs[0], cr.rest.secs[1])) * tempo;
+              vx += (0 - vx) * 4 * dt;
+            } else {
+              const sp = cr.speed * Math.min(1, Math.abs(dx) / (12 * S));
+              vx += (Math.sign(dx) * sp - vx) * 4 * dt;
+
+              // While crawling over the substrate, kick up small periodic puffs so
+              // movement reads as contact with the sand instead of gliding over it.
+              crawlPuffTimer -= dt;
+              if (crawlPuffTimer <= 0 && Math.abs(vx) > cr.speed * 0.35) {
+                spawnSandPuff(
+                  k,
+                  px + facing * 8 * S,
+                  sandTopAt(clamp(px, 0, k.width() - 1)),
+                  0.32,
+                  1,
+                  2,
+                );
+                crawlPuffTimer = k.rand(0.12, 0.28);
               }
             }
-          } else if (pulsePhase === 0) {
-            pulsePhase = 1; // contract → relax: the free passive-recapture push
-            pulseTimer = p.relax;
-            vy -= p.thrust * p.per * climb;
-          } else {
-            pulsePhase = 2; // relax → coast — rest longer when it isn't climbing
-            pulseTimer =
-              startlePulses > 0
-                ? 0.22 // barely coast between the recoil pulses
-                : k.rand(p.coast[0], p.coast[1]) * (1.6 - climb);
+            // only push off for a swim while actively moving (rests are protected)
+            swimCooldown -= dt;
+            if (swimCooldown <= 0) {
+              octoMode = "swim";
+              swimSub = "gather";
+              subTimer = cr.gather;
+              descending = false;
+              liftedOff = false;
+              pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
+              swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
+              swimRoamLeft = swimRoaming
+                ? k.rand(cr.roamSecs[0], cr.roamSecs[1])
+                : 0;
+              swimHover = k.rand(cr.roamHover[0], cr.roamHover[1]);
+              swimVigorous = swimRoaming || pulsesLeft >= 2; // energetic pose row
+              swimDir =
+                px < mX * 2
+                  ? 1
+                  : px > k.width() - mX * 2
+                    ? -1
+                    : k.choose([-1, 1]);
+              if (swimDir !== facing) curlTimer = 0.4; // curl through the launch turn
+              beginTurn(swimDir);
+            }
           }
-        }
-      }
-
-      vy += p.sink * dt; // always sinking a touch; the pulses fight it
-      // Bias off the walls only near them — a tank-wide pull would slowly drag
-      // every jelly to the center and hold it there.
-      const wallZone = mX * 3;
-      const wallPush =
-        px < wallZone
-          ? 1 - px / wallZone
-          : px > k.width() - wallZone
-            ? -(1 - (k.width() - px) / wallZone)
-            : 0;
-      vx += wallPush * p.drift * 0.9 * dt;
-
-      // Personal space: drift away from any other jelly inside JELLY_PERSONAL,
-      // ramping from nothing at the edge to full push on contact. This steady
-      // repulsion spreads the group out and keeps them from swimming side by
-      // side, even as their roam targets wander independently.
-      let sepX = 0;
-      let sepY = 0;
-      for (const other of jellyBells) {
-        if (other === body) continue;
-        const dx = px - other.pos.x;
-        const dy = py - other.pos.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 >= JELLY_PERSONAL * JELLY_PERSONAL || d2 === 0) continue;
-        const d = Math.sqrt(d2);
-        const f = 1 - d / JELLY_PERSONAL; // 0 at edge → 1 on contact
-        sepX += (dx / d) * f;
-        sepY += (dy / d) * f;
-      }
-      vx += sepX * (p.driftX ?? p.drift) * 0.8 * dt;
-      vy += sepY * p.thrust * 0.35 * dt;
-      allowPitch = false; // upright, radially symmetric
-    } else {
-      // NAUTILUS: arms-first cruise / tail-first pulse machine.
-      nautDepthTimer -= dt;
-      if (nautDepthTimer <= 0) {
-        // Choose a meaningfully different height instead of repeatedly sampling
-        // near the current one. This produces long diagonal ascents/descents
-        // without disturbing horizontal heading or tentacle orientation.
-        const top = bandTop(px);
-        const bottom = bandBot(px);
-        const middle = (top + bottom) / 2;
-        depth =
-          py < middle
-            ? k.rand(middle + 12 * S, bottom)
-            : k.rand(top, middle - 12 * S);
-        nautDepthTimer = k.rand(6, 10);
-      }
-      segTimer -= dt;
-      if (segTimer <= 0 && nautTurnTimer <= 0) startSegment();
-      // Coast through the visible tilt arc. Thrust resumes only after the turn,
-      // avoiding a sideways slide in the new direction.
-      if (nautTurnTimer <= 0) {
-        if (mode === "cruise") {
-          vx += heading * cfg.cruise! * drag * dt; // equilibrium ≈ cruise
+          // ride the sand contour: a P-controller eases py to the seated ground height
+          // (offset down by buryNow right after a landing, so it presses in and recovers)
+          vy = clamp(
+            (groundY(px) + buryNow - py) * 8,
+            -cr.speed * 4,
+            cr.speed * 4,
+          );
         } else {
-          jetTimer -= dt;
-          if (jetTimer <= 0) {
-            jetTimer = k.rand(cfg.jet!.interval[0], cfg.jet!.interval[1]);
-            vx += heading * cfg.jet!.impulse;
-            const v = cfg.jet!.impulse * cfg.jet!.vert;
-            vy += clamp((depth - py) * 1.5, -v, v);
-            nautJetAge = 0;
+          // SWIM bout: bunch (gather) → power stroke (thrust, the impulse) → coast
+          // (glide). After the last pulse a single dive glides back down to the sand;
+          // a roaming excursion instead redirects and keeps wandering until its time
+          // runs out, then glides down.
+          const wallNear = 72 * S;
+          if (px < mX + wallNear && swimDir < 0) {
+            swimDir = 1;
+            beginTurn(1);
+          } else if (px > k.width() - mX - wallNear && swimDir > 0) {
+            swimDir = -1;
+            beginTurn(-1);
+          }
+
+          if (swimRoaming) swimRoamLeft -= dt;
+          subTimer -= dt;
+          if (swimSub === "gather") {
+            if (subTimer <= 0) {
+              swimSub = "thrust";
+              subTimer = cr.thrust;
+              vx += swimDir * cr.impulse; // forward power stroke
+              if (descending) {
+                // Stroking back down to the sand: the power stroke now drives the
+                // body downward, the mirror of the lift below.
+                vy += cr.impulse * cr.vert;
+              } else {
+                // A roamer only lifts until it reaches its hover line above the sand,
+                // then strokes are horizontal (no gravity here, so altitude holds).
+                const hoverY = groundY(px) - swimHover;
+                const climb = swimRoaming
+                  ? clamp((py - hoverY) / (30 * S), 0, 1)
+                  : 1;
+                vy -= cr.impulse * cr.vert * climb;
+              }
+            }
+          } else if (swimSub === "thrust") {
+            if (subTimer <= 0) {
+              swimSub = "glide";
+              subTimer = k.rand(cr.glide[0], cr.glide[1]);
+            }
+          } else if (swimSub === "glide") {
+            if (subTimer <= 0) {
+              if (descending) {
+                // Keep bunching and stroking down until close to the sand; only then
+                // stop pushing and let it settle the last stretch.
+                if (py < groundY(px) - OCTO_DESCEND_STOP) {
+                  swimSub = "gather";
+                  subTimer = cr.gather;
+                } else swimSub = "settle";
+              } else {
+                pulsesLeft -= 1;
+                if (pulsesLeft > 0) {
+                  swimSub = "gather";
+                  subTimer = cr.gather;
+                } else if (swimRoaming && swimRoamLeft > 0) {
+                  // keep roaming: a short bout in a fresh inward direction
+                  pulsesLeft = Math.round(k.rand(1, 2));
+                  swimSub = "gather";
+                  subTimer = cr.gather;
+                  const dir =
+                    px < mX * 2
+                      ? 1
+                      : px > k.width() - mX * 2
+                        ? -1
+                        : k.choose([-1, 1]);
+                  if (dir !== swimDir) curlTimer = 0.4; // curl through the turn
+                  swimDir = dir;
+                  beginTurn(dir);
+                } else if (py < groundY(px) - OCTO_DESCEND_STOP) {
+                  // still high above the sand → descend with downward push-pulses
+                  descending = true;
+                  swimSub = "gather";
+                  subTimer = cr.gather;
+                } else swimSub = "settle";
+              }
+            }
+          } else {
+            // SETTLE: very close to the sand now (the push-pulses quit above it).
+            // Stop stroking, keep a little forward glide while sinking the last bit,
+            // and touch down.
+            const inwardDir =
+              px < mX + 18 * S
+                ? 1
+                : px > k.width() - mX - 18 * S
+                  ? -1
+                  : swimDir;
+            // A prop under the touchdown point overrides the wall steer — landing
+            // on it isn't an option, so head for the nearer clear edge instead.
+            const inFootprint = insidePropFootprint(px, OCTO_HALF);
+            const steerDir = inFootprint
+              ? nearestClearX(
+                  px,
+                  OCTO_HALF,
+                  OCTO_STANDOFF,
+                  undefined,
+                  mX,
+                  k.width() - mX,
+                ) >= px
+                ? 1
+                : -1
+              : inwardDir;
+            if (steerDir !== swimDir) {
+              swimDir = steerDir;
+              beginTurn(steerDir);
+            }
+            vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
+            if (!inFootprint) vy += cr.sink * dt;
+          }
+          // Touch down from any sub-state the moment the body meets the sand: a bout
+          // that drifts over the rising dune settles on contact instead of pinning
+          // to the crest. `liftedOff` gates it so a just-launched bunch (py still at
+          // the ground) can't re-land before it has climbed.
+          if (py < groundY(px) - 8 * S) liftedOff = true;
+          if (
+            liftedOff &&
+            !insidePropFootprint(px, OCTO_HALF) &&
+            py >= groundY(px) - 4 * S &&
+            vy >= 0
+          ) {
+            octoMode = "crawl";
+            descending = false;
+            // touchdown: kick up a puff of sand and press the body into it
+            spawnSandPuff(
+              k,
+              px,
+              sandTopAt(clamp(px, 0, k.width() - 1)),
+              2,
+              2,
+              2,
+            );
+            buryTimer = BURY_DUR;
+            restLong = false;
+            restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
+            tx = px; // hop afresh from where it landed
+            swimCooldown = k.rand(cr.swimEvery[0], cr.swimEvery[1]) * tempo;
           }
         }
+        allowPitch = octoMode === "swim"; // level while crawling, pitch while gliding
+      } else if (cfg.motion === "pulse") {
+        // JELLYFISH: a rhythmic bell-pump. Each cycle is contraction (main upward
+        // thrust) → relaxation (a smaller passive-recapture thrust) → coast. Between
+        // pulses it sinks slowly (negative buoyancy); the baked pulse-cycle frames
+        // track the phase so the pump you see is the push that moves it.
+        const p = cfg.pulse!;
+        // How much it still needs to climb toward its target depth: 1 = well below
+        // (pulse up hard), 0 = at or above it (no lift — just hover and sink). This
+        // gates the thrust so the jelly bobs around its depth instead of pulsing
+        // against the surface, the way a real medusa coasts once it's high enough.
+        const climb = clamp((py - depth) / (40 * S), 0, 1);
+
+        roamTimer -= dt;
+        jellyTxTimer -= dt;
+        // The horizontal target persists until the jelly actually arrives — it
+        // travels only a few px per second, so re-rolling tx on the depth cadence
+        // would re-aim it long before it got anywhere (uniform re-rolls from an
+        // off-center spot mostly land on the center side, herding every jelly to
+        // mid-tank). Arrival re-aims immediately, instead of crossing the old
+        // target and reversing thrust while still visibly facing the other way;
+        // the long timer is a fallback so one far target can't pin it forever.
+        if (Math.abs(tx - px) < 12 * S && jellyTurnTimer <= 0) jellyTxTimer = 0;
+        if (roamTimer <= 0 && jellyTurnTimer <= 0) {
+          roamTimer = k.rand(p.roam[0], p.roam[1]);
+          depth = k.rand(bandTop(px), bandBot(px)); // roam the column
+        }
+        if (jellyTxTimer <= 0 && jellyTurnTimer <= 0) {
+          jellyTxTimer = k.rand(p.roam[0], p.roam[1]) * 5;
+          // Aim for open water: sample a few columns and keep the one sitting
+          // farthest from every other jelly, so targets spread across the tank
+          // instead of coinciding.
+          tx = k.rand(mX, k.width() - mX);
+          let best = -1;
+          for (let i = 0; i < 4; i++) {
+            const cand = k.rand(mX, k.width() - mX);
+            let near = Infinity;
+            for (const other of jellyBells) {
+              if (other === body) continue;
+              near = Math.min(near, Math.abs(cand - other.pos.x));
+            }
+            if (near > best) {
+              best = near;
+              tx = cand;
+            }
+          }
+          const dir = tx > px ? 1 : -1;
+          if (dir !== facing) requestJellyTurn(dir);
+        }
+
+        // Rare startle: flare the oral arms mid-coast, then spring away with quick
+        // boosted recoil pulses. The flare pauses the pump; its expiry zeroes the
+        // coast so the first recoil pulse fires immediately.
+        startleTimer -= dt;
+        if (
+          startleTimer <= 0 &&
+          pulsePhase === 2 &&
+          startlePulses === 0 &&
+          jellyTurnTimer <= 0
+        ) {
+          flareTimer = JELLY_FLARE;
+          startlePulses = 2;
+          startleTimer = k.rand(p.startle.every[0], p.startle.every[1]);
+        }
+
+        if (flareTimer > 0) {
+          flareTimer -= dt;
+          if (flareTimer <= 0) pulseTimer = 0;
+        } else if (jellyTurnTimer <= 0) {
+          pulseTimer -= dt;
+          if (pulseTimer <= 0) {
+            if (pulsePhase === 2) {
+              const willRecoil = startlePulses > 0;
+              const away = px > k.width() / 2 ? -1 : 1; // retreat toward open water
+              // If a startle needs a reversal, finish the visible turn before firing
+              // the recoil. pulseTimer stays at zero and resumes immediately after.
+              if (willRecoil && away !== facing) {
+                requestJellyTurn(away);
+                pulseTimer = 0;
+              } else {
+                pulsePhase = 0; // coast → contract: the active power stroke
+                pulseTimer = p.contract;
+                if (willRecoil) {
+                  startlePulses -= 1;
+                  vy -= p.thrust * p.startle.boost;
+                  vx += away * p.thrust * 0.5;
+                } else {
+                  vy -= p.thrust * climb; // only push up as much as it needs to climb
+                  vx += facing * (p.driftX ?? p.drift); // steer in the visible direction
+                }
+              }
+            } else if (pulsePhase === 0) {
+              pulsePhase = 1; // contract → relax: the free passive-recapture push
+              pulseTimer = p.relax;
+              vy -= p.thrust * p.per * climb;
+            } else {
+              pulsePhase = 2; // relax → coast — rest longer when it isn't climbing
+              pulseTimer =
+                startlePulses > 0
+                  ? 0.22 // barely coast between the recoil pulses
+                  : k.rand(p.coast[0], p.coast[1]) * (1.6 - climb);
+            }
+          }
+        }
+
+        vy += p.sink * dt; // always sinking a touch; the pulses fight it
+        // Bias off the walls only near them — a tank-wide pull would slowly drag
+        // every jelly to the center and hold it there.
+        const wallZone = mX * 3;
+        const wallPush =
+          px < wallZone
+            ? 1 - px / wallZone
+            : px > k.width() - wallZone
+              ? -(1 - (k.width() - px) / wallZone)
+              : 0;
+        vx += wallPush * p.drift * 0.9 * dt;
+
+        // Personal space: drift away from any other jelly inside JELLY_PERSONAL,
+        // ramping from nothing at the edge to full push on contact. This steady
+        // repulsion spreads the group out and keeps them from swimming side by
+        // side, even as their roam targets wander independently.
+        let sepX = 0;
+        let sepY = 0;
+        for (const other of jellyBells) {
+          if (other === body) continue;
+          const dx = px - other.pos.x;
+          const dy = py - other.pos.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= JELLY_PERSONAL * JELLY_PERSONAL || d2 === 0) continue;
+          const d = Math.sqrt(d2);
+          const f = 1 - d / JELLY_PERSONAL; // 0 at edge → 1 on contact
+          sepX += (dx / d) * f;
+          sepY += (dy / d) * f;
+        }
+        vx += sepX * (p.driftX ?? p.drift) * 0.8 * dt;
+        vy += sepY * p.thrust * 0.35 * dt;
+        allowPitch = false; // upright, radially symmetric
       } else {
-        // Shed the old horizontal momentum while rotating edge-on. The new jet
-        // then establishes the new course instead of the sprite sliding briefly
-        // in the direction it has just turned away from.
-        vx -= vx * 2.8 * dt;
+        // NAUTILUS: arms-first cruise / tail-first pulse machine.
+        nautDepthTimer -= dt;
+        if (nautDepthTimer <= 0) {
+          // Choose a meaningfully different height instead of repeatedly sampling
+          // near the current one. This produces long diagonal ascents/descents
+          // without disturbing horizontal heading or tentacle orientation.
+          const top = bandTop(px);
+          const bottom = bandBot(px);
+          const middle = (top + bottom) / 2;
+          depth =
+            py < middle
+              ? k.rand(middle + 12 * S, bottom)
+              : k.rand(top, middle - 12 * S);
+          nautDepthTimer = k.rand(6, 10);
+        }
+        segTimer -= dt;
+        if (segTimer <= 0 && nautTurnTimer <= 0) startSegment();
+        // Coast through the visible tilt arc. Thrust resumes only after the turn,
+        // avoiding a sideways slide in the new direction.
+        if (nautTurnTimer <= 0) {
+          if (mode === "cruise") {
+            vx += heading * cfg.cruise! * drag * dt; // equilibrium ≈ cruise
+          } else {
+            jetTimer -= dt;
+            if (jetTimer <= 0) {
+              jetTimer = k.rand(cfg.jet!.interval[0], cfg.jet!.interval[1]);
+              vx += heading * cfg.jet!.impulse;
+              const v = cfg.jet!.impulse * cfg.jet!.vert;
+              vy += clamp((depth - py) * 1.5, -v, v);
+              nautJetAge = 0;
+            }
+          }
+        } else {
+          // Shed the old horizontal momentum while rotating edge-on. The new jet
+          // then establishes the new course instead of the sprite sliding briefly
+          // in the direction it has just turned away from.
+          vx -= vx * 2.8 * dt;
+        }
+        vy += clamp((depth - py) * 1.1, -18 * S, 18 * S) * dt;
       }
-      vy += clamp((depth - py) * 1.1, -18 * S, 18 * S) * dt;
-    }
 
-    vx -= vx * drag * dt;
-    vy -= vy * drag * dt;
-    px += vx * dt;
-    py += vy * dt;
-    // The octopus's floor is the sand it sits on; others use the generic low band.
-    const floorY =
-      cfg.motion === "crawl" ? groundY(px) + buryNow : swimFloorAt(px);
-    py = clamp(py, minY, floorY);
+      vx -= vx * drag * dt;
+      vy -= vy * drag * dt;
+      px += vx * dt;
+      py += vy * dt;
+      // The octopus's floor is the sand it sits on; others use the generic low band.
+      const floorY =
+        cfg.motion === "crawl" ? groundY(px) + buryNow : swimFloorAt(px);
+      py = clamp(py, minY, floorY);
 
-    // Keep inside the tank; the jet kind retargets a fresh inward segment on
-    // contact, a swimming octopus cuts the bout short to settle, the crawl kind
-    // just clamps (its roam target steers it back).
-    const hitWall = px < mX || px > k.width() - mX;
-    if (px < mX) {
-      px = mX;
-      if (vx < 0) vx = 0;
-    } else if (px > k.width() - mX) {
-      px = k.width() - mX;
-      if (vx > 0) vx = 0;
-    }
-    if (hitWall) {
-      if (cfg.motion === "jet") segTimer = 0;
-      if (octoMode === "swim") {
-        // Treat wall contact as a turn cue, not a hard dead-end.
-        const inward = px < k.width() / 2 ? 1 : -1;
-        swimDir = inward;
-        beginTurn(inward);
-        vx = inward * Math.max(Math.abs(vx) * 0.35, cfg.crawl!.speed * 0.9);
-        // A roamer keeps wandering; a single dive transitions to glide-down.
-        if (!(swimRoaming && swimRoamLeft > 0)) swimSub = "settle";
+      // Keep inside the tank; the jet kind retargets a fresh inward segment on
+      // contact, a swimming octopus cuts the bout short to settle, the crawl kind
+      // just clamps (its roam target steers it back).
+      const hitWall = px < mX || px > k.width() - mX;
+      if (px < mX) {
+        px = mX;
+        if (vx < 0) vx = 0;
+      } else if (px > k.width() - mX) {
+        px = k.width() - mX;
+        if (vx > 0) vx = 0;
       }
-    }
+      if (hitWall) {
+        if (cfg.motion === "jet") segTimer = 0;
+        if (octoMode === "swim") {
+          // Treat wall contact as a turn cue, not a hard dead-end.
+          const inward = px < k.width() / 2 ? 1 : -1;
+          swimDir = inward;
+          beginTurn(inward);
+          vx = inward * Math.max(Math.abs(vx) * 0.35, cfg.crawl!.speed * 0.9);
+          // A roamer keeps wandering; a single dive transitions to glide-down.
+          if (!(swimRoaming && swimRoamLeft > 0)) swimSub = "settle";
+        }
+      }
 
-    // Jellyfish tilts lazily toward its horizontal travel direction; all other
-    // creatures either pitch into their travel slope (gliding) or stay level.
-    if (cfg.motion === "pulse") {
-      const jellyTilt = clamp(vx / (12 * S), -1, 1) * 4; // poses already carry directional lean
-      ang += (jellyTilt - ang) * (1 - Math.exp(-2.5 * dt));
-    } else {
-      const travelDir = vx >= 0 ? 1 : -1;
-      const slope = allowPitch
-        ? clamp(Math.atan2(vy, Math.abs(vx) + 10 * S), -0.3, 0.3)
-        : 0;
-      const targetPitch = ((travelDir > 0 ? slope : -slope) * 180) / Math.PI;
-      ang += (targetPitch - ang) * (1 - Math.exp(-6 * dt));
-    }
+      // Jellyfish tilts lazily toward its horizontal travel direction; all other
+      // creatures either pitch into their travel slope (gliding) or stay level.
+      if (cfg.motion === "pulse") {
+        const jellyTilt = clamp(vx / (12 * S), -1, 1) * 4; // poses already carry directional lean
+        ang += (jellyTilt - ang) * (1 - Math.exp(-2.5 * dt));
+      } else {
+        const travelDir = vx >= 0 ? 1 : -1;
+        const slope = allowPitch
+          ? clamp(Math.atan2(vy, Math.abs(vx) + 10 * S), -0.3, 0.3)
+          : 0;
+        const targetPitch = ((travelDir > 0 ? slope : -slope) * 180) / Math.PI;
+        ang += (targetPitch - ang) * (1 - Math.exp(-6 * dt));
+      }
 
-    body.pos.x = Math.round(px);
-    body.pos.y = Math.round(py);
-    // The octopus depth-sorts against the other grounded objects by the sand
-    // it stands on (kept while airborne, so a swim bout doesn't pop it through
-    // props it will land behind).
-    if (cfg.motion === "crawl")
-      body.z = groundZ(sandTopAt(clamp(px, 0, k.width() - 1)));
-    body.angle =
-      cfg.motion === "crawl" ? Math.round(ang / TILT_STEP) * TILT_STEP : ang; // hovering creatures ease continuously rather than ticking by 7°
+      body.pos.x = Math.round(px);
+      body.pos.y = Math.round(py);
+      // The octopus depth-sorts against the other grounded objects by the sand
+      // it stands on (kept while airborne, so a swim bout doesn't pop it through
+      // props it will land behind).
+      if (cfg.motion === "crawl")
+        body.z = groundZ(sandTopAt(clamp(px, 0, k.width() - 1)));
+      body.angle =
+        cfg.motion === "crawl" ? Math.round(ang / TILT_STEP) * TILT_STEP : ang; // hovering creatures ease continuously rather than ticking by 7°
 
-    // Jellyfish: the bell follows the propulsion phase while the two appendage
-    // rows run continuously and independently. All three share one transform;
-    // only the appendage attachment offset follows the bell's lower rim.
-    if (cfg.motion === "pulse") {
-      const p = cfg.pulse!;
-      const tightFrame = JELLYFISH_LAYER_FRAMES / 2;
-      let bellFrame = 0;
-      if (pulsePhase === 0) {
-        const t = 1 - pulseTimer / p.contract;
-        bellFrame = Math.min(
-          tightFrame,
-          Math.floor(clamp(t, 0, 1) * (tightFrame + 1)),
+      // Jellyfish: the bell follows the propulsion phase while the two appendage
+      // rows run continuously and independently. All three share one transform;
+      // only the appendage attachment offset follows the bell's lower rim.
+      if (cfg.motion === "pulse") {
+        const p = cfg.pulse!;
+        const tightFrame = JELLYFISH_LAYER_FRAMES / 2;
+        let bellFrame = 0;
+        if (pulsePhase === 0) {
+          const t = 1 - pulseTimer / p.contract;
+          bellFrame = Math.min(
+            tightFrame,
+            Math.floor(clamp(t, 0, 1) * (tightFrame + 1)),
+          );
+        } else if (pulsePhase === 1) {
+          const t = 1 - pulseTimer / p.relax;
+          bellFrame =
+            tightFrame +
+            Math.min(
+              JELLYFISH_LAYER_FRAMES - tightFrame - 1,
+              Math.floor(
+                clamp(t, 0, 1) * (JELLYFISH_LAYER_FRAMES - tightFrame),
+              ),
+            );
+        }
+        body.frame = JELLYFISH_BELL_START + bellFrame;
+
+        jellyArmsClock += dt;
+        jellyTendrilClock += dt;
+        const armsFrame =
+          Math.floor(jellyArmsClock * JELLY_ARMS_FPS) % JELLYFISH_LAYER_FRAMES;
+        const tendrilFrame =
+          Math.floor(jellyTendrilClock * JELLY_TENDRIL_FPS) %
+          JELLYFISH_LAYER_FRAMES;
+        jellyArms!.frame = JELLYFISH_ARMS_START + armsFrame;
+        jellyTendrils!.frame = JELLYFISH_TENDRILS_START + tendrilFrame;
+        // The startle wind-up spreads only the oral arms; their wave clock keeps
+        // advancing, and the long tendrils remain completely unaffected.
+        jellyArms!.scale.x =
+          jellyScale *
+          (1 +
+            (flareTimer > 0
+              ? 0.12 * Math.sin((Math.PI * flareTimer) / JELLY_FLARE)
+              : 0));
+
+        const attachOffset =
+          (JELLYFISH_BELL_ATTACH_Y[bellFrame] - JELLYFISH_LAYER_ROOT_Y) *
+          jellyScale;
+        const radians = (body.angle * Math.PI) / 180;
+        const ox = -Math.sin(radians) * attachOffset;
+        const oy = Math.cos(radians) * attachOffset;
+        for (const layer of [jellyTendrils!, jellyArms!]) {
+          layer.pos.x = body.pos.x + ox;
+          layer.pos.y = body.pos.y + oy;
+          layer.angle = body.angle;
+          layer.flipX = body.flipX;
+        }
+      }
+
+      // Nautilus: the body never changes frame. Tentacles keep travelling on their
+      // own clock, while the siphon anticipates each pulse and the water plume plays
+      // once through the power/recovery interval. A turn follows a visible in-plane
+      // arc: tilt toward vertical, change facing at the apex, then settle upright.
+      if (cfg.motion === "jet") {
+        body.frame = NAUTILUS_BODY_START;
+        nautTentacleClock += dt;
+        const tentacleFrame =
+          Math.floor(nautTentacleClock * NAUT_TENTACLE_FPS) %
+          NAUTILUS_LAYER_FRAMES;
+        nautTentacles!.frame = NAUTILUS_TENTACLES_START + tentacleFrame;
+
+        const turnProgress =
+          nautTurnTimer > 0 ? 1 - nautTurnTimer / NAUT_TURN_HOLD : 0;
+        const easedTurn = turnProgress * turnProgress * (3 - 2 * turnProgress);
+        const tuck = nautTurnTimer > 0 ? Math.sin(Math.PI * easedTurn) : 0;
+        const turnAngle = nautTurnTilt * 82 * tuck;
+        body.angle = ang + turnAngle;
+        body.scale.x = NAUT_SCALE;
+        body.scale.y = NAUT_SCALE;
+        nautTentacles!.scale.x = NAUT_SCALE;
+        nautTentacles!.scale.y = NAUT_SCALE;
+        nautSiphon!.scale.x = NAUT_SCALE;
+        nautSiphon!.scale.y = NAUT_SCALE;
+        nautJet!.scale.x = NAUT_SCALE;
+        nautJet!.scale.y = NAUT_SCALE;
+
+        let siphonExtension = 0;
+        if (mode === "jet" && nautTurnTimer <= 0) {
+          if (nautJetAge < NAUT_JET_POWER) siphonExtension = 1;
+          else if (nautJetAge < NAUT_JET_RECOVER)
+            siphonExtension =
+              1 -
+              (nautJetAge - NAUT_JET_POWER) /
+                (NAUT_JET_RECOVER - NAUT_JET_POWER);
+          else if (jetTimer < NAUT_JET_ANTICIPATE)
+            siphonExtension = 1 - jetTimer / NAUT_JET_ANTICIPATE;
+        }
+        const siphonFrame = Math.round(
+          clamp(siphonExtension, 0, 1) * (NAUTILUS_LAYER_FRAMES - 1),
         );
-      } else if (pulsePhase === 1) {
-        const t = 1 - pulseTimer / p.relax;
-        bellFrame =
-          tightFrame +
-          Math.min(
-            JELLYFISH_LAYER_FRAMES - tightFrame - 1,
-            Math.floor(clamp(t, 0, 1) * (JELLYFISH_LAYER_FRAMES - tightFrame)),
-          );
-      }
-      body.frame = JELLYFISH_BELL_START + bellFrame;
+        nautSiphon!.frame = NAUTILUS_SIPHON_START + siphonFrame;
 
-      jellyArmsClock += dt;
-      jellyTendrilClock += dt;
-      const armsFrame =
-        Math.floor(jellyArmsClock * JELLY_ARMS_FPS) % JELLYFISH_LAYER_FRAMES;
-      const tendrilFrame =
-        Math.floor(jellyTendrilClock * JELLY_TENDRIL_FPS) %
-        JELLYFISH_LAYER_FRAMES;
-      jellyArms!.frame = JELLYFISH_ARMS_START + armsFrame;
-      jellyTendrils!.frame = JELLYFISH_TENDRILS_START + tendrilFrame;
-      // The startle wind-up spreads only the oral arms; their wave clock keeps
-      // advancing, and the long tendrils remain completely unaffected.
-      jellyArms!.scale.x =
-        jellyScale *
-        (1 +
-          (flareTimer > 0
-            ? 0.12 * Math.sin((Math.PI * flareTimer) / JELLY_FLARE)
-            : 0));
+        if (
+          mode === "jet" &&
+          nautTurnTimer <= 0 &&
+          nautJetAge < NAUT_JET_RECOVER
+        ) {
+          const plumeProgress = clamp(nautJetAge / NAUT_JET_RECOVER, 0, 1);
+          nautJet!.frame =
+            NAUTILUS_JET_START +
+            Math.min(
+              NAUTILUS_LAYER_FRAMES - 1,
+              Math.floor(plumeProgress * NAUTILUS_LAYER_FRAMES),
+            );
+          nautJet!.opacity = 1;
+        } else {
+          nautJet!.frame = NAUTILUS_JET_START;
+          nautJet!.opacity = 0;
+        }
 
-      const attachOffset =
-        (JELLYFISH_BELL_ATTACH_Y[bellFrame] - JELLYFISH_LAYER_ROOT_Y) *
-        jellyScale;
-      const radians = (body.angle * Math.PI) / 180;
-      const ox = -Math.sin(radians) * attachOffset;
-      const oy = Math.cos(radians) * attachOffset;
-      for (const layer of [jellyTendrils!, jellyArms!]) {
-        layer.pos.x = body.pos.x + ox;
-        layer.pos.y = body.pos.y + oy;
-        layer.angle = body.angle;
-        layer.flipX = body.flipX;
-      }
-    }
-
-    // Nautilus: the body never changes frame. Tentacles keep travelling on their
-    // own clock, while the siphon anticipates each pulse and the water plume plays
-    // once through the power/recovery interval. A turn follows a visible in-plane
-    // arc: tilt toward vertical, change facing at the apex, then settle upright.
-    if (cfg.motion === "jet") {
-      body.frame = NAUTILUS_BODY_START;
-      nautTentacleClock += dt;
-      const tentacleFrame =
-        Math.floor(nautTentacleClock * NAUT_TENTACLE_FPS) %
-        NAUTILUS_LAYER_FRAMES;
-      nautTentacles!.frame = NAUTILUS_TENTACLES_START + tentacleFrame;
-
-      const turnProgress =
-        nautTurnTimer > 0 ? 1 - nautTurnTimer / NAUT_TURN_HOLD : 0;
-      const easedTurn = turnProgress * turnProgress * (3 - 2 * turnProgress);
-      const tuck = nautTurnTimer > 0 ? Math.sin(Math.PI * easedTurn) : 0;
-      const turnAngle = nautTurnTilt * 82 * tuck;
-      body.angle = ang + turnAngle;
-      body.scale.x = 1;
-      body.scale.y = 1;
-      nautTentacles!.scale.x = 1;
-      nautTentacles!.scale.y = 1;
-      nautSiphon!.scale.x = 1;
-      nautSiphon!.scale.y = 1;
-      nautJet!.scale.x = 1;
-      nautJet!.scale.y = 1;
-
-      let siphonExtension = 0;
-      if (mode === "jet" && nautTurnTimer <= 0) {
-        if (nautJetAge < NAUT_JET_POWER) siphonExtension = 1;
-        else if (nautJetAge < NAUT_JET_RECOVER)
-          siphonExtension =
-            1 -
-            (nautJetAge - NAUT_JET_POWER) / (NAUT_JET_RECOVER - NAUT_JET_POWER);
-        else if (jetTimer < NAUT_JET_ANTICIPATE)
-          siphonExtension = 1 - jetTimer / NAUT_JET_ANTICIPATE;
-      }
-      const siphonFrame = Math.round(
-        clamp(siphonExtension, 0, 1) * (NAUTILUS_LAYER_FRAMES - 1),
-      );
-      nautSiphon!.frame = NAUTILUS_SIPHON_START + siphonFrame;
-
-      if (
-        mode === "jet" &&
-        nautTurnTimer <= 0 &&
-        nautJetAge < NAUT_JET_RECOVER
-      ) {
-        const plumeProgress = clamp(nautJetAge / NAUT_JET_RECOVER, 0, 1);
-        nautJet!.frame =
-          NAUTILUS_JET_START +
-          Math.min(
-            NAUTILUS_LAYER_FRAMES - 1,
-            Math.floor(plumeProgress * NAUTILUS_LAYER_FRAMES),
-          );
-        nautJet!.opacity = 1;
-      } else {
-        nautJet!.frame = NAUTILUS_JET_START;
-        nautJet!.opacity = 0;
+        for (const layer of [nautJet!, nautSiphon!, nautTentacles!]) {
+          layer.pos.x = body.pos.x;
+          layer.pos.y = body.pos.y;
+          layer.angle = body.angle;
+          layer.flipX = body.flipX;
+        }
       }
 
-      for (const layer of [nautJet!, nautSiphon!, nautTentacles!]) {
-        layer.pos.x = body.pos.x;
-        layer.pos.y = body.pos.y;
-        layer.angle = body.angle;
-        layer.flipX = body.flipX;
+      // Octopus: pick the pose for the current state, driving all twelve baked poses.
+      //  - parked: resting_on_sand (short) or curled-up settled_curled_rest (long park);
+      //  - crawling: a 3-phase reach-and-pull gait (gather → reach → full stretch),
+      //    curled_turn flashed through a heading change;
+      //  - swimming: reach push-off (gather) → swim_pulse (thrust) → glide_streaming → hover
+      //    down (settle), using the energetic "active" pose row on multi-pulse bouts.
+      if (cfg.motion === "crawl") {
+        const P = OCTOPUS_POSE;
+        const idleFrame =
+          Math.floor(k.time() * OCTO_IDLE_FPS + swayPhase) %
+          OCTOPUS_IDLE_FRAMES;
+        let frame: number;
+        if (octoMode === "swim") {
+          if (curlTimer > 0) frame = swimVigorous ? P.activeCurl : P.curl;
+          else if (swimSub === "gather")
+            frame = P.activeCrawlReach; // reaching push-off
+          else if (swimSub === "thrust")
+            frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
+          else if (swimSub === "glide")
+            frame = swimVigorous ? P.activeGlide : P.glide;
+          // settle: hold the glide pose through the final sink, then brace with the
+          // second crawl pose only very-very close to touchdown.
+          else if (py < groundY(px) - OCTO_LAND_POSE)
+            frame = swimVigorous ? P.activeGlide : P.glide;
+          else frame = P.crawlPush;
+        } else if (restTimer > 0) {
+          // parked & resting (arms held still): a curled-up ball for short rests, the
+          // flat sprawled-out low pose for long settles.
+          frame = restLong ? P.crawlReach : P.settledRest;
+        } else if (curlTimer > 0) {
+          frame = P.curl; // flash a curl through a crawl turn
+        } else {
+          // crawling along the sand: a ping-pong through the gait poses (up then back
+          // down) advanced by distance travelled, so it holds its pose when slow/stopped
+          // instead of cycling on the spot.
+          gaitPhase += (Math.abs(vx) * dt) / OCTO_STRIDE;
+          const period = 2 * (CRAWL_GAIT.length - 1); // forward then backward
+          const t = Math.floor(gaitPhase) % period;
+          frame = CRAWL_GAIT[t < CRAWL_GAIT.length ? t : period - t];
+        }
+        body.frame = frame;
       }
-    }
-
-    // Octopus: pick the pose for the current state, driving all twelve baked poses.
-    //  - parked: resting_on_sand (short) or curled-up settled_curled_rest (long park);
-    //  - crawling: a 3-phase reach-and-pull gait (gather → reach → full stretch),
-    //    curled_turn flashed through a heading change;
-    //  - swimming: reach push-off (gather) → swim_pulse (thrust) → glide_streaming → hover
-    //    down (settle), using the energetic "active" pose row on multi-pulse bouts.
-    if (cfg.motion === "crawl") {
-      const P = OCTOPUS_POSE;
-      const idleFrame =
-        Math.floor(k.time() * OCTO_IDLE_FPS + swayPhase) % OCTOPUS_IDLE_FRAMES;
-      let frame: number;
-      if (octoMode === "swim") {
-        if (curlTimer > 0) frame = swimVigorous ? P.activeCurl : P.curl;
-        else if (swimSub === "gather")
-          frame = P.activeCrawlReach; // reaching push-off
-        else if (swimSub === "thrust")
-          frame = swimVigorous ? P.activeSwimPulse : P.swimPulse;
-        else if (swimSub === "glide")
-          frame = swimVigorous ? P.activeGlide : P.glide;
-        // settle: hold the glide pose through the final sink, then brace with the
-        // second crawl pose only very-very close to touchdown.
-        else if (py < groundY(px) - OCTO_LAND_POSE)
-          frame = swimVigorous ? P.activeGlide : P.glide;
-        else frame = P.crawlPush;
-      } else if (restTimer > 0) {
-        // parked & resting (arms held still): a curled-up ball for short rests, the
-        // flat sprawled-out low pose for long settles.
-        frame = restLong ? P.crawlReach : P.settledRest;
-      } else if (curlTimer > 0) {
-        frame = P.curl; // flash a curl through a crawl turn
-      } else {
-        // crawling along the sand: a ping-pong through the gait poses (up then back
-        // down) advanced by distance travelled, so it holds its pose when slow/stopped
-        // instead of cycling on the spot.
-        gaitPhase += (Math.abs(vx) * dt) / OCTO_STRIDE;
-        const period = 2 * (CRAWL_GAIT.length - 1); // forward then backward
-        const t = Math.floor(gaitPhase) % period;
-        frame = CRAWL_GAIT[t < CRAWL_GAIT.length ? t : period - t];
-      }
-      body.frame = frame;
-    }
-  });
+    }),
+  );
 
   return body;
 }

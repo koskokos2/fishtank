@@ -6,6 +6,7 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
+import { profile, profileDraw, profileDrawEnd } from "./profiling";
 import {
   clampPathX,
   getPropObstacles,
@@ -66,15 +67,15 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
   const speed = k.rand(3.5, 5.5) * S;
 
   const groundCentreY = (atX: number, depth: number) =>
-    sandTopAt(clamp(atX, 0, k.width() - 1)) -
-    SEA_SNAIL_GROUND_OFFSET +
-    depth;
+    sandTopAt(clamp(atX, 0, k.width() - 1)) - SEA_SNAIL_GROUND_OFFSET + depth;
 
   const baseY = (atX: number, depth: number) =>
     sandTopAt(clamp(atX, 0, k.width() - 1)) + depth;
 
   const snail = k.add([
+    profileDraw("snails"),
     k.sprite("sea-snail"),
+    profileDrawEnd(),
     k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),
     k.rotate(0),
@@ -100,7 +101,14 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
       k.width() - EDGE,
     );
     targetDepth = chooseOtherDepthTier(k, substrateDepth);
-    targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+    targetX = clampPathX(
+      x,
+      targetX,
+      HALF,
+      STANDOFF,
+      substrateDepth,
+      targetDepth,
+    );
     if (Math.abs(targetX - x) < 6 * S) {
       facing = -facing;
       snail.flipX = facing > 0;
@@ -109,85 +117,101 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
         EDGE,
         k.width() - EDGE,
       );
-      targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
+      targetX = clampPathX(
+        x,
+        targetX,
+        HALF,
+        STANDOFF,
+        substrateDepth,
+        targetDepth,
+      );
     }
   };
 
-  snail.onUpdate(() => {
-    const dt = k.dt();
-    if (seenObstacles !== getPropObstacles()) {
-      seenObstacles = getPropObstacles();
-      if (insidePropFootprint(x, HALF, substrateDepth)) {
-        targetX = nearestClearX(
-          x,
-          HALF,
-          STANDOFF,
-          substrateDepth,
-          EDGE,
-          k.width() - EDGE,
-        );
-        targetDepth = substrateDepth;
-        facing = targetX > x ? 1 : -1;
-        snail.flipX = facing > 0;
-        rest = 0;
+  snail.onUpdate(() =>
+    profile("snails", () => {
+      const dt = k.dt();
+      if (seenObstacles !== getPropObstacles()) {
+        seenObstacles = getPropObstacles();
+        if (insidePropFootprint(x, HALF, substrateDepth)) {
+          targetX = nearestClearX(
+            x,
+            HALF,
+            STANDOFF,
+            substrateDepth,
+            EDGE,
+            k.width() - EDGE,
+          );
+          targetDepth = substrateDepth;
+          facing = targetX > x ? 1 : -1;
+          snail.flipX = facing > 0;
+          rest = 0;
+        } else {
+          targetX = clampPathX(
+            x,
+            targetX,
+            HALF,
+            STANDOFF,
+            substrateDepth,
+            targetDepth,
+          );
+        }
+      }
+      if (rest > 0) {
+        rest -= dt;
+        snail.frame = 0;
+        if (rest <= 0) chooseTrip();
       } else {
-        targetX = clampPathX(x, targetX, HALF, STANDOFF, substrateDepth, targetDepth);
-      }
-    }
-    if (rest > 0) {
-      rest -= dt;
-      snail.frame = 0;
-      if (rest <= 0) chooseTrip();
-    } else {
-      const remainingX = targetX - x;
-      const remainingDepth = targetDepth - substrateDepth;
-      const remaining = Math.hypot(remainingX, remainingDepth);
-      const step = Math.min(remaining, speed * dt);
-      const ratio = remaining > 0 ? step / remaining : 0;
-      x += remainingX * ratio;
-      substrateDepth += remainingDepth * ratio;
-      const travelled = Math.hypot(x - lastX, substrateDepth - lastDepth);
-      gaitDistance += travelled;
-      puffDistance += travelled;
-      lastX = x;
-      lastDepth = substrateDepth;
-      snail.frame = Math.floor(gaitDistance / FRAME_STEP) % FRAMES;
-      if (puffDistance >= nextPuffDistance) {
-        spawnSandPuff(
-          k,
-          x - facing * 8 * S,
-          sandTopAt(clamp(x, 0, k.width() - 1)) + substrateDepth,
-          0.34,
-          0.5,
-          2.8,
-          1,
-        );
-        puffDistance = 0;
-        nextPuffDistance = k.rand(2.5, 4) * S;
-      }
-      if (remaining <= 0.35 * S) {
-        x = targetX;
-        substrateDepth = targetDepth;
+        const remainingX = targetX - x;
+        const remainingDepth = targetDepth - substrateDepth;
+        const remaining = Math.hypot(remainingX, remainingDepth);
+        const step = Math.min(remaining, speed * dt);
+        const ratio = remaining > 0 ? step / remaining : 0;
+        x += remainingX * ratio;
+        substrateDepth += remainingDepth * ratio;
+        const travelled = Math.hypot(x - lastX, substrateDepth - lastDepth);
+        gaitDistance += travelled;
+        puffDistance += travelled;
         lastX = x;
         lastDepth = substrateDepth;
-        snail.frame = 0;
-        rest = k.chance(0.15) ? k.rand(6, 13) : k.rand(0.8, 3.5);
+        snail.frame = Math.floor(gaitDistance / FRAME_STEP) % FRAMES;
+        if (puffDistance >= nextPuffDistance) {
+          spawnSandPuff(
+            k,
+            x - facing * 8 * S,
+            sandTopAt(clamp(x, 0, k.width() - 1)) + substrateDepth,
+            0.34,
+            0.5,
+            2.8,
+            1,
+          );
+          puffDistance = 0;
+          nextPuffDistance = k.rand(2.5, 4) * S;
+        }
+        if (remaining <= 0.35 * S) {
+          x = targetX;
+          substrateDepth = targetDepth;
+          lastX = x;
+          lastDepth = substrateDepth;
+          snail.frame = 0;
+          rest = k.chance(0.15) ? k.rand(6, 13) : k.rand(0.8, 3.5);
+        }
       }
-    }
 
-    snail.pos.x = x;
-    snail.pos.y = groundCentreY(x, substrateDepth);
-    snail.z = groundZ(baseY(x, substrateDepth));
-    const left = sandTopAt(clamp(x - SLOPE_SPAN, 0, k.width() - 1));
-    const right = sandTopAt(clamp(x + SLOPE_SPAN, 0, k.width() - 1));
-    const desired = clamp(
-      (Math.atan2(right - left, SLOPE_SPAN * 2) * 180) / Math.PI,
-      -5,
-      5,
-    );
-    angle += (desired - angle) * Math.min(1, dt * 2.5);
-    snail.angle = angle;
-  });
+      snail.pos.x = x;
+      snail.pos.y = groundCentreY(x, substrateDepth);
+      snail.z = groundZ(baseY(x, substrateDepth));
+      const left = sandTopAt(clamp(x - SLOPE_SPAN, 0, k.width() - 1));
+      const right = sandTopAt(clamp(x + SLOPE_SPAN, 0, k.width() - 1));
+      const desired = clamp(
+        (Math.atan2(right - left, SLOPE_SPAN * 2) * 180) / Math.PI,
+        -5,
+        5,
+      );
+      angle += (desired - angle) * Math.min(1, dt * 2.5);
+      snail.angle = angle;
+    }),
+  );
 
   return snail;
 }

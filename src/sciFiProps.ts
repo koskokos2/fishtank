@@ -1,6 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ } from "./backdrop";
 import type { PropPlacement } from "./propPlacement";
+import { withDrawProfile } from "./profiling";
 import { drawScreenText, type ScreenQuad } from "./screenText";
 import {
   SCI_FI_PROPS_ATLAS_CELL,
@@ -8,7 +9,9 @@ import {
 } from "./sciFiPropsAtlas";
 
 export type SciFiPropName = keyof typeof SCI_FI_PROPS_ATLAS_LAYOUT;
-export type SciFiDisplayName = "retro_telemetry_terminal" | "porthole_instrument";
+export type SciFiDisplayName =
+  | "retro_telemetry_terminal"
+  | "porthole_instrument";
 
 export type SciFiDisplayData = {
   primary: number;
@@ -130,9 +133,11 @@ export function spawnTemperatureReadout(
     k.z(z),
     {
       draw() {
-        // 2px glyph pixels on the ~35x18px glass; "-12" (11 columns) still
-        // fits inside the bezel.
-        drawScreenText(k, quad, reading, 0.5, 0.5, 2, [240, 169, 63], 0.9);
+        withDrawProfile("props", () => {
+          // 2px glyph pixels on the ~35x18px glass; "-12" (11 columns) still
+          // fits inside the bezel.
+          drawScreenText(k, quad, reading, 0.5, 0.5, 2, [240, 169, 63], 0.9);
+        });
       },
     },
   ]);
@@ -157,7 +162,10 @@ export function spawnSciFiProps(
       k.z(groundZ(rootY)),
     ]);
 
-    if (spec.name === "retro_telemetry_terminal" || spec.name === "porthole_instrument")
+    if (
+      spec.name === "retro_telemetry_terminal" ||
+      spec.name === "porthole_instrument"
+    )
       spawnReadout(k, spec.name, rootX, spriteY, groundZ(rootY) + 0.01, data);
   }
 
@@ -192,14 +200,19 @@ function spawnReadout(
         const samples = value.samples.length
           ? value.samples
           : Array.from({ length: 10 }, (_, i) =>
-              clamp01(0.48 + Math.sin(t * 0.72 + i * 0.83 + value.primary * 3) * 0.27),
+              clamp01(
+                0.48 + Math.sin(t * 0.72 + i * 0.83 + value.primary * 3) * 0.27,
+              ),
             );
 
         if (window.shape === "round") {
           const cx = originX + window.cx;
           const cy = originY + window.cy;
           const at = (u: number, v: number) =>
-            k.vec2(cx + u * window.ax + v * window.bx, cy + u * window.ay + v * window.by);
+            k.vec2(
+              cx + u * window.ax + v * window.bx,
+              cy + u * window.ay + v * window.by,
+            );
           const angle = t * 0.36 + value.primary * Math.PI * 2;
           const rim = Array.from({ length: 24 }, (_, i) => {
             const a = (i / 24) * Math.PI * 2;
@@ -229,7 +242,10 @@ function spawnReadout(
                 opacity: 0.7,
               });
               const blipAngle = value.secondary * Math.PI * 2;
-              const blip = at(Math.cos(blipAngle) * 0.72, Math.sin(blipAngle) * 0.72);
+              const blip = at(
+                Math.cos(blipAngle) * 0.72,
+                Math.sin(blipAngle) * 0.72,
+              );
               k.drawRect({
                 pos: k.vec2(blip.x - 1, blip.y - 1),
                 width: 2,
@@ -238,10 +254,11 @@ function spawnReadout(
                 opacity: 0.92,
               });
             },
-            () => k.drawPolygon({
-              pts: rim,
-              color: k.WHITE,
-            }),
+            () =>
+              k.drawPolygon({
+                pts: rim,
+                color: k.WHITE,
+              }),
           );
           return;
         }
@@ -255,7 +272,9 @@ function spawnReadout(
           () => {
             const gap = 0.018;
             const usableWidth = 0.86;
-            const barWidth = (usableWidth - gap * (visibleSamples.length - 1)) / visibleSamples.length;
+            const barWidth =
+              (usableWidth - gap * (visibleSamples.length - 1)) /
+              visibleSamples.length;
             visibleSamples.forEach((sample, i) => {
               const u0 = 0.07 + i * (barWidth + gap);
               const u1 = u0 + barWidth;
@@ -274,17 +293,22 @@ function spawnReadout(
               0.88,
             );
           },
-          () => k.drawPolygon({
-            pts: quad.map((point) => k.vec2(point.x, point.y)),
-            color: k.WHITE,
-          }),
+          () =>
+            k.drawPolygon({
+              pts: quad.map((point) => k.vec2(point.x, point.y)),
+              color: k.WHITE,
+            }),
         );
       },
     },
   ]);
 }
 
-function projectQuad(quad: [Point, Point, Point, Point], u: number, v: number): Point {
+function projectQuad(
+  quad: [Point, Point, Point, Point],
+  u: number,
+  v: number,
+): Point {
   const [tl, tr, br, bl] = quad;
   const top = { x: tl.x + (tr.x - tl.x) * u, y: tl.y + (tr.y - tl.y) * u };
   const bottom = { x: bl.x + (br.x - bl.x) * u, y: bl.y + (br.y - bl.y) * u };

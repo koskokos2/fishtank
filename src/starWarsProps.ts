@@ -1,6 +1,7 @@
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ } from "./backdrop";
 import type { PropPlacement } from "./propPlacement";
+import { withDrawProfile } from "./profiling";
 import { drawScreenText, type ScreenQuad } from "./screenText";
 import {
   STAR_WARS_PROPS_ATLAS_CELL,
@@ -8,7 +9,9 @@ import {
 } from "./starWarsPropsAtlas";
 
 export type StarWarsPropName = keyof typeof STAR_WARS_PROPS_ATLAS_LAYOUT;
-export type StarWarsDisplayName = "hologram_strategy_table" | "galactic_field_terminal";
+export type StarWarsDisplayName =
+  | "hologram_strategy_table"
+  | "galactic_field_terminal";
 
 export type StarWarsDisplayData = {
   primary: number;
@@ -103,14 +106,25 @@ export function spawnFpsReadout(
     k.z(z),
     {
       draw() {
-        const t = k.time();
-        if (t - lastSample >= FPS_SAMPLE_PERIOD) {
-          lastSample = t;
-          shown = Math.min(999, Math.round(k.debug.fps()));
-        }
-        // 2px glyph pixels, centred on the screen art's optical centre, which
-        // sits left and below the quad's geometric centre.
-        drawScreenText(k, quad, String(shown), 0.45, 0.56, 2, [114, 245, 232], 0.85);
+        withDrawProfile("props", () => {
+          const t = k.time();
+          if (t - lastSample >= FPS_SAMPLE_PERIOD) {
+            lastSample = t;
+            shown = Math.min(999, Math.round(k.debug.fps()));
+          }
+          // 2px glyph pixels, centred on the screen art's optical centre, which
+          // sits left and below the quad's geometric centre.
+          drawScreenText(
+            k,
+            quad,
+            String(shown),
+            0.45,
+            0.56,
+            2,
+            [114, 245, 232],
+            0.85,
+          );
+        });
       },
     },
   ]);
@@ -135,12 +149,18 @@ export function spawnStarWarsProps(
       k.z(groundZ(rootY)),
     ]);
 
-    if (spec.name === "hologram_strategy_table" || spec.name === "galactic_field_terminal")
+    if (
+      spec.name === "hologram_strategy_table" ||
+      spec.name === "galactic_field_terminal"
+    )
       spawnReadout(k, spec.name, rootX, spriteY, groundZ(rootY) + 0.01, data);
   }
 
   return {
-    setDisplayData(name: StarWarsDisplayName, next: Partial<StarWarsDisplayData>) {
+    setDisplayData(
+      name: StarWarsDisplayName,
+      next: Partial<StarWarsDisplayData>,
+    ) {
       const current = data[name];
       Object.assign(current, next);
       current.primary = clamp01(current.primary);
@@ -171,9 +191,12 @@ function spawnReadout(
           const cx = originX + window.cx;
           const cy = originY + window.cy;
           const at = (u: number, v: number) =>
-            k.vec2(cx + u * window.ax + v * window.bx, cy + u * window.ay + v * window.by);
+            k.vec2(
+              cx + u * window.ax + v * window.bx,
+              cy + u * window.ay + v * window.by,
+            );
           const mask = Array.from({ length: 28 }, (_, index) => {
-            const angle = index / 28 * Math.PI * 2;
+            const angle = (index / 28) * Math.PI * 2;
             return at(Math.cos(angle), Math.sin(angle));
           });
           k.drawMasked(
@@ -187,14 +210,19 @@ function spawnReadout(
                 opacity: 0.78,
               });
               for (let index = 0; index < 3; index++) {
-                const angle = value.secondary * Math.PI * 2 + index * 2.17 + t * 0.08;
+                const angle =
+                  value.secondary * Math.PI * 2 + index * 2.17 + t * 0.08;
                 const radius = 0.35 + index * 0.2;
-                const blip = at(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                const blip = at(
+                  Math.cos(angle) * radius,
+                  Math.sin(angle) * radius,
+                );
                 k.drawRect({
                   pos: k.vec2(blip.x - 1, blip.y - 1),
                   width: 2,
                   height: 2,
-                  color: index === 1 ? k.rgb(245, 177, 67) : k.rgb(114, 245, 232),
+                  color:
+                    index === 1 ? k.rgb(245, 177, 67) : k.rgb(114, 245, 232),
                   opacity: 0.9,
                 });
               }
@@ -211,30 +239,57 @@ function spawnReadout(
         const samples = value.samples.length
           ? value.samples
           : Array.from({ length: 9 }, (_, index) =>
-              clamp01(0.5 + Math.sin(t * 0.61 + index * 0.9 + value.primary * 2.4) * 0.3),
+              clamp01(
+                0.5 +
+                  Math.sin(t * 0.61 + index * 0.9 + value.primary * 2.4) * 0.3,
+              ),
             );
         k.drawMasked(
           () => {
             const visible = samples.slice(-9);
             visible.forEach((sample, index) => {
               const gap = 0.025;
-              const width = (0.82 - gap * (visible.length - 1)) / visible.length;
+              const width =
+                (0.82 - gap * (visible.length - 1)) / visible.length;
               const u0 = 0.09 + index * (width + gap);
-              drawProjectedRect(k, quad, u0, 0.73 - sample * 0.5, u0 + width, 0.73, [76, 218, 211], 0.72);
+              drawProjectedRect(
+                k,
+                quad,
+                u0,
+                0.73 - sample * 0.5,
+                u0 + width,
+                0.73,
+                [76, 218, 211],
+                0.72,
+              );
             });
-            drawProjectedRect(k, quad, 0.09, 0.84, 0.09 + value.secondary * 0.82, 0.92, [240, 169, 63], 0.9);
+            drawProjectedRect(
+              k,
+              quad,
+              0.09,
+              0.84,
+              0.09 + value.secondary * 0.82,
+              0.92,
+              [240, 169, 63],
+              0.9,
+            );
           },
-          () => k.drawPolygon({
-            pts: quad.map((point) => k.vec2(point.x, point.y)),
-            color: k.WHITE,
-          }),
+          () =>
+            k.drawPolygon({
+              pts: quad.map((point) => k.vec2(point.x, point.y)),
+              color: k.WHITE,
+            }),
         );
       },
     },
   ]);
 }
 
-function project(quad: [Point, Point, Point, Point], u: number, v: number): Point {
+function project(
+  quad: [Point, Point, Point, Point],
+  u: number,
+  v: number,
+): Point {
   const [tl, tr, br, bl] = quad;
   const top = { x: tl.x + (tr.x - tl.x) * u, y: tl.y + (tr.y - tl.y) * u };
   const bottom = { x: bl.x + (br.x - bl.x) * u, y: bl.y + (br.y - bl.y) * u };

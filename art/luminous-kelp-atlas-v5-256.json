@@ -1,0 +1,363 @@
+{
+  "name": "luminous-giant-kelp",
+  "source": "art/luminous-kelp-atlas-v5-transparent.png",
+  "layout": {
+    "columns": 4,
+    "rows": 4,
+    "tile": 256
+  },
+  "parts": {
+    "holdfast": {
+      "frame": 0,
+      "cell": {
+        "col": 0,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 71,
+        "y": 10,
+        "width": 108,
+        "height": 119
+      },
+      "tip": {
+        "x": 5,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "straightStem": {
+      "frame": 1,
+      "cell": {
+        "col": 1,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 109,
+        "y": 10,
+        "width": 40,
+        "height": 119
+      },
+      "tip": {
+        "x": -5,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "leftStem": {
+      "frame": 2,
+      "cell": {
+        "col": 2,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 106,
+        "y": 10,
+        "width": 74,
+        "height": 119
+      },
+      "tip": {
+        "x": 37,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "rightStem": {
+      "frame": 3,
+      "cell": {
+        "col": 3,
+        "row": 0
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 83,
+        "y": 10,
+        "width": 69,
+        "height": 119
+      },
+      "tip": {
+        "x": -22,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "leftBranch": {
+      "frame": 4,
+      "cell": {
+        "col": 0,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 35,
+        "y": 11,
+        "width": 101,
+        "height": 118
+      },
+      "tip": {
+        "x": 6,
+        "y": -117
+      },
+      "attachment": "bottom"
+    },
+    "rightBranch": {
+      "frame": 5,
+      "cell": {
+        "col": 1,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 120,
+        "y": 11,
+        "width": 98,
+        "height": 118
+      },
+      "tip": {
+        "x": 16,
+        "y": -117
+      },
+      "attachment": "bottom"
+    },
+    "forkedCrown": {
+      "frame": 6,
+      "cell": {
+        "col": 2,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 89,
+        "y": 10,
+        "width": 124,
+        "height": 119
+      },
+      "tip": {
+        "x": 48,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "rightCanopy": {
+      "frame": 7,
+      "cell": {
+        "col": 3,
+        "row": 1
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 52,
+        "y": 10,
+        "width": 111,
+        "height": 119
+      },
+      "tip": {
+        "x": -37,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "leftCanopy": {
+      "frame": 8,
+      "cell": {
+        "col": 0,
+        "row": 2
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 53,
+        "y": 10,
+        "width": 121,
+        "height": 119
+      },
+      "tip": {
+        "x": -64,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "featheryTuft": {
+      "frame": 9,
+      "cell": {
+        "col": 1,
+        "row": 2
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 97,
+        "y": 10,
+        "width": 62,
+        "height": 119
+      },
+      "tip": {
+        "x": -11,
+        "y": -118
+      },
+      "attachment": "bottom"
+    },
+    "largePods": {
+      "frame": 10,
+      "cell": {
+        "col": 2,
+        "row": 2
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 83,
+        "y": 128,
+        "width": 80,
+        "height": 116
+      },
+      "tip": {
+        "x": -3,
+        "y": 115
+      },
+      "attachment": "top"
+    },
+    "smallPods": {
+      "frame": 11,
+      "cell": {
+        "col": 3,
+        "row": 2
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 106,
+        "y": 128,
+        "width": 58,
+        "height": 112
+      },
+      "tip": {
+        "x": 9,
+        "y": 111
+      },
+      "attachment": "top"
+    },
+    "trailingTendril": {
+      "frame": 12,
+      "cell": {
+        "col": 0,
+        "row": 3
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 122,
+        "y": 128,
+        "width": 15,
+        "height": 116
+      },
+      "tip": {
+        "x": -1,
+        "y": 115
+      },
+      "attachment": "top"
+    },
+    "forkedTendril": {
+      "frame": 13,
+      "cell": {
+        "col": 1,
+        "row": 3
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 106,
+        "y": 128,
+        "width": 42,
+        "height": 116
+      },
+      "tip": {
+        "x": -9,
+        "y": 115
+      },
+      "attachment": "top"
+    },
+    "foliageCollar": {
+      "frame": 14,
+      "cell": {
+        "col": 2,
+        "row": 3
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 43,
+        "y": 81,
+        "width": 170,
+        "height": 94
+      },
+      "tip": {
+        "x": 0,
+        "y": -47
+      },
+      "attachment": "center"
+    },
+    "fanCrown": {
+      "frame": 15,
+      "cell": {
+        "col": 3,
+        "row": 3
+      },
+      "pivot": {
+        "x": 128,
+        "y": 128
+      },
+      "draw": {
+        "x": 81,
+        "y": 10,
+        "width": 114,
+        "height": 119
+      },
+      "tip": {
+        "x": 14,
+        "y": -118
+      },
+      "attachment": "bottom"
+    }
+  }
+}

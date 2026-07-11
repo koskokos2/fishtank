@@ -21,6 +21,7 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { spawnBubble } from "./tank";
 import { RES } from "./res";
+import { profile, profileDraw, profileDrawEnd } from "./profiling";
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
@@ -457,7 +458,9 @@ export function spawnFish(
     : k.rand(40 * RES, k.width() - 40 * RES);
   const spawnY = k.rand(bandTop(spawnX), bandBot(spawnX));
   const fish = k.add([
+    profileDraw("fish"),
     k.sprite(spriteName),
+    profileDrawEnd(),
     k.pos(spawnX, spawnY),
     k.anchor("center"),
     k.rotate(0),
@@ -731,37 +734,39 @@ export function spawnFish(
   // it, harder the closer it is. They veer around each other rather than overlap;
   // the existing drag settles the push. onCollideUpdate fires per overlapping
   // neighbor each frame, and this closure shares vx/vy with the motion loop.
-  fish.onCollideUpdate("fish", (other) => {
-    const dt = k.dt();
-    const dir = facingRight ? 1 : -1;
-    const mine: [number, number][] = [
-      [px + dir * bodyOff, py], // head
-      [px - dir * bodyOff, py], // tail
-    ];
-    const o = other as unknown as Record<string, number>;
-    const theirs: [number, number][] = [
-      [o.headX, o.headY],
-      [o.tailX, o.tailY],
-    ];
-    // Separate the nearest head/tail point-pairs so the whole length of each
-    // body is respected, not just its center. Force-based steering veers them
-    // apart; the positional nudge resolves real overlaps even in a crowd.
-    for (const [mx, my] of mine) {
-      for (const [ox, oy] of theirs) {
-        const dx = mx - ox;
-        const dy = my - oy;
-        const d = Math.hypot(dx, dy) || 1;
-        if (d >= PAIR_DIST) continue;
-        const nx = dx / d;
-        const ny = dy / d;
-        vx += nx * Math.min(AVOID_MAX, AVOID / d) * dt;
-        vy += ny * Math.min(AVOID_MAX, AVOID / d) * dt;
-        const push = (PAIR_DIST - d) * SEPARATION;
-        px += nx * push;
-        py += ny * push;
+  fish.onCollideUpdate("fish", (other) =>
+    profile("fish collide", () => {
+      const dt = k.dt();
+      const dir = facingRight ? 1 : -1;
+      const mine: [number, number][] = [
+        [px + dir * bodyOff, py], // head
+        [px - dir * bodyOff, py], // tail
+      ];
+      const o = other as unknown as Record<string, number>;
+      const theirs: [number, number][] = [
+        [o.headX, o.headY],
+        [o.tailX, o.tailY],
+      ];
+      // Separate the nearest head/tail point-pairs so the whole length of each
+      // body is respected, not just its center. Force-based steering veers them
+      // apart; the positional nudge resolves real overlaps even in a crowd.
+      for (const [mx, my] of mine) {
+        for (const [ox, oy] of theirs) {
+          const dx = mx - ox;
+          const dy = my - oy;
+          const d = Math.hypot(dx, dy) || 1;
+          if (d >= PAIR_DIST) continue;
+          const nx = dx / d;
+          const ny = dy / d;
+          vx += nx * Math.min(AVOID_MAX, AVOID / d) * dt;
+          vy += ny * Math.min(AVOID_MAX, AVOID / d) * dt;
+          const push = (PAIR_DIST - d) * SEPARATION;
+          px += nx * push;
+          py += ny * push;
+        }
       }
-    }
-  });
+    }),
+  );
 
   // A fish that ends up fully offscreen (a dart can outrun the wall steering) is
   // gone for good — despawn it and let the caller introduce a replacement. The
@@ -769,126 +774,128 @@ export function spawnFish(
   // spawn isn't culled at birth.
   let hasEntered = false;
 
-  fish.onUpdate(() => {
-    const dt = k.dt();
-    const w = k.width();
+  fish.onUpdate(() =>
+    profile("fish", () => {
+      const dt = k.dt();
+      const w = k.width();
 
-    if (threatFor > 0) threatFor -= dt;
+      if (threatFor > 0) threatFor -= dt;
 
-    if (!hasEntered) {
-      if (px >= 0 && px <= w) hasEntered = true;
-    } else if (px < -pad || px > w + pad) {
-      fish.destroy();
-      opts.onGone?.();
-      return;
-    }
+      if (!hasEntered) {
+        if (px >= 0 && px <= w) hasEntered = true;
+      } else if (px < -pad || px > w + pad) {
+        fish.destroy();
+        opts.onGone?.();
+        return;
+      }
 
-    // Action layer: count down to the next action while idle, otherwise drive the
-    // current one. An action owns `phase`/`depth`/`heading` while it runs, so the
-    // routine burst/coast machine below is paused until it ends.
-    if (action === "none") {
-      actCooldown -= dt;
-      if (actCooldown <= 0) pickAction();
-    } else {
-      runAction(dt);
-    }
+      // Action layer: count down to the next action while idle, otherwise drive the
+      // current one. An action owns `phase`/`depth`/`heading` while it runs, so the
+      // routine burst/coast machine below is paused until it ends.
+      if (action === "none") {
+        actCooldown -= dt;
+        if (actCooldown <= 0) pickAction();
+      } else {
+        runAction(dt);
+      }
 
-    // Routine burst/coast (paused during an action, which sets its own phase).
-    if (action === "none") {
-      timer -= dt;
-      if (timer <= 0) {
-        if (phase === "burst") {
-          phase = "coast";
-          timer = k.rand(0.6, 1.7);
-        } else {
-          phase = "burst";
-          timer = k.rand(0.4, 0.9);
-          if (k.rand() < 0.12) heading *= -1; // occasional wander turn
-          if (k.rand() < 0.5) depth = inBand();
+      // Routine burst/coast (paused during an action, which sets its own phase).
+      if (action === "none") {
+        timer -= dt;
+        if (timer <= 0) {
+          if (phase === "burst") {
+            phase = "coast";
+            timer = k.rand(0.6, 1.7);
+          } else {
+            phase = "burst";
+            timer = k.rand(0.4, 0.9);
+            if (k.rand() < 0.12) heading *= -1; // occasional wander turn
+            if (k.rand() < 0.5) depth = inBand();
+          }
         }
       }
-    }
 
-    // Steer away from the walls; the burst then carries the turn through.
-    const margin = 50 * RES;
-    if (px < margin) heading = 1;
-    else if (px > w - margin) heading = -1;
+      // Steer away from the walls; the burst then carries the turn through.
+      const margin = 50 * RES;
+      if (px < margin) heading = 1;
+      else if (px > w - margin) heading = -1;
 
-    // Burst applies thrust; coast applies none. Drag acts in both phases, so a
-    // coast is a decelerating glide. A fleeing fish's thrust grows with urgency.
-    const boost =
-      action === "chase"
-        ? CHASE_ACCEL
-        : action === "flee"
-          ? 1 + fleeUrgency * (FLEE_ACCEL - 1)
-          : 1;
-    const ax = phase === "burst" ? heading * ACCEL * sp * boost : 0;
-    const ay =
-      phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
-    vx += ax * dt;
-    vy += ay * dt;
-    vx -= vx * DRAG * dt;
-    vy -= vy * VDRAG * dt;
-    vy = clamp(vy, -VMAX, VMAX);
+      // Burst applies thrust; coast applies none. Drag acts in both phases, so a
+      // coast is a decelerating glide. A fleeing fish's thrust grows with urgency.
+      const boost =
+        action === "chase"
+          ? CHASE_ACCEL
+          : action === "flee"
+            ? 1 + fleeUrgency * (FLEE_ACCEL - 1)
+            : 1;
+      const ax = phase === "burst" ? heading * ACCEL * sp * boost : 0;
+      const ay =
+        phase === "burst" ? clamp((depth - py) * 0.9, -34 * RES, 34 * RES) : 0;
+      vx += ax * dt;
+      vy += ay * dt;
+      vx -= vx * DRAG * dt;
+      vy -= vy * VDRAG * dt;
+      vy = clamp(vy, -VMAX, VMAX);
 
-    px += vx * dt;
-    py += vy * dt;
+      px += vx * dt;
+      py += vy * dt;
 
-    // Sift/rest dive onto the dune (below the normal band floor); the relaxed floor
-    // also stays in effect while the fish is still below maxY after one, so it eases
-    // back up instead of snapping at the band edge.
-    const swimFloor = swimFloorAt(px);
-    const floor =
-      action === "sift" || action === "rest" || py > swimFloor
-        ? sandFloorAt(px)
-        : swimFloor;
-    if (py < minY) {
-      py = minY;
-      vy = Math.abs(vy) * 0.3;
-    } else if (py > floor) {
-      py = floor;
-      vy = -Math.abs(vy) * 0.3;
-    }
+      // Sift/rest dive onto the dune (below the normal band floor); the relaxed floor
+      // also stays in effect while the fish is still below maxY after one, so it eases
+      // back up instead of snapping at the band edge.
+      const swimFloor = swimFloorAt(px);
+      const floor =
+        action === "sift" || action === "rest" || py > swimFloor
+          ? sandFloorAt(px)
+          : swimFloor;
+      if (py < minY) {
+        py = minY;
+        vy = Math.abs(vy) * 0.3;
+      } else if (py > floor) {
+        py = floor;
+        vy = -Math.abs(vy) * 0.3;
+      }
 
-    // Facing flips only once travel is clearly horizontal, so a turn reads as a
-    // slow reversal rather than a snap.
-    if (vx > 6 * RES) facingRight = true;
-    else if (vx < -6 * RES) facingRight = false;
-    fish.flipX = facingRight;
+      // Facing flips only once travel is clearly horizontal, so a turn reads as a
+      // slow reversal rather than a snap.
+      if (vx > 6 * RES) facingRight = true;
+      else if (vx < -6 * RES) facingRight = false;
+      fish.flipX = facingRight;
 
-    // Pitch toward the travel direction, clamped so the fish never goes vertical.
-    const slope = clamp(
-      Math.atan2(vy, Math.abs(vx) + 8 * RES),
-      -MAX_TILT,
-      MAX_TILT,
-    );
-    const targetAngle = ((facingRight ? slope : -slope) * 180) / Math.PI;
-    ang = lerpTo(ang, targetAngle, 8, dt);
+      // Pitch toward the travel direction, clamped so the fish never goes vertical.
+      const slope = clamp(
+        Math.atan2(vy, Math.abs(vx) + 8 * RES),
+        -MAX_TILT,
+        MAX_TILT,
+      );
+      const targetAngle = ((facingRight ? slope : -slope) * 180) / Math.PI;
+      ang = lerpTo(ang, targetAngle, 8, dt);
 
-    // Snap the rendered transform: position to the pixel grid, pitch to fixed
-    // tilt steps (the float state above stays smooth). A shallow slope snaps to
-    // 0°, keeping slow horizontal swimmers perfectly crisp.
-    fish.pos.x = Math.round(px);
-    fish.pos.y = Math.round(py);
-    // Depth-sort by its own y: a fish never descends below the sand crest, so
-    // it slips behind whatever is rooted on the dune as it swims past.
-    fish.z = groundZ(py);
-    fish.angle = Math.round(ang / TILT_STEP) * TILT_STEP;
+      // Snap the rendered transform: position to the pixel grid, pitch to fixed
+      // tilt steps (the float state above stays smooth). A shallow slope snaps to
+      // 0°, keeping slow horizontal swimmers perfectly crisp.
+      fish.pos.x = Math.round(px);
+      fish.pos.y = Math.round(py);
+      // Depth-sort by its own y: a fish never descends below the sand crest, so
+      // it slips behind whatever is rooted on the dune as it swims past.
+      fish.z = groundZ(py);
+      fish.angle = Math.round(ang / TILT_STEP) * TILT_STEP;
 
-    // Publish body points for neighbours' separation checks.
-    const dir = facingRight ? 1 : -1;
-    fish.headX = px + dir * bodyOff;
-    fish.headY = py;
-    fish.tailX = px - dir * bodyOff;
-    fish.tailY = py;
+      // Publish body points for neighbours' separation checks.
+      const dir = facingRight ? 1 : -1;
+      fish.headX = px + dir * bodyOff;
+      fish.headY = py;
+      fish.tailX = px - dir * bodyOff;
+      fish.tailY = py;
 
-    // Tail beats faster under thrust, nearly stops while gliding.
-    const speed = Math.hypot(vx, vy);
-    const targetBeat =
-      phase === "burst" ? Math.min(13, 4 + (speed * 0.18) / RES) : 1.2;
-    beat = lerpTo(beat, targetBeat, 6, dt);
-    fish.animSpeed = beat * motionBeatScale(motion);
-  });
+      // Tail beats faster under thrust, nearly stops while gliding.
+      const speed = Math.hypot(vx, vy);
+      const targetBeat =
+        phase === "burst" ? Math.min(13, 4 + (speed * 0.18) / RES) : 1.2;
+      beat = lerpTo(beat, targetBeat, 6, dt);
+      fish.animSpeed = beat * motionBeatScale(motion);
+    }),
+  );
 
   return fish;
 }

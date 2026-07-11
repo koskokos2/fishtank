@@ -3,21 +3,42 @@ import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
-import { off, num } from "./profiling";
+import {
+  off,
+  profile,
+  profileDraw,
+  profileDrawEnd,
+  withDrawProfile,
+} from "./profiling";
 
 const S = RES;
+type TankEntityCounts = Readonly<{ plants: number }>;
 
 // The static scene is baked once into two sprites (see backdrop.ts): the
 // water back plate and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
 // caustics, swaying plants, motes, and source-based bubbles. Depth is faked
 // with z-ordering.
-export function setupTank(k: KAPLAYCtx) {
+export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
-  if (!off("backdrop")) k.add([k.sprite("backdrop"), k.pos(0, 0), k.z(-200)]);
-  if (!off("sand")) k.add([k.sprite("backdrop-sand"), k.pos(0, 0), k.z(-150)]);
+  if (!off("backdrop"))
+    k.add([
+      profileDraw("backdrop"),
+      k.sprite("backdrop"),
+      profileDrawEnd(),
+      k.pos(0, 0),
+      k.z(-200),
+    ]);
+  if (!off("sand"))
+    k.add([
+      profileDraw("sand"),
+      k.sprite("backdrop-sand"),
+      profileDrawEnd(),
+      k.pos(0, 0),
+      k.z(-150),
+    ]);
 
   // Six live prop slots draw from the combined whitelist. One random occupant
   // is replaced by a different whitelisted prop every five minutes.
@@ -32,15 +53,16 @@ export function setupTank(k: KAPLAYCtx) {
   // each real frond now has its own root pivot and current phase. Their roots use
   // the actual dune contour and sit several pixels inside the dense sand, where
   // the atlas' dithered alpha edge reveals the procedural substrate beneath.
-  // The ?plants= budget fills mid clusters first, then foreground clumps, then
-  // the lone shoots (default 7 + 4 + 15 = 26).
-  const plantBudget = off("plants") ? 0 : num("plants", 26);
+  // The shared plants budget fills mid clusters first, then foreground clumps,
+  // then the lone shoots.
+  const plantBudget = off("plants") ? 0 : counts.plants;
   const midPlants = MID_PLANTS.slice(0, plantBudget).map((spec) =>
     spawnPlantCluster(k, spec),
   );
-  FOREGROUND_PLANTS.slice(0, Math.max(0, plantBudget - MID_PLANTS.length)).forEach(
-    (spec) => spawnPlantCluster(k, spec),
-  );
+  FOREGROUND_PLANTS.slice(
+    0,
+    Math.max(0, plantBudget - MID_PLANTS.length),
+  ).forEach((spec) => spawnPlantCluster(k, spec));
 
   // Lone shoots scattered between the clusters so the seabed reads as evenly
   // planted rather than tufted only at the set piece clumps.
@@ -75,23 +97,25 @@ export function setupTank(k: KAPLAYCtx) {
       k.z(-95),
       {
         draw() {
-          const t = k.time();
-          for (let xi = 0; xi < cols; xi++)
-            colWave[xi] = Math.sin((xi * cell * 0.05) / S + t);
-          for (let yi = 0; yi < rows; yi++)
-            rowWave[yi] = Math.sin((yi * cell * 0.07) / S - t * 0.8);
-          for (let d = 0; d < cols + rows - 1; d++)
-            diagWave[d] = Math.sin((d * cell * 0.04) / S + t * 1.3);
-          for (let yi = 0; yi < rows; yi++) {
-            const depth = 1 - (yi * cell) / (k.height() * 0.6);
-            for (let xi = 0; xi < cols; xi++) {
-              const v = colWave[xi] + rowWave[yi] + diagWave[xi + yi];
-              const a = Math.max(0, v) * 0.05 * depth;
-              px[(yi * cols + xi) * 4 + 3] = a > 0.01 ? a * 255 : 0;
+          withDrawProfile("caustics", () => {
+            const t = k.time();
+            for (let xi = 0; xi < cols; xi++)
+              colWave[xi] = Math.sin((xi * cell * 0.05) / S + t);
+            for (let yi = 0; yi < rows; yi++)
+              rowWave[yi] = Math.sin((yi * cell * 0.07) / S - t * 0.8);
+            for (let d = 0; d < cols + rows - 1; d++)
+              diagWave[d] = Math.sin((d * cell * 0.04) / S + t * 1.3);
+            for (let yi = 0; yi < rows; yi++) {
+              const depth = 1 - (yi * cell) / (k.height() * 0.6);
+              for (let xi = 0; xi < cols; xi++) {
+                const v = colWave[xi] + rowWave[yi] + diagWave[xi + yi];
+                const a = Math.max(0, v) * 0.05 * depth;
+                px[(yi * cols + xi) * 4 + 3] = a > 0.01 ? a * 255 : 0;
+              }
             }
-          }
-          tex.update(img);
-          k.drawUVQuad({ tex, width: cols * cell, height: rows * cell });
+            tex.update(img);
+            k.drawUVQuad({ tex, width: cols * cell, height: rows * cell });
+          });
         },
       },
     ]);
@@ -321,7 +345,9 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
     const speed = 0.46 + (index % 3) * 0.09;
     const mirror = !base && (index + Math.round(spec.phase)) % 2 === 1;
     const object = k.add([
+      profileDraw("plants"),
       k.sprite("plant-atlas-v2", { frame: layout.frame }),
+      profileDrawEnd(),
       k.pos(rootX + spread, rootY + rootPad),
       k.anchor("bot"),
       k.scale(mirror ? -scale : scale, scale),
@@ -341,12 +367,15 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
       currentAngle: baseAngle,
       object,
     };
-    object.onUpdate(() => {
-      const slowCurrent = 0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
-      frond.currentAngle =
-        baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
-      object.angle = frond.currentAngle;
-    });
+    object.onUpdate(() =>
+      profile("plants", () => {
+        const slowCurrent =
+          0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
+        frond.currentAngle =
+          baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
+        object.angle = frond.currentAngle;
+      }),
+    );
     fronds.push(frond);
   });
 
@@ -381,7 +410,7 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
     const rootY = sandTop + 6 * S + near * (k.height() - sandTop) * 0.78;
     const name = k.choose(SINGLE_PLANT_KINDS);
     const layout = PLANT_ATLAS_LAYOUT[name];
-    const scale = 0.5 + near * 0.5 + k.rand(0, 0.18);
+    const scale = k.rand(0.2, 1.0);
     const rootPad = (PLANT_ATLAS_CELL - layout.bottom) * scale;
     const baseAngle = k.rand(-6, 6);
     const sway = k.rand(3, 6) * (1 + near * 0.25);
@@ -395,7 +424,9 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
       k.rand(150, 190) * shade,
     ];
     const object = k.add([
+      profileDraw("plants"),
       k.sprite("plant-atlas-v2", { frame: layout.frame }),
+      profileDrawEnd(),
       k.pos(rootX, rootY + rootPad),
       k.anchor("bot"),
       k.scale(k.chance(0.5) ? -scale : scale, scale),
@@ -404,11 +435,14 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
       k.opacity(k.rand(0.82, 0.94)),
       k.z(groundZ(rootY)),
     ]);
-    object.onUpdate(() => {
-      const slowCurrent = 0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
-      object.angle =
-        baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
-    });
+    object.onUpdate(() =>
+      profile("plants", () => {
+        const slowCurrent =
+          0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
+        object.angle =
+          baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
+      }),
+    );
   }
 }
 
@@ -416,7 +450,9 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
 function spawnMotes(k: KAPLAYCtx, count: number) {
   for (let i = 0; i < count; i++) {
     const mote = k.add([
+      profileDraw("motes"),
       k.rect(k.rand(1, 2) * S, k.rand(1, 2) * S),
+      profileDrawEnd(),
       k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
       k.color(200, 220, 230),
       k.opacity(k.rand(0.05, 0.2)),
@@ -425,14 +461,16 @@ function spawnMotes(k: KAPLAYCtx, count: number) {
     const drift = k.rand(2, 6) * S;
     const phase = k.rand(0, Math.PI * 2);
 
-    mote.onUpdate(() => {
-      mote.pos.y += drift * k.dt();
-      mote.pos.x += Math.sin(k.time() * 0.5 + phase) * 0.2 * S;
-      if (mote.pos.y > k.height() + 4 * S) {
-        mote.pos.y = -4 * S;
-        mote.pos.x = k.rand(0, k.width());
-      }
-    });
+    mote.onUpdate(() =>
+      profile("motes", () => {
+        mote.pos.y += drift * k.dt();
+        mote.pos.x += Math.sin(k.time() * 0.5 + phase) * 0.2 * S;
+        if (mote.pos.y > k.height() + 4 * S) {
+          mote.pos.y = -4 * S;
+          mote.pos.x = k.rand(0, k.width());
+        }
+      }),
+    );
   }
 }
 
@@ -484,7 +522,9 @@ export function spawnBubble(k: KAPLAYCtx, x: number, y: number, count = 1) {
 function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
   const radius = k.rand(o.radius[0], o.radius[1]) * S;
   const bubble = k.add([
+    profileDraw("bubbles"),
     k.circle(radius),
+    profileDrawEnd(),
     k.pos(x, y),
     k.color(210, 235, 255),
     k.opacity(k.rand(o.opacity[0], o.opacity[1])),
@@ -498,13 +538,15 @@ function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
   let age = 0;
   const life = o.life ?? 12;
 
-  bubble.onUpdate(() => {
-    const dt = k.dt();
-    age += dt;
-    bubble.pos.y -= rise * dt;
-    bubble.pos.x += (drift + Math.sin(k.time() * freq + phase) * wobble) * dt;
-    if (age > life || bubble.pos.y < -radius * 3) bubble.destroy();
-  });
+  bubble.onUpdate(() =>
+    profile("bubbles", () => {
+      const dt = k.dt();
+      age += dt;
+      bubble.pos.y -= rise * dt;
+      bubble.pos.x += (drift + Math.sin(k.time() * freq + phase) * wobble) * dt;
+      if (age > life || bubble.pos.y < -radius * 3) bubble.destroy();
+    }),
+  );
 }
 
 function spawnPlantPearling(k: KAPLAYCtx, plants: PlantCluster[]) {
@@ -512,28 +554,30 @@ function spawnPlantPearling(k: KAPLAYCtx, plants: PlantCluster[]) {
     const controller = k.add([k.pos(0, 0)]);
     let timer = k.rand(3, 13);
 
-    controller.onUpdate(() => {
-      timer -= k.dt();
-      if (timer > 0) return;
+    controller.onUpdate(() =>
+      profile("bubbles", () => {
+        timer -= k.dt();
+        if (timer > 0) return;
 
-      timer = k.rand(8, 24);
-      const count = k.randi(1, 3);
-      for (let i = 0; i < count; i++) {
-        const frond = k.choose(plant.fronds);
-        const along = k.rand(0.58, 0.9);
-        const angle = (frond.currentAngle * Math.PI) / 180;
-        const pt = {
-          x: frond.rootX + Math.sin(angle) * frond.height * along,
-          y: frond.rootY - Math.cos(angle) * frond.height * along,
-        };
-        emitBubble(
-          k,
-          pt.x + k.rand(-0.8, 0.8) * S,
-          pt.y + k.rand(-0.8, 0.8) * S,
-          PEARL,
-        );
-      }
-    });
+        timer = k.rand(8, 24);
+        const count = k.randi(1, 3);
+        for (let i = 0; i < count; i++) {
+          const frond = k.choose(plant.fronds);
+          const along = k.rand(0.58, 0.9);
+          const angle = (frond.currentAngle * Math.PI) / 180;
+          const pt = {
+            x: frond.rootX + Math.sin(angle) * frond.height * along,
+            y: frond.rootY - Math.cos(angle) * frond.height * along,
+          };
+          emitBubble(
+            k,
+            pt.x + k.rand(-0.8, 0.8) * S,
+            pt.y + k.rand(-0.8, 0.8) * S,
+            PEARL,
+          );
+        }
+      }),
+    );
   }
 }
 
@@ -543,24 +587,26 @@ function spawnSubstrateSeeps(k: KAPLAYCtx) {
     const controller = k.add([k.pos(0, 0)]);
     let timer = k.rand(12, 55);
 
-    controller.onUpdate(() => {
-      timer -= k.dt();
-      if (timer > 0) return;
+    controller.onUpdate(() =>
+      profile("bubbles", () => {
+        timer -= k.dt();
+        if (timer > 0) return;
 
-      timer = k.rand(30, 95);
-      const large = k.chance(0.25);
-      const count = large ? k.randi(1, 2) : k.randi(3, 7);
-      for (let i = 0; i < count; i++) {
-        const x = fx * k.width() + k.rand(-3, 3) * S;
-        const sandTop = sandTopAt(Math.max(0, Math.min(k.width() - 1, x)));
-        emitBubble(
-          k,
-          x,
-          sandTop + k.rand(-6, 3) * S,
-          large ? { ...SEEP, radius: [1.4, 2.6], rise: [15, 25] } : SEEP,
-        );
-      }
-    });
+        timer = k.rand(30, 95);
+        const large = k.chance(0.25);
+        const count = large ? k.randi(1, 2) : k.randi(3, 7);
+        for (let i = 0; i < count; i++) {
+          const x = fx * k.width() + k.rand(-3, 3) * S;
+          const sandTop = sandTopAt(Math.max(0, Math.min(k.width() - 1, x)));
+          emitBubble(
+            k,
+            x,
+            sandTop + k.rand(-6, 3) * S,
+            large ? { ...SEEP, radius: [1.4, 2.6], rise: [15, 25] } : SEEP,
+          );
+        }
+      }),
+    );
   }
 }
 
@@ -576,20 +622,22 @@ function spawnRuinLeaks(k: KAPLAYCtx) {
     const controller = k.add([k.pos(0, 0)]);
     let timer = k.rand(8, 45);
 
-    controller.onUpdate(() => {
-      timer -= k.dt();
-      if (timer > 0) return;
+    controller.onUpdate(() =>
+      profile("bubbles", () => {
+        timer -= k.dt();
+        if (timer > 0) return;
 
-      timer = k.rand(24, 80);
-      const count = k.randi(2, 8);
-      for (let i = 0; i < count; i++) {
-        emitBubble(
-          k,
-          src.fx * k.width() + k.rand(-2, 2) * S,
-          src.fy * k.height() + k.rand(-2, 2) * S,
-          RUSTLE,
-        );
-      }
-    });
+        timer = k.rand(24, 80);
+        const count = k.randi(2, 8);
+        for (let i = 0; i < count; i++) {
+          emitBubble(
+            k,
+            src.fx * k.width() + k.rand(-2, 2) * S,
+            src.fy * k.height() + k.rand(-2, 2) * S,
+            RUSTLE,
+          );
+        }
+      }),
+    );
   }
 }

@@ -1,4 +1,5 @@
 import type { KAPLAYCtx } from "kaplay";
+import { off, profile, withDrawProfile } from "./profiling";
 import { RES } from "./res";
 
 const S = RES;
@@ -38,6 +39,8 @@ export function spawnSandPuff(
   settleMul = 1,
   grainBoost = 0,
 ) {
+  if (off("puffs")) return;
+
   const minN = Math.max(2, Math.round(112 * scale));
   const maxN = Math.max(minN + 1, Math.round(176 * scale));
   const n = k.randi(minN, maxN);
@@ -64,37 +67,41 @@ export function spawnSandPuff(
     k.z(19),
     {
       update() {
-        const dt = k.dt();
-        for (let i = grains.length - 1; i >= 0; i--) {
-          const g = grains[i];
-          g.age += dt;
-          g.vy += g.gravity * dt;
-          g.vx -= g.vx * drag * dt;
-          g.vy -= g.vy * drag * dt;
-          g.x += g.vx * dt;
-          g.y += g.vy * dt;
-          if (g.age > 0.6 * settleMul)
-            g.opacity -= dt * (0.7 / Math.max(0.01, settleMul));
-          if (
-            (g.vy > 0 && g.y >= g.originY) ||
-            g.age > 2.4 * settleMul ||
-            g.opacity <= 0
-          ) {
-            grains[i] = grains[grains.length - 1];
-            grains.pop();
+        profile("puffs", () => {
+          const dt = k.dt();
+          for (let i = grains.length - 1; i >= 0; i--) {
+            const g = grains[i];
+            g.age += dt;
+            g.vy += g.gravity * dt;
+            g.vx -= g.vx * drag * dt;
+            g.vy -= g.vy * drag * dt;
+            g.x += g.vx * dt;
+            g.y += g.vy * dt;
+            if (g.age > 0.6 * settleMul)
+              g.opacity -= dt * (0.7 / Math.max(0.01, settleMul));
+            if (
+              (g.vy > 0 && g.y >= g.originY) ||
+              g.age > 2.4 * settleMul ||
+              g.opacity <= 0
+            ) {
+              grains[i] = grains[grains.length - 1];
+              grains.pop();
+            }
           }
-        }
-        if (grains.length === 0) puff.destroy();
+          if (grains.length === 0) puff.destroy();
+        });
       },
       draw() {
-        for (const g of grains)
-          k.drawRect({
-            pos: k.vec2(g.x, g.y),
-            width: g.size,
-            height: g.size,
-            color: k.rgb(g.tone[0], g.tone[1], g.tone[2]),
-            opacity: g.opacity,
-          });
+        withDrawProfile("puffs", () => {
+          for (const g of grains)
+            k.drawRect({
+              pos: k.vec2(g.x, g.y),
+              width: g.size,
+              height: g.size,
+              color: k.rgb(g.tone[0], g.tone[1], g.tone[2]),
+              opacity: g.opacity,
+            });
+        });
       },
     },
   ]);

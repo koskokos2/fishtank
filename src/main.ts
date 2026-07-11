@@ -47,10 +47,36 @@ import {
 } from "./popCulturePropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { setupTank } from "./tank";
-import { off, uncapped, capFPS, num } from "./profiling";
+import {
+  off,
+  uncapped,
+  capFPS,
+  num,
+  configureEntityCountDefaults,
+  installEngineProfiler,
+} from "./profiling";
 import { VW, VH } from "./res";
 
-const FISH_COUNT = num("fish", 10);
+const DEFAULT_ENTITY_COUNTS = {
+  fish: 10,
+  jelly: 5,
+  octo: 1,
+  naut: 1,
+  crabs: 5,
+  snail: 1,
+  plants: 100,
+} as const;
+type EntityCounts = { [K in keyof typeof DEFAULT_ENTITY_COUNTS]: number };
+const ENTITY_COUNTS: EntityCounts = {
+  fish: num("fish", DEFAULT_ENTITY_COUNTS.fish),
+  jelly: num("jelly", DEFAULT_ENTITY_COUNTS.jelly),
+  octo: num("octo", DEFAULT_ENTITY_COUNTS.octo),
+  naut: num("naut", DEFAULT_ENTITY_COUNTS.naut),
+  crabs: num("crabs", DEFAULT_ENTITY_COUNTS.crabs),
+  snail: num("snail", DEFAULT_ENTITY_COUNTS.snail),
+  plants: num("plants", DEFAULT_ENTITY_COUNTS.plants),
+};
+configureEntityCountDefaults(DEFAULT_ENTITY_COUNTS);
 const BACKDROP_SEED = 1;
 
 // The scene needs no MSAA (pixel art), covers the canvas opaquely (no page
@@ -91,6 +117,7 @@ const k = kaplay({
   // second 60 Hz tick (33.3 ms) for a clean 30.
   maxFPS: uncapped ? undefined : capFPS,
 });
+installEngineProfiler(k);
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
 // to an N×N block, perfectly crisp with no crawl). At the 1920x1080 buffer, 4K
@@ -114,7 +141,7 @@ window.addEventListener("resize", fitWindow);
 
 // Each fish is a random kind; one that swims fully offscreen (a dart can carry
 // it out) is despawned and replaced by a fresh random fish entering from an edge,
-// so the population holds at FISH_COUNT.
+// so the population holds at ENTITY_COUNTS.fish.
 const fishKindIndices = FISH_KINDS.map((_, i) => i);
 const spawnRandomFish = (enterFromEdge: boolean) => {
   const kind = k.choose(fishKindIndices);
@@ -188,24 +215,27 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     sliceY: 4,
   });
 
-  setupTank(k);
+  setupTank(k, ENTITY_COUNTS);
 
   k.onLoad(() => {
     if (!off("fish"))
-      for (let i = 0; i < FISH_COUNT; i++) spawnRandomFish(false);
+      for (let i = 0; i < ENTITY_COUNTS.fish; i++) spawnRandomFish(false);
     // A few cephalopods drift among the fish as larger accent creatures.
     if (!off("cephs")) {
-      for (let i = 0; i < num("naut", 1); i++) spawnCephalopod(k, "nautilus");
-      for (let i = 0; i < num("octo", 1); i++) spawnCephalopod(k, "octopus");
-      for (let i = 0; i < num("jelly", 5); i++) spawnCephalopod(k, "jellyfish");
+      for (let i = 0; i < ENTITY_COUNTS.naut; i++)
+        spawnCephalopod(k, "nautilus");
+      for (let i = 0; i < ENTITY_COUNTS.octo; i++)
+        spawnCephalopod(k, "octopus");
+      for (let i = 0; i < ENTITY_COUNTS.jelly; i++)
+        spawnCephalopod(k, "jellyfish");
     }
     // Spread the crabs evenly so each is immediately readable before their
     // independent routes eventually carry them around the full substrate.
     if (!off("crabs")) {
-      const crabCount = num("crabs", 2);
+      const crabCount = ENTITY_COUNTS.crabs;
       for (let i = 0; i < crabCount; i++)
         spawnHermitCrab(k, k.width() * ((i + 0.5) / crabCount));
-      for (let i = 0; i < num("snail", 1); i++) spawnSeaSnail(k);
+      for (let i = 0; i < ENTITY_COUNTS.snail; i++) spawnSeaSnail(k);
     }
     // A dense right-side kelp forest is reconstructed on every load from ordered
     // random stem, branch, crown, tendril and pod modules. Small juvenile stalks

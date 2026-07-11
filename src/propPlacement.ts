@@ -1,6 +1,12 @@
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { clamp01 } from "./color";
+import {
+  profile,
+  profileDraw,
+  profileDrawEnd,
+  withDrawProfile,
+} from "./profiling";
 import { spawnSandPuff } from "./sandPuff";
 import { RES, VH } from "./res";
 import { SCI_FI_PROP_SPECS, spawnTemperatureReadout } from "./sciFiProps";
@@ -44,7 +50,12 @@ export type PropPlacement = {
 export type WhitelistedProp = {
   id: string;
   name: string;
-  sprite: "sci-fi-props" | "eldritch-props" | "star-wars-props" | "pop-culture-props" | "small-props";
+  sprite:
+    | "sci-fi-props"
+    | "eldritch-props"
+    | "star-wars-props"
+    | "pop-culture-props"
+    | "small-props";
   frame: number;
   cell: number;
   layout: Layout;
@@ -119,7 +130,10 @@ function atlasProps(
   sprite: WhitelistedProp["sprite"],
   names: readonly string[],
   cell: number,
-  layouts: Record<string, Layout & { frame?: number; row?: number; col?: number }>,
+  layouts: Record<
+    string,
+    Layout & { frame?: number; row?: number; col?: number }
+  >,
 ): WhitelistedProp[] {
   return names.map((name) => {
     const layout = layouts[name];
@@ -369,7 +383,9 @@ function spawnProp(
   const placement = placeProp(k.width(), prop, slot);
   claimSlot(prop, slot, slotIndex, placement);
   return k.add([
+    profileDraw("props"),
     k.sprite(prop.sprite, { frame: prop.frame }),
+    profileDrawEnd(),
     k.pos(placement.rootX, spriteY ?? placement.spriteY),
     k.anchor("bot"),
     k.rotate(0),
@@ -408,48 +424,55 @@ function sinkOutProp(
     k.z(z),
     {
       draw() {
-        k.drawMasked(
-          () =>
-            k.drawSprite({
-              sprite: prop.sprite,
-              frame: prop.frame,
-              anchor: "bot",
-              pos: k.vec2(rootX, Math.round(spriteY0 + sunk)),
-            }),
-          () =>
-            k.drawRect({
-              pos: k.vec2(left - prop.cell, clipY - prop.cell * 2),
-              width: prop.cell * 3,
-              height: prop.cell * 2,
-              color: k.WHITE,
-            }),
-        );
+        withDrawProfile("props", () => {
+          k.drawMasked(
+            () =>
+              k.drawSprite({
+                sprite: prop.sprite,
+                frame: prop.frame,
+                anchor: "bot",
+                pos: k.vec2(rootX, Math.round(spriteY0 + sunk)),
+              }),
+            () =>
+              k.drawRect({
+                pos: k.vec2(left - prop.cell, clipY - prop.cell * 2),
+                width: prop.cell * 3,
+                height: prop.cell * 2,
+                color: k.WHITE,
+              }),
+          );
+        });
       },
     },
   ]);
 
-  sinker.onUpdate(() => {
-    const dt = k.dt();
-    sunk += SINK_SPEED * dt;
+  sinker.onUpdate(() =>
+    profile("props", () => {
+      const dt = k.dt();
+      sunk += SINK_SPEED * dt;
 
-    scuffTimer -= dt;
-    if (scuffTimer <= 0) {
-      scuffTimer = SCUFF_PERIOD * k.rand(0.7, 1.3);
-      spawnSandPuff(
-        k,
-        k.rand(left + prop.layout.contactLeft, left + prop.layout.contactRight),
-        sandLine,
-        0.2,
-        0.6,
-        0.8,
-      );
-    }
+      scuffTimer -= dt;
+      if (scuffTimer <= 0) {
+        scuffTimer = SCUFF_PERIOD * k.rand(0.7, 1.3);
+        spawnSandPuff(
+          k,
+          k.rand(
+            left + prop.layout.contactLeft,
+            left + prop.layout.contactRight,
+          ),
+          sandLine,
+          0.2,
+          0.6,
+          0.8,
+        );
+      }
 
-    if (sunk >= artHeight) {
-      sinker.destroy();
-      onDone();
-    }
-  });
+      if (sunk >= artHeight) {
+        sinker.destroy();
+        onDone();
+      }
+    }),
+  );
 }
 
 // Incoming prop: drifts down from off-screen with decaying sway/rock, lands with
@@ -479,50 +502,52 @@ function dropInProp(
   let t = 0;
   let y = spriteY0; // unrounded accumulator — rounding pos.y directly would quantize the per-frame step and tie the speed to the frame rate
 
-  const controller = object.onUpdate(() => {
-    const dt = k.dt();
-    t += dt;
+  const controller = object.onUpdate(() =>
+    profile("props", () => {
+      const dt = k.dt();
+      t += dt;
 
-    if (!settling) {
-      y += DROP_SPEED * dt;
-      object.pos.y = Math.round(y);
-      const env = clamp01((targetSpriteY - y) / SWAY_FADE);
-      const sway =
-        Math.sin(t * SWAY_FREQ_0 + phase0) * SWAY_AMP_0 +
-        Math.sin(t * SWAY_FREQ_1 + phase1) * SWAY_AMP_1;
-      object.pos.x = Math.round(rootX + env * sway);
-      object.angle = env * Math.sin(t * SWAY_FREQ_0 + phase0) * SWAY_ROCK_DEG;
+      if (!settling) {
+        y += DROP_SPEED * dt;
+        object.pos.y = Math.round(y);
+        const env = clamp01((targetSpriteY - y) / SWAY_FADE);
+        const sway =
+          Math.sin(t * SWAY_FREQ_0 + phase0) * SWAY_AMP_0 +
+          Math.sin(t * SWAY_FREQ_1 + phase1) * SWAY_AMP_1;
+        object.pos.x = Math.round(rootX + env * sway);
+        object.angle = env * Math.sin(t * SWAY_FREQ_0 + phase0) * SWAY_ROCK_DEG;
 
-      const artBottom = y - prop.cell + prop.layout.bottom;
-      if (!landed && artBottom >= sandLine) {
-        landed = true;
-        // Resting props draw their buried depth in front of the sand, so swap
-        // out of the occlusion band at touchdown — the remaining descent + dip
-        // then read as pressing in, and the puff masks the swap.
-        object.z = groundZ(placement.rootY);
-        spawnSandPuff(k, rootX, sandLine, 1);
+        const artBottom = y - prop.cell + prop.layout.bottom;
+        if (!landed && artBottom >= sandLine) {
+          landed = true;
+          // Resting props draw their buried depth in front of the sand, so swap
+          // out of the occlusion band at touchdown — the remaining descent + dip
+          // then read as pressing in, and the puff masks the swap.
+          object.z = groundZ(placement.rootY);
+          spawnSandPuff(k, rootX, sandLine, 1);
+        }
+
+        if (y >= targetSpriteY + SETTLE_DIP) {
+          object.pos.y = targetSpriteY + SETTLE_DIP;
+          settling = true;
+          dipTimer = SETTLE_DUR;
+        }
+      } else {
+        dipTimer = Math.max(0, dipTimer - dt);
+        object.pos.y = Math.round(
+          targetSpriteY + SETTLE_DIP * (dipTimer / SETTLE_DUR),
+        );
+        object.angle = 0;
+        object.pos.x = rootX; // match spawnProp's unrounded placement so the settled prop sits exactly where a normal spawn would
+
+        if (dipTimer <= 0) {
+          object.pos.y = targetSpriteY;
+          controller.cancel();
+          onFinish(object);
+        }
       }
-
-      if (y >= targetSpriteY + SETTLE_DIP) {
-        object.pos.y = targetSpriteY + SETTLE_DIP;
-        settling = true;
-        dipTimer = SETTLE_DUR;
-      }
-    } else {
-      dipTimer = Math.max(0, dipTimer - dt);
-      object.pos.y = Math.round(
-        targetSpriteY + SETTLE_DIP * (dipTimer / SETTLE_DUR),
-      );
-      object.angle = 0;
-      object.pos.x = rootX; // match spawnProp's unrounded placement so the settled prop sits exactly where a normal spawn would
-
-      if (dipTimer <= 0) {
-        object.pos.y = targetSpriteY;
-        controller.cancel();
-        onFinish(object);
-      }
-    }
-  });
+    }),
+  );
 }
 
 export function spawnFixedProps(k: KAPLAYCtx) {

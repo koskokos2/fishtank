@@ -7,6 +7,7 @@ import {
   LUMINOUS_KELP_PART,
   LUMINOUS_KELP_TIP,
 } from "./luminousKelpAtlas";
+import { profile, profileDraw, profileDrawEnd } from "./profiling";
 import { RES } from "./res";
 
 const S = RES;
@@ -88,7 +89,9 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
 
   const makePart = (name: PartName, scale = spec.scale, zOffset = 0, opacity = defaultOpacity) => {
     const object = k.add([
+      profileDraw("kelp"),
       k.sprite("luminous-kelp", { frame: LUMINOUS_KELP_PART[name] }),
+      profileDrawEnd(),
       k.pos(rootX, rootY),
       k.anchor("center"),
       k.rotate(0),
@@ -240,7 +243,7 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
   };
 
   const controller = k.add([k.pos(0, 0)]);
-  controller.onUpdate(() => {
+  controller.onUpdate(() => profile("kelp", () => {
     const time = k.time();
     const current =
       Math.sin(time * 0.25 + spec.phase) * 0.74 +
@@ -307,7 +310,7 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
       const flutter = Math.sin(time * (0.36 + index * 0.045) + spec.phase + index * 2.1) * (1.1 + index * 0.35);
       place(crown, crownPoint, crownParentAngle + crown.angleOffset + flutter);
     });
-  });
+  }));
 
   return { base: base.object, stems, jointBridges, branches, crowns, collars, pods, tendrils, controller };
 }
