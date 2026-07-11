@@ -56,19 +56,27 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The shared plants budget fills mid clusters first, then foreground clumps,
   // then the lone shoots.
   const plantBudget = off("plants") ? 0 : counts.plants;
+  // Every frond is collected into one flat list, then committed as a handful of
+  // z-banded draw controllers (see commitPlantField) instead of one game object
+  // per frond. On weak GPUs the per-object scene-graph walk — not the pixels —
+  // is the cost, so collapsing ~150 plant entities into a few controllers is the
+  // single biggest Pi win while keeping every frond on screen.
+  const fronds: Frond[] = [];
   const midPlants = MID_PLANTS.slice(0, plantBudget).map((spec) =>
-    spawnPlantCluster(k, spec),
+    collectPlantCluster(k, spec, fronds),
   );
   FOREGROUND_PLANTS.slice(
     0,
     Math.max(0, plantBudget - MID_PLANTS.length),
-  ).forEach((spec) => spawnPlantCluster(k, spec));
+  ).forEach((spec) => collectPlantCluster(k, spec, fronds));
 
   // Lone shoots scattered between the clusters so the seabed reads as evenly
   // planted rather than tufted only at the set piece clumps.
   const singleShoots =
     plantBudget - MID_PLANTS.length - FOREGROUND_PLANTS.length;
-  if (singleShoots > 0) spawnSinglePlants(k, singleShoots);
+  if (singleShoots > 0) collectSinglePlants(k, singleShoots, fronds);
+
+  commitPlantField(k, fronds);
 
   // Caustics: three overlapping sine fields on a coarse grid read as the
   // shimmering light mesh, brightest near the surface and fading with depth.
@@ -145,7 +153,11 @@ export type PlantSpec = {
   foreground?: boolean;
 };
 
-type AnimatedFrond = {
+// One swaying frond. The animation fields drive the sway; the draw fields feed a
+// single batched k.drawSprite; rootX/rootY/height/currentAngle are read back by
+// the pearling emitters. No per-frond game object exists — commitPlantField draws
+// the whole field from a few controllers.
+type Frond = {
   rootX: number;
   rootY: number;
   height: number;
@@ -154,11 +166,18 @@ type AnimatedFrond = {
   baseAngle: number;
   sway: number;
   currentAngle: number;
-  object: any;
+  drawX: number;
+  drawY: number;
+  scaleX: number;
+  scaleY: number;
+  frame: number;
+  tint: [number, number, number];
+  opacity: number;
+  z: number;
 };
 
 type PlantCluster = {
-  fronds: AnimatedFrond[];
+  fronds: Frond[];
 };
 
 export const MID_PLANTS: PlantSpec[] = [
@@ -316,7 +335,11 @@ export const THEME_BASE: Record<PlantTheme, PlantName> = {
   mixed: "fiddlehead_shoot",
 };
 
-function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
+function collectPlantCluster(
+  k: KAPLAYCtx,
+  spec: PlantSpec,
+  out: Frond[],
+): PlantCluster {
   const rootX = spec.fx * k.width();
   const rootY = spec.foreground
     ? k.height() + spec.depth * S
@@ -324,7 +347,7 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
   const names = [...THEME_FRONDS[spec.theme], THEME_BASE[spec.theme]];
   const centre = (names.length - 2) / 2;
   const clusterZ = spec.foreground ? spec.z! : groundZ(rootY);
-  const fronds: AnimatedFrond[] = [];
+  const fronds: Frond[] = [];
 
   names.forEach((name, index) => {
     const base = index === names.length - 1;
@@ -344,19 +367,7 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
     const phase = spec.phase + index * 1.17;
     const speed = 0.46 + (index % 3) * 0.09;
     const mirror = !base && (index + Math.round(spec.phase)) % 2 === 1;
-    const object = k.add([
-      profileDraw("plants"),
-      k.sprite("plant-atlas-v2", { frame: layout.frame }),
-      profileDrawEnd(),
-      k.pos(rootX + spread, rootY + rootPad),
-      k.anchor("bot"),
-      k.scale(mirror ? -scale : scale, scale),
-      k.rotate(baseAngle),
-      k.color(...spec.tint),
-      k.opacity(spec.opacity),
-      k.z(clusterZ + index * 0.01),
-    ]);
-    const frond: AnimatedFrond = {
+    const frond: Frond = {
       rootX: rootX + spread,
       rootY,
       height: (layout.bottom - layout.top) * scale,
@@ -365,18 +376,17 @@ function spawnPlantCluster(k: KAPLAYCtx, spec: PlantSpec): PlantCluster {
       baseAngle,
       sway,
       currentAngle: baseAngle,
-      object,
+      drawX: rootX + spread,
+      drawY: rootY + rootPad,
+      scaleX: mirror ? -scale : scale,
+      scaleY: scale,
+      frame: layout.frame,
+      tint: spec.tint,
+      opacity: spec.opacity,
+      z: clusterZ + index * 0.01,
     };
-    object.onUpdate(() =>
-      profile("plants", () => {
-        const slowCurrent =
-          0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
-        frond.currentAngle =
-          baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
-        object.angle = frond.currentAngle;
-      }),
-    );
     fronds.push(frond);
+    out.push(frond);
   });
 
   return { fronds };
@@ -397,7 +407,7 @@ const SINGLE_PLANT_KINDS: PlantName[] = [
 
 // A single swaying frond rooted on the dune contour. Stratified across the width
 // (one per bin, jittered) so the scatter stays balanced instead of clumping.
-function spawnSinglePlants(k: KAPLAYCtx, count: number) {
+function collectSinglePlants(k: KAPLAYCtx, count: number, out: Frond[]) {
   for (let i = 0; i < count; i++) {
     const fx = (i + k.rand(0.15, 0.85)) / count;
     const rootX = fx * k.width();
@@ -423,26 +433,79 @@ function spawnSinglePlants(k: KAPLAYCtx, count: number) {
       k.rand(165, 210) * shade,
       k.rand(150, 190) * shade,
     ];
-    const object = k.add([
-      profileDraw("plants"),
-      k.sprite("plant-atlas-v2", { frame: layout.frame }),
-      profileDrawEnd(),
-      k.pos(rootX, rootY + rootPad),
-      k.anchor("bot"),
-      k.scale(k.chance(0.5) ? -scale : scale, scale),
-      k.rotate(baseAngle),
-      k.color(...tint),
-      k.opacity(k.rand(0.82, 0.94)),
-      k.z(groundZ(rootY)),
+    out.push({
+      rootX,
+      rootY,
+      height: (layout.bottom - layout.top) * scale,
+      phase,
+      speed,
+      baseAngle,
+      sway,
+      currentAngle: baseAngle,
+      drawX: rootX,
+      drawY: rootY + rootPad,
+      scaleX: k.chance(0.5) ? -scale : scale,
+      scaleY: scale,
+      frame: layout.frame,
+      tint,
+      opacity: k.rand(0.82, 0.94),
+      z: groundZ(rootY),
+    });
+  }
+}
+
+// Draw the whole plant field from a few z-banded controllers instead of one
+// game object per frond. Fronds are bucketed into coarse depth bands so they
+// still interleave with fish by depth (a fish occludes a band it swims nearer
+// than), while ~150 scene-graph nodes collapse to a handful. Within a band the
+// fronds are sorted by exact z so nearer fronds overlay farther ones, and all
+// share the plant-atlas-v2 texture so Kaplay batches them into few draw calls.
+function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
+  if (!fronds.length) return;
+  const BAND = 6;
+  const bands = new Map<number, Frond[]>();
+  for (const frond of fronds) {
+    const key = Math.round(frond.z / BAND) * BAND;
+    const group = bands.get(key);
+    if (group) group.push(frond);
+    else bands.set(key, [frond]);
+  }
+
+  for (const [bandZ, group] of bands) {
+    group.sort((a, b) => a.z - b.z);
+    k.add([
+      k.z(bandZ),
+      {
+        update() {
+          profile("plants", () => {
+            const t = k.time();
+            for (const f of group) {
+              const slowCurrent =
+                0.82 + Math.sin(t * 0.16 + f.phase * 0.7) * 0.18;
+              f.currentAngle =
+                f.baseAngle +
+                Math.sin(t * f.speed + f.phase) * f.sway * slowCurrent;
+            }
+          });
+        },
+        draw() {
+          withDrawProfile("plants", () => {
+            for (const f of group) {
+              k.drawSprite({
+                sprite: "plant-atlas-v2",
+                frame: f.frame,
+                pos: k.vec2(f.drawX, f.drawY),
+                anchor: "bot",
+                scale: k.vec2(f.scaleX, f.scaleY),
+                angle: f.currentAngle,
+                color: k.rgb(f.tint[0], f.tint[1], f.tint[2]),
+                opacity: f.opacity,
+              });
+            }
+          });
+        },
+      },
     ]);
-    object.onUpdate(() =>
-      profile("plants", () => {
-        const slowCurrent =
-          0.82 + Math.sin(k.time() * 0.16 + phase * 0.7) * 0.18;
-        object.angle =
-          baseAngle + Math.sin(k.time() * speed + phase) * sway * slowCurrent;
-      }),
-    );
   }
 }
 
