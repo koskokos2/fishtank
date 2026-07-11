@@ -6,6 +6,24 @@ const params = new URLSearchParams(location.search);
 const OFF = new Set((params.get("off") ?? "").split(",").filter(Boolean));
 export const off = (name: string) => OFF.has(name) || OFF.has("all");
 export const uncapped = params.has("uncap");
+// ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
+// devices (halves sustained load and heat) without needing a separate build.
+export const capFPS = Number(params.get("cap")) || 62;
+
+// ?fps overlays a live frame-rate readout — easier to read than the in-scene
+// console prop, and available even with ?off=props.
+if (params.has("fps"))
+  addEventListener("load", () => {
+    const label = document.createElement("div");
+    label.style.cssText =
+      "position:fixed;right:8px;top:8px;z-index:9;background:#000c;color:#7f7;" +
+      "font:16px/1.4 monospace;padding:4px 8px;border-radius:4px";
+    document.body.append(label);
+    setInterval(() => {
+      const d = (globalThis as { debug?: { fps(): number } }).debug;
+      label.textContent = d ? String(Math.round(d.fps())) : "…";
+    }, 250);
+  });
 
 // ?gpu overlays the WebGL renderer string — the ground truth for whether a
 // browser or webview is on the real GPU (V3D/VideoCore/Apple/ANGLE-Metal) or a

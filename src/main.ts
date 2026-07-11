@@ -47,7 +47,7 @@ import {
 } from "./popCulturePropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { setupTank } from "./tank";
-import { off, uncapped } from "./profiling";
+import { off, uncapped, capFPS } from "./profiling";
 import { VW, VH } from "./res";
 
 const FISH_COUNT = 10;
@@ -83,11 +83,13 @@ const k = kaplay({
   crisp: true,
   background: [6, 24, 43],
   // An ambient scene doesn't need ProMotion rates; capping halves the CPU work
-  // on 120 Hz displays. 62 rather than 60: the cap skips a vsync tick whenever
-  // the elapsed time is under 1/maxFPS, and on a 120 Hz panel the second 8.33 ms
-  // tick lands a hair under a 16.67 ms threshold, demoting the scene to every
-  // third tick (40 fps). A 16.13 ms threshold keeps it on every second tick.
-  maxFPS: uncapped ? undefined : 62,
+  // on 120 Hz displays. The default is 62 rather than 60: the cap skips a vsync
+  // tick whenever the elapsed time is under 1/maxFPS, and on a 120 Hz panel the
+  // second 8.33 ms tick lands a hair under a 16.67 ms threshold, demoting the
+  // scene to every third tick (40 fps). A 16.13 ms threshold keeps it on every
+  // second tick. Same trick when a launcher passes ?cap=32: 31.25 ms clears the
+  // second 60 Hz tick (33.3 ms) for a clean 30.
+  maxFPS: uncapped ? undefined : capFPS,
 });
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
