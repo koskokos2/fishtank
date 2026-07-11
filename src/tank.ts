@@ -130,6 +130,10 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   }
 
   if (!off("motes")) spawnMotes(k, 30);
+  // Fresh pools per scene build so a dev reload can't leave controllers from a
+  // previous scene holding stale bubble structs.
+  bubblePools.clear();
+  bubbleColor = null;
   if (!off("bubbles")) {
     spawnPlantPearling(k, midPlants);
     spawnSubstrateSeeps(k);
@@ -561,31 +565,65 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
 }
 
 // Suspended detritus: tiny pale specks drifting slowly for a sense of depth.
-function spawnMotes(k: KAPLAYCtx, count: number) {
-  for (let i = 0; i < count; i++) {
-    const mote = k.add([
-      profileDraw("motes"),
-      k.rect(k.rand(1, 2) * S, k.rand(1, 2) * S),
-      profileDrawEnd(),
-      k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
-      k.color(200, 220, 230),
-      k.opacity(k.rand(0.05, 0.2)),
-      k.z(15),
-    ]);
-    const drift = k.rand(2, 6) * S;
-    const phase = k.rand(0, Math.PI * 2);
+// Drawn from one controller instead of a game object per speck — the specks are
+// just structs the controller drifts and paints via drawRect, collapsing ~30
+// scene-graph nodes (and their per-object update/draw walks) into one.
+type Mote = {
+  pos: Vec2;
+  drift: number;
+  phase: number;
+  w: number;
+  h: number;
+  opacity: number;
+};
 
-    mote.onUpdate(() =>
-      profile("motes", () => {
-        mote.pos.y += drift * k.dt();
-        mote.pos.x += Math.sin(k.time() * 0.5 + phase) * 0.2 * S;
-        if (mote.pos.y > k.height() + 4 * S) {
-          mote.pos.y = -4 * S;
-          mote.pos.x = k.rand(0, k.width());
-        }
-      }),
-    );
+function spawnMotes(k: KAPLAYCtx, count: number) {
+  if (count <= 0) return;
+  const motes: Mote[] = [];
+  for (let i = 0; i < count; i++) {
+    motes.push({
+      pos: k.vec2(k.rand(0, k.width()), k.rand(0, k.height())),
+      drift: k.rand(2, 6) * S,
+      phase: k.rand(0, Math.PI * 2),
+      w: k.rand(1, 2) * S,
+      h: k.rand(1, 2) * S,
+      opacity: k.rand(0.05, 0.2),
+    });
   }
+  const color = k.rgb(200, 220, 230);
+
+  k.add([
+    k.z(15),
+    {
+      update() {
+        profile("motes", () => {
+          const dt = k.dt();
+          const t = k.time();
+          const h = k.height();
+          for (const m of motes) {
+            m.pos.y += m.drift * dt;
+            m.pos.x += Math.sin(t * 0.5 + m.phase) * 0.2 * S;
+            if (m.pos.y > h + 4 * S) {
+              m.pos.y = -4 * S;
+              m.pos.x = k.rand(0, k.width());
+            }
+          }
+        });
+      },
+      draw() {
+        withDrawProfile("motes", () => {
+          for (const m of motes)
+            k.drawRect({
+              width: m.w,
+              height: m.h,
+              pos: m.pos,
+              color,
+              opacity: m.opacity,
+            });
+        });
+      },
+    },
+  ]);
 }
 
 type BubbleOpts = {
@@ -633,34 +671,103 @@ export function spawnBubble(k: KAPLAYCtx, x: number, y: number, count = 1) {
   }
 }
 
-function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
-  const radius = k.rand(o.radius[0], o.radius[1]) * S;
-  const bubble = k.add([
-    profileDraw("bubbles"),
-    k.circle(radius),
-    profileDrawEnd(),
-    k.pos(x, y),
-    k.color(210, 235, 255),
-    k.opacity(k.rand(o.opacity[0], o.opacity[1])),
-    k.z(o.z),
-  ]);
-  const rise = k.rand(o.rise[0], o.rise[1]) * S;
-  const drift = k.rand(o.drift[0], o.drift[1]) * S;
-  const wobble = o.wobble * S;
-  const phase = k.rand(0, Math.PI * 2);
-  const freq = k.rand(1.1, 2.4);
-  let age = 0;
-  const life = o.life ?? 12;
+// One pooled bubble. Spent bubbles are flagged inactive and their slot reused,
+// so the constant emit/expire cycle allocates nothing after warm-up.
+type Bubble = {
+  active: boolean;
+  pos: Vec2;
+  radius: number;
+  rise: number;
+  drift: number;
+  wobble: number;
+  phase: number;
+  freq: number;
+  age: number;
+  life: number;
+  opacity: number;
+};
 
-  bubble.onUpdate(() =>
-    profile("bubbles", () => {
-      const dt = k.dt();
-      age += dt;
-      bubble.pos.y -= rise * dt;
-      bubble.pos.x += (drift + Math.sin(k.time() * freq + phase) * wobble) * dt;
-      if (age > life || bubble.pos.y < -radius * 3) bubble.destroy();
-    }),
-  );
+// Ambient bubbles are pooled and drawn from one controller per depth (z) instead
+// of a game object add()/destroy()'d per bubble. That churn was pure GC pressure
+// — brutal on the Pi's collector — for what is only a translucent circle. Pools
+// are keyed by z so bubbles still layer correctly against the rest of the scene.
+type BubblePool = { bubbles: Bubble[] };
+const BUBBLE_COLOR = [210, 235, 255] as const;
+let bubbleColor: Color | null = null;
+const bubblePools = new Map<number, BubblePool>();
+
+function bubblePoolFor(k: KAPLAYCtx, z: number): BubblePool {
+  const existing = bubblePools.get(z);
+  if (existing) return existing;
+  const pool: BubblePool = { bubbles: [] };
+  bubblePools.set(z, pool);
+  k.add([
+    k.z(z),
+    {
+      update() {
+        profile("bubbles", () => {
+          const dt = k.dt();
+          const t = k.time();
+          for (const b of pool.bubbles) {
+            if (!b.active) continue;
+            b.age += dt;
+            b.pos.y -= b.rise * dt;
+            b.pos.x +=
+              (b.drift + Math.sin(t * b.freq + b.phase) * b.wobble) * dt;
+            if (b.age > b.life || b.pos.y < -b.radius * 3) b.active = false;
+          }
+        });
+      },
+      draw() {
+        withDrawProfile("bubbles", () => {
+          for (const b of pool.bubbles) {
+            if (!b.active) continue;
+            k.drawCircle({
+              radius: b.radius,
+              pos: b.pos,
+              color: bubbleColor!,
+              opacity: b.opacity,
+            });
+          }
+        });
+      },
+    },
+  ]);
+  return pool;
+}
+
+function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
+  if (!bubbleColor) bubbleColor = k.rgb(...BUBBLE_COLOR);
+  const pool = bubblePoolFor(k, o.z);
+  let b = pool.bubbles.find((bb) => !bb.active);
+  if (!b) {
+    b = {
+      active: false,
+      pos: k.vec2(0, 0),
+      radius: 0,
+      rise: 0,
+      drift: 0,
+      wobble: 0,
+      phase: 0,
+      freq: 0,
+      age: 0,
+      life: 0,
+      opacity: 0,
+    };
+    pool.bubbles.push(b);
+  }
+  b.active = true;
+  b.pos.x = x;
+  b.pos.y = y;
+  b.radius = k.rand(o.radius[0], o.radius[1]) * S;
+  b.rise = k.rand(o.rise[0], o.rise[1]) * S;
+  b.drift = k.rand(o.drift[0], o.drift[1]) * S;
+  b.wobble = o.wobble * S;
+  b.phase = k.rand(0, Math.PI * 2);
+  b.freq = k.rand(1.1, 2.4);
+  b.age = 0;
+  b.life = o.life ?? 12;
+  b.opacity = k.rand(o.opacity[0], o.opacity[1]);
 }
 
 function spawnPlantPearling(k: KAPLAYCtx, plants: PlantCluster[]) {
