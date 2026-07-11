@@ -53,12 +53,31 @@ import { VW, VH } from "./res";
 const FISH_COUNT = 10;
 const BACKDROP_SEED = 1;
 
+// The scene needs no MSAA (pixel art), covers the canvas opaquely (no page
+// blending), and never reads the frame back after present. kaplay's own context
+// request enables all three, which tiled GPUs (the Pi's V3D above all) pay real
+// bandwidth for — preserveDrawingBuffer alone forces reloading the previous
+// frame into tile memory instead of a fast clear. A canvas's first getContext
+// call fixes its attributes, so prime the context here and hand kaplay the
+// canvas; its later request adopts this context unchanged.
+const canvas = document.createElement("canvas");
+document.body.appendChild(canvas);
+canvas.getContext("webgl", {
+  antialias: false,
+  alpha: false,
+  depth: true,
+  stencil: true,
+  preserveDrawingBuffer: false,
+  powerPreference: "high-performance",
+});
+
 // Fixed virtual resolution: the whole scene renders into a VW x VH buffer (the
 // 640x360 design space scaled by RES) that is scaled up to the window. This gives
 // the fish and the procedurally-drawn background a single, consistent pixel grid
 // — every sprite texel and every scene primitive is one buffer pixel. The canvas
 // is left at VW x VH here and scaled to the window by fitWindow() below.
 const k = kaplay({
+  canvas,
   width: VW,
   height: VH,
   crisp: true,
@@ -75,7 +94,6 @@ const k = kaplay({
 // to an N×N block, perfectly crisp with no crawl). At the 1920x1080 buffer, 4K
 // lands exactly at 2x. Smaller displays use a fractional fill, whose uneven pixel
 // steps are far less visible at this density than they were at 640x360.
-const canvas = document.querySelector("canvas")!;
 function fitWindow() {
   const fit = Math.min(window.innerWidth / VW, window.innerHeight / VH);
   const scale = fit >= 2 ? Math.floor(fit) : fit;
