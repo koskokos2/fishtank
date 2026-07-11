@@ -221,7 +221,7 @@ const makeLongFrameBreakdown = (
   };
 };
 
-let debugProfiling = false;
+let debugProfiling = params.has("debug");
 const jsProfileTotals = new Map<string, number>();
 const drawProfileTotals = new Map<string, number>();
 const glProfileTotals = new Map<string, number>();
@@ -453,30 +453,28 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     box.style.cssText =
       "position:fixed;right:8px;top:8px;z-index:9;background:#000c;color:#7f7;" +
       "font:13px/1.5 monospace;padding:6px 18px 6px 10px;border-radius:4px";
-    if (!debugProfiling) box.style.display = "none";
     document.body.append(box);
 
     // Outside ?debug, start collapsed so normal runs only show the settings gear.
+    // If localStorage has a saved state, restore it.
+    const savedSettingsPanelOpen = localStorage.getItem("debugSettingsPanelOpen");
+    const initialSettingsPanelOpen = debugProfiling
+      ? true
+      : savedSettingsPanelOpen === "true";
+    box.style.display = initialSettingsPanelOpen ? "" : "none";
+
     const gear = document.createElement("button");
     gear.textContent = "⚙";
     gear.style.cssText =
       "position:fixed;right:8px;top:8px;z-index:9;background:none;border:none;" +
       "color:#000a;font:15px monospace;cursor:pointer;padding:2px 6px;" +
-      `border-radius:4px;display:${debugProfiling ? "none" : "block"}`;
+      `border-radius:4px;display:${initialSettingsPanelOpen ? "none" : "block"}`;
     document.body.append(gear);
     const close = document.createElement("button");
     close.textContent = "×";
     close.style.cssText =
       "position:absolute;top:0;right:2px;background:none;border:none;" +
       "color:#7f7a;font:15px monospace;cursor:pointer;padding:2px 4px";
-    close.addEventListener("click", () => {
-      box.style.display = "none";
-      gear.style.display = "block";
-    });
-    gear.addEventListener("click", () => {
-      gear.style.display = "none";
-      box.style.display = "";
-    });
     box.append(close);
 
     const detailBox = document.createElement("div");
@@ -525,6 +523,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         "aria-label",
         visible ? "Hide performance details" : "Show performance details",
       );
+      localStorage.setItem("debugDetailsPanelOpen", String(visible));
     };
     detailToggle.addEventListener("click", () => {
       setDetailsVisible(detailBox.style.display === "none");
@@ -532,12 +531,37 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     detailClose.addEventListener("click", () => {
       setDetailsVisible(false);
     });
+
+    const setBoxVisible = (visible: boolean) => {
+      box.style.display = visible ? "" : "none";
+      gear.style.display = visible ? "none" : "block";
+      localStorage.setItem("debugSettingsPanelOpen", String(visible));
+    };
+    close.addEventListener("click", () => {
+      setBoxVisible(false);
+    });
+    gear.addEventListener("click", () => {
+      setBoxVisible(true);
+    });
     fpsRow.append(fpsPanel, detailToggle);
     box.append(fpsRow);
     setInterval(() => {
       const d = (globalThis as { debug?: { fps(): number } }).debug;
       fpsPanel.textContent = `fps: ${d ? Math.round(d.fps()) : "?"}`;
     }, 250);
+
+    // Auto-open the detail panel (performance breakdown) if debug param is set
+    if (params.has("debug")) {
+      setDetailsVisible(true);
+    } else {
+      // Otherwise, restore from localStorage
+      const savedDetailsPanelOpen = localStorage.getItem(
+        "debugDetailsPanelOpen",
+      );
+      if (savedDetailsPanelOpen === "true") {
+        setDetailsVisible(true);
+      }
+    }
 
     // Scene-element checkboxes: each maps to an ?off= gate, which only runs at
     // spawn time — applying a change rewrites the query and reloads.
@@ -969,10 +993,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       const appDrawAvg = sumProfile(drawByApp);
       const appGlAvg = sumProfile(glByApp);
       const appDrawNoGlAvg = Math.max(0, appDrawAvg - appGlAvg);
-      const engineOtherAvg = Math.max(
-        0,
-        jsAvg - appUpdateAvg - appDrawNoGlAvg,
-      );
+      const engineOtherAvg = Math.max(0, jsAvg - appUpdateAvg - appDrawNoGlAvg);
       const rootUpdateAvg = engineByApp.get("root update") ?? 0;
       const rootFixedAvg = engineByApp.get("root fixed") ?? 0;
       const rootDrawAvg = engineByApp.get("root draw") ?? 0;
@@ -980,10 +1001,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       const engineDrawWalkAvg = Math.max(0, rootDrawAvg - appDrawAvg);
       const engineFrameMiscAvg = Math.max(
         0,
-        engineOtherAvg -
-          engineUpdateWalkAvg -
-          rootFixedAvg -
-          engineDrawWalkAvg,
+        engineOtherAvg - engineUpdateWalkAvg - rootFixedAvg - engineDrawWalkAvg,
       );
       const fps = d ? Math.round(d.fps()) : "?";
       const fpsText = `fps    ${fps} (raf ${hz}Hz)`;

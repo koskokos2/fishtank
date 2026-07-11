@@ -11,6 +11,11 @@ import {
   FISH_BONUS_ATLAS_LAYOUT,
 } from "./fishBonusAtlas";
 import {
+  ALIEN_FISH_ATLAS,
+  ALIEN_FISH_ATLAS_CELL,
+  ALIEN_FISH_ATLAS_LAYOUT,
+} from "./alienFishAtlas";
+import {
   cellBBox,
   copyRect,
   motionBeatScale,
@@ -34,7 +39,7 @@ export type FishKind = {
   motion: FishMotionProfile;
 };
 
-// Names must match one of the three atlas layouts. Every fish faces left.
+// Names must match one of the four atlas layouts. Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
@@ -295,6 +300,91 @@ export const FISH_KINDS: FishKind[] = [
     length: 24,
     motion: "standard",
   }, // fast  — active reef grazer
+  // --- ALIEN atlas ---
+  {
+    name: "blinky",
+    level: { min: 0.14, max: 0.58 },
+    speed: 0.85,
+    length: 28,
+    motion: "standard",
+  }, // med   — chunky three-eyed orange cruiser
+  {
+    name: "trilume",
+    level: { min: 0.05, max: 0.35 },
+    speed: 1.15,
+    length: 6,
+    motion: "standard",
+  }, // fast  — tiny three-eyed upper-water schooler
+  {
+    name: "glassbrain_drifter",
+    level: { min: 0.25, max: 0.62 },
+    speed: 0.65,
+    length: 14,
+    motion: "paddle",
+  }, // slow  — transparent hoverer propelled by small fins
+  {
+    name: "moonjaw_angler",
+    level: { min: 0.6, max: 0.94 },
+    speed: 0.55,
+    length: 28,
+    motion: "paddle",
+  }, // slow  — deep-water ambush drifter
+  {
+    name: "prism_mothfish",
+    level: { min: 0.2, max: 0.62 },
+    speed: 0.8,
+    length: 20,
+    motion: "flowing",
+  }, // med   — stained-glass fins beat in a slow flowing rhythm
+  {
+    name: "tentacle_puffer",
+    level: { min: 0.3, max: 0.72 },
+    speed: 0.6,
+    length: 18,
+    motion: "paddle",
+  }, // slow  — round cyclopean body with trailing tentacles
+  {
+    name: "crowned_oracle",
+    level: { min: 0.12, max: 0.52 },
+    speed: 0.75,
+    length: 20,
+    motion: "flowing",
+  }, // slow  — ornate rune fins and a tall crown profile
+  {
+    name: "gillstar",
+    level: { min: 0.3, max: 0.72 },
+    speed: 0.65,
+    length: 16,
+    motion: "flowing",
+  }, // slow  — external gills and a broad fan tail trail in the current
+  {
+    name: "crystal_leviathan",
+    level: { min: 0.48, max: 0.9 },
+    speed: 1.0,
+    length: 42,
+    motion: "standard",
+  }, // med   — large armored lower-water cruiser
+  {
+    name: "mecha_piranha",
+    level: { min: 0.35, max: 0.72 },
+    speed: 1.35,
+    length: 18,
+    motion: "standard",
+  }, // fast  — compact mechanical burst hunter
+  {
+    name: "sporefin",
+    level: { min: 0.66, max: 0.95 },
+    speed: 0.5,
+    length: 24,
+    motion: "paddle",
+  }, // slow  — fungal bottom drifter
+  {
+    name: "probe_fish",
+    level: { min: 0.02, max: 0.28 },
+    speed: 1.45,
+    length: 8,
+    motion: "standard",
+  }, // fast  — tiny robotic surface scout
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -302,10 +392,11 @@ export const FISH_KINDS: FishKind[] = [
 // Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
 // decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const [img1, img2, img3] = await Promise.all([
+  const [img1, img2, img3, img4] = await Promise.all([
     loadImage(FISH_ATLAS),
     loadImage(FISH_EXTRA_ATLAS),
     loadImage(FISH_BONUS_ATLAS),
+    loadImage(ALIEN_FISH_ATLAS),
   ]);
 
   const toPixels = (img: HTMLImageElement) => {
@@ -325,17 +416,23 @@ export async function makeFishSheets(): Promise<string[]> {
   const a1 = toPixels(img1);
   const a2 = toPixels(img2);
   const a3 = toPixels(img3);
+  const a4 = toPixels(img4);
 
   return FISH_KINDS.map((kind) => {
     const inExtra = kind.name in FISH_EXTRA_ATLAS_LAYOUT;
     const inBonus = kind.name in FISH_BONUS_ATLAS_LAYOUT;
-    const { full, width } = inBonus ? a3 : inExtra ? a2 : a1;
-    const cell = inBonus
+    const inAlien = kind.name in ALIEN_FISH_ATLAS_LAYOUT;
+    const { full, width } = inAlien ? a4 : inBonus ? a3 : inExtra ? a2 : a1;
+    const cell = inAlien
+      ? ALIEN_FISH_ATLAS_CELL
+      : inBonus
       ? FISH_BONUS_ATLAS_CELL
       : inExtra
         ? FISH_EXTRA_ATLAS_CELL
         : FISH_ATLAS_CELL;
-    const { row, col } = inBonus
+    const { row, col } = inAlien
+      ? ALIEN_FISH_ATLAS_LAYOUT[kind.name]
+      : inBonus
       ? FISH_BONUS_ATLAS_LAYOUT[kind.name]
       : inExtra
         ? FISH_EXTRA_ATLAS_LAYOUT[kind.name]

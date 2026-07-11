@@ -81,6 +81,11 @@ import {
   FISH_BONUS_ATLAS_LAYOUT,
 } from "../src/fishBonusAtlas";
 import {
+  ALIEN_FISH_ATLAS,
+  ALIEN_FISH_ATLAS_CELL,
+  ALIEN_FISH_ATLAS_LAYOUT,
+} from "../src/alienFishAtlas";
+import {
   OCTOPUS_ATLAS,
   OCTOPUS_FRAMES,
   OCTOPUS_FRAME_W,
@@ -1027,6 +1032,7 @@ function renderFishGrid() {
   const atlas1 = decodePng(dataUrlToBuffer(FISH_ATLAS));
   const atlas2 = decodePng(dataUrlToBuffer(FISH_EXTRA_ATLAS));
   const atlas3 = decodePng(dataUrlToBuffer(FISH_BONUS_ATLAS));
+  const atlas4 = decodePng(dataUrlToBuffer(ALIEN_FISH_ATLAS));
 
   const kinds = opt("SPECIES")
     ? FISH_KINDS.filter((k) => k.name === opt("SPECIES"))
@@ -1035,13 +1041,18 @@ function renderFishGrid() {
   const sheets = kinds.map((k) => {
     const inExtra = k.name in FISH_EXTRA_ATLAS_LAYOUT;
     const inBonus = k.name in FISH_BONUS_ATLAS_LAYOUT;
-    const atlas = inBonus ? atlas3 : inExtra ? atlas2 : atlas1;
-    const cell = inBonus
+    const inAlien = k.name in ALIEN_FISH_ATLAS_LAYOUT;
+    const atlas = inAlien ? atlas4 : inBonus ? atlas3 : inExtra ? atlas2 : atlas1;
+    const cell = inAlien
+      ? ALIEN_FISH_ATLAS_CELL
+      : inBonus
       ? FISH_BONUS_ATLAS_CELL
       : inExtra
         ? FISH_EXTRA_ATLAS_CELL
         : FISH_ATLAS_CELL;
-    const { row, col } = inBonus
+    const { row, col } = inAlien
+      ? ALIEN_FISH_ATLAS_LAYOUT[k.name]
+      : inBonus
       ? FISH_BONUS_ATLAS_LAYOUT[k.name]
       : inExtra
         ? FISH_EXTRA_ATLAS_LAYOUT[k.name]

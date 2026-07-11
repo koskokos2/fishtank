@@ -1,0 +1,24 @@
+{
+  "image": "alien-fish-atlas-128.png",
+  "sourceImage": "alien-fish-atlas-final-v2.png",
+  "tileSize": 128,
+  "sourceWidth": 1024,
+  "sourceHeight": 1536,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    { "name": "blinky", "row": 0, "col": 0, "category": "alienFish", "role": "threeEyedOrangeFish" },
+    { "name": "trilume", "row": 0, "col": 1, "category": "alienFish", "role": "threeEyedSchooler" },
+    { "name": "glassbrain_drifter", "row": 0, "col": 2, "category": "alienFish", "role": "transparentDrifter" },
+    { "name": "moonjaw_angler", "row": 1, "col": 0, "category": "alienFish", "role": "deepAngler" },
+    { "name": "prism_mothfish", "row": 1, "col": 1, "category": "alienFish", "role": "stainedGlassFlowingFish" },
+    { "name": "tentacle_puffer", "row": 1, "col": 2, "category": "alienFish", "role": "cyclopeanPuffer" },
+    { "name": "crowned_oracle", "row": 2, "col": 0, "category": "alienFish", "role": "runicFlowingFish" },
+    { "name": "gillstar", "row": 2, "col": 1, "category": "alienFish", "role": "axolotlGillFish" },
+    { "name": "crystal_leviathan", "row": 2, "col": 2, "category": "alienFish", "role": "crystalCruiser" },
+    { "name": "mecha_piranha", "row": 3, "col": 0, "category": "alienFish", "role": "armoredHunter" },
+    { "name": "sporefin", "row": 3, "col": 1, "category": "alienFish", "role": "fungalBottomDrifter" },
+    { "name": "probe_fish", "row": 3, "col": 2, "category": "alienFish", "role": "roboticScout" }
+  ]
+}
