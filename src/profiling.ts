@@ -484,7 +484,9 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
 
     // Outside ?debug, start collapsed so normal runs only show the settings gear.
     // If localStorage has a saved state, restore it.
-    const savedSettingsPanelOpen = localStorage.getItem("debugSettingsPanelOpen");
+    const savedSettingsPanelOpen = localStorage.getItem(
+      "debugSettingsPanelOpen",
+    );
     const initialSettingsPanelOpen = debugProfiling
       ? true
       : savedSettingsPanelOpen === "true";
@@ -682,7 +684,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       label.append(title, sel);
       row.append(label);
     };
-    const resNow = ["1", "2"].includes(params.get("res") ?? "")
+    const resNow = ["1", "2", "6"].includes(params.get("res") ?? "")
       ? params.get("res")!
       : "3";
     makeSelect(
@@ -691,6 +693,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         ["1", "640"],
         ["2", "1280"],
         ["3", "1920"],
+        ["6", "3840 (4K)"],
       ],
       resNow,
       (v, p) => {
