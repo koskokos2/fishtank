@@ -1,7 +1,11 @@
 import type { KAPLAYCtx, Quad, Vec2, Color } from "kaplay";
 import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
-import { WATER_LIGHT_SHADER } from "./waterLighting";
+import {
+  WATER_LIGHT_SHADER,
+  WATER_LIGHTING_TUNING,
+  sunEmitterX,
+} from "./waterLighting";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
@@ -25,7 +29,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
   if (!off("backdrop")) {
-    const waterLightUniform = { u_time: 0 };
+    const waterLightUniform = { u_time: 0, u_emitterX: sunEmitterX() };
     k.add([
       profileDraw("backdrop"),
       k.sprite("backdrop"),
@@ -38,7 +42,15 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
         ? []
         : [
             k.shader(WATER_LIGHT_SHADER, () => {
-              waterLightUniform.u_time = k.time();
+              // Every shader animation coefficient is an integer hundredth, so
+              // 200π seconds is a seamless common period. Keeping the uniform
+              // bounded prevents long-running tabs from losing phase precision
+              // differently across WebGL backends.
+              waterLightUniform.u_time =
+                k.time() % WATER_LIGHTING_TUNING.animationLoopSeconds;
+              // Re-sampled every frame so the emitter drifts with the real
+              // clock across the day without a reload.
+              waterLightUniform.u_emitterX = sunEmitterX();
               return waterLightUniform;
             }),
           ]),
