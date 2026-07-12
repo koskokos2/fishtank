@@ -70,6 +70,11 @@ const OCTO_HALF = 70; // half-width of the octopus's large frame — every prop 
 const OCTO_STANDOFF = 14 * S;
 const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent push-pulses quit
 const OCTO_LAND_POSE = 6 * S; // height above the sand where it braces into the landing pose
+// If a settling octopus stays trapped over a prop footprint this long (adjacent
+// props' footprints, each grown by OCTO_HALF, can overlap into a band with no
+// clear touchdown spot), it gives up avoiding and lands anyway, then crawls out
+// along the sand — otherwise it hovers just above the substrate forever.
+const OCTO_LAND_STUCK_LIMIT = 1.5; // s
 const BURY_DEPTH = 4 * S; // px the body presses into the sand on touchdown
 const BURY_DUR = 0.35; // s for the landing press-in to ease back out
 // =========================== NAUTILUS ART ===========================
@@ -433,6 +438,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const longRestChance = k.chance(0.5) ? 0.3 : 0.7;
   let restTimer = k.rand(1, 9) * tempo; // octopus: time left parked-and-resting on the ground
   let buryTimer = 0; // octopus: time left in the press-into-sand dip after a landing
+  let landStuck = 0; // octopus: time spent settling but trapped over a prop footprint
   let restLong = false; // this rest is a long park → curl up (settled) rather than spread
   let swimVigorous = false; // this swim bout is multi-pulse → use the energetic pose row
   let swimRoaming = false; // this excursion wanders the water before settling
@@ -770,38 +776,46 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             // A prop under the touchdown point overrides the wall steer — landing
             // on it isn't an option, so head for the nearer clear edge instead.
             const inFootprint = insidePropFootprint(px, OCTO_HALF);
-            const steerDir = inFootprint
-              ? nearestClearX(
-                  px,
-                  OCTO_HALF,
-                  OCTO_STANDOFF,
-                  undefined,
-                  mX,
-                  k.width() - mX,
-                ) >= px
-                ? 1
-                : -1
-              : inwardDir;
+            // Trapped over a footprint with nowhere clear to sink? Count the time;
+            // once it exceeds the limit, give up avoiding and settle where it is.
+            landStuck = inFootprint ? landStuck + dt : 0;
+            const forceLand = landStuck > OCTO_LAND_STUCK_LIMIT;
+            const steerDir =
+              inFootprint && !forceLand
+                ? nearestClearX(
+                    px,
+                    OCTO_HALF,
+                    OCTO_STANDOFF,
+                    undefined,
+                    mX,
+                    k.width() - mX,
+                  ) >= px
+                  ? 1
+                  : -1
+                : inwardDir;
             if (steerDir !== swimDir) {
               swimDir = steerDir;
               beginTurn(steerDir);
             }
             vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
-            if (!inFootprint) vy += cr.sink * dt;
+            if (!inFootprint || forceLand) vy += cr.sink * dt;
           }
           // Touch down from any sub-state the moment the body meets the sand: a bout
           // that drifts over the rising dune settles on contact instead of pinning
           // to the crest. `liftedOff` gates it so a just-launched bunch (py still at
           // the ground) can't re-land before it has climbed.
+          if (swimSub !== "settle") landStuck = 0;
           if (py < groundY(px) - 8 * S) liftedOff = true;
           if (
             liftedOff &&
-            !insidePropFootprint(px, OCTO_HALF) &&
+            (landStuck > OCTO_LAND_STUCK_LIMIT ||
+              !insidePropFootprint(px, OCTO_HALF)) &&
             py >= groundY(px) - 4 * S &&
             vy >= 0
           ) {
             octoMode = "crawl";
             descending = false;
+            landStuck = 0;
             // touchdown: kick up a puff of sand and press the body into it
             spawnSandPuff(
               k,
