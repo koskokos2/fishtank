@@ -2,13 +2,7 @@
 // art can be reviewed without a browser. Run: `bun tools/preview.ts`.
 import { readFileSync, writeFileSync } from "node:fs";
 import { decodePng, encodePng, dataUrlToBuffer } from "./png";
-import {
-  BW,
-  BH,
-  backdropPixels,
-  groundZ,
-  sandTopAt,
-} from "../src/backdrop";
+import { BW, BH, backdropPixels, groundZ, sandTopAt } from "../src/backdrop";
 import {
   SMALL_PROPS_ATLAS,
   SMALL_PROPS_ATLAS_CELL,
@@ -32,10 +26,7 @@ import {
   type PropPlacement,
   type WhitelistedProp,
 } from "../src/propPlacement";
-import {
-  SCI_FI_DISPLAY_WINDOWS,
-  SCI_FI_PROP_SPECS,
-} from "../src/sciFiProps";
+import { SCI_FI_DISPLAY_WINDOWS, SCI_FI_PROP_SPECS } from "../src/sciFiProps";
 import {
   SCI_FI_PROPS_ATLAS,
   SCI_FI_PROPS_ATLAS_CELL,
@@ -94,6 +85,8 @@ import {
   OCTOPUS_ATLAS,
   OCTOPUS_FRAMES,
   OCTOPUS_FRAME_W,
+  OCTOPUS_FRAME_H,
+  OCTOPUS_COLS,
 } from "../src/octopusAtlas";
 import {
   NAUTILUS_ATLAS,
@@ -133,7 +126,9 @@ const opt = (k: string) => argv[k] ?? process.env[k];
 // MODE=ruins-kit validates the modular ruins source sidecar and renders assembled
 // column/wall/arch recipe previews.
 const MODE = opt("MODE") ?? "fish";
-const S = Number(opt("S") ?? (MODE === "backdrop" || MODE === "ruins-kit" ? 1 : 6)); // upscale factor
+const S = Number(
+  opt("S") ?? (MODE === "backdrop" || MODE === "ruins-kit" ? 1 : 6),
+); // upscale factor
 
 if (MODE === "backdrop") renderBackdrop();
 else if (MODE === "octopus") renderOctopus();
@@ -150,8 +145,16 @@ else renderFishGrid();
 function renderOctopus() {
   const atlas = decodePng(dataUrlToBuffer(OCTOPUS_ATLAS));
   const fw = OCTOPUS_FRAME_W;
+  const fh = OCTOPUS_FRAME_H;
   const frames = Array.from({ length: OCTOPUS_FRAMES }, (_, i) =>
-    copyRect(atlas.rgba, atlas.w, i * fw, 0, fw, atlas.h),
+    copyRect(
+      atlas.rgba,
+      atlas.w,
+      (i % OCTOPUS_COLS) * fw,
+      Math.floor(i / OCTOPUS_COLS) * fh,
+      fw,
+      fh,
+    ),
   );
   renderFrames(frames, "octopus.png", "octopus poses");
 }
@@ -228,9 +231,17 @@ function renderJellyfish() {
     }
   };
   const frames = Array.from({ length: JELLYFISH_LAYER_FRAMES }, (_, i) => {
-    const out: Buf = { data: new Uint8Array(cell * cell * 4), w: cell, h: cell };
+    const out: Buf = {
+      data: new Uint8Array(cell * cell * 4),
+      w: cell,
+      h: cell,
+    };
     const offset = JELLYFISH_BELL_ATTACH_Y[i] - JELLYFISH_LAYER_ROOT_Y;
-    over(out, tile(JELLYFISH_TENDRILS_START + ((i * 3 + 2) % JELLYFISH_LAYER_FRAMES)), offset);
+    over(
+      out,
+      tile(JELLYFISH_TENDRILS_START + ((i * 3 + 2) % JELLYFISH_LAYER_FRAMES)),
+      offset,
+    );
     over(out, tile(JELLYFISH_ARMS_START + i), offset);
     over(out, tile(JELLYFISH_BELL_START + i));
     return out;
@@ -268,7 +279,11 @@ function renderNautilus() {
     }
   };
   const frames = Array.from({ length: NAUTILUS_LAYER_FRAMES }, (_, i) => {
-    const out: Buf = { data: new Uint8Array(cell * cell * 4), w: cell, h: cell };
+    const out: Buf = {
+      data: new Uint8Array(cell * cell * 4),
+      w: cell,
+      h: cell,
+    };
     over(out, tile(NAUTILUS_JET_START + i));
     over(out, tile(NAUTILUS_SIPHON_START + i));
     over(out, tile(NAUTILUS_TENTACLES_START + i));
@@ -315,7 +330,10 @@ function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
     { length: PROP_SLOTS.length },
     (_, index) => PROP_WHITELIST[(index * 5) % PROP_WHITELIST.length],
   );
-  const atlasBySprite: Record<WhitelistedProp["sprite"], ReturnType<typeof decodePng>> = {
+  const atlasBySprite: Record<
+    WhitelistedProp["sprite"],
+    ReturnType<typeof decodePng>
+  > = {
     "sci-fi-props": decodePng(dataUrlToBuffer(SCI_FI_PROPS_ATLAS)),
     "eldritch-props": decodePng(dataUrlToBuffer(ELDRITCH_PROPS_ATLAS)),
     "star-wars-props": decodePng(dataUrlToBuffer(STAR_WARS_PROPS_ATLAS)),
@@ -323,7 +341,10 @@ function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
   };
 
   selected
-    .map((prop, index) => ({ prop, placement: placeProp(BW, prop, PROP_SLOTS[index]) }))
+    .map((prop, index) => ({
+      prop,
+      placement: placeProp(BW, prop, PROP_SLOTS[index]),
+    }))
     .sort((a, b) => a.placement.rootY - b.placement.rootY)
     .forEach(({ prop, placement }) => {
       const atlas = atlasBySprite[prop.sprite];
@@ -386,16 +407,22 @@ function renderPlantScene() {
       const base = index === names.length - 1;
       const side = base ? 0 : index - centre;
       const spread = side * 2.1 * RES * spec.scale;
-      const centreBoost = base ? 0.72 : 0.78 + (1 - Math.abs(side) / (centre + 1)) * 0.28;
+      const centreBoost = base
+        ? 0.72
+        : 0.78 + (1 - Math.abs(side) / (centre + 1)) * 0.28;
       const scale = spec.scale * centreBoost;
       const layout = PLANT_ATLAS_LAYOUT[name];
       const rootPad = (PLANT_ATLAS_CELL - layout.bottom) * scale;
-      const baseAngle = base ? 0 : side * 4.8 + Math.sin(index * 2.7 + spec.phase) * 2.4;
-      const sway = (base ? 1.2 : 3.2 + index * 0.38) * (spec.foreground ? 1.22 : 1);
+      const baseAngle = base
+        ? 0
+        : side * 4.8 + Math.sin(index * 2.7 + spec.phase) * 2.4;
+      const sway =
+        (base ? 1.2 : 3.2 + index * 0.38) * (spec.foreground ? 1.22 : 1);
       const phase = spec.phase + index * 1.17;
       const speed = 0.46 + (index % 3) * 0.09;
       const slowCurrent = 0.82 + Math.sin(time * 0.16 + phase * 0.7) * 0.18;
-      const angle = baseAngle + Math.sin(time * speed + phase) * sway * slowCurrent;
+      const angle =
+        baseAngle + Math.sin(time * speed + phase) * sway * slowCurrent;
       const mirror = !base && (index + Math.round(spec.phase)) % 2 === 1;
       parts.push({
         frame: layout.frame,
@@ -417,7 +444,9 @@ function renderPlantScene() {
   for (let i = 0; i < buf.length; i++) out.set(buf[i], i * 4);
   const name = opt("OUT") ?? "plants-scene.png";
   writeFileSync(name, encodePng(out, BW, BH));
-  console.log(`wrote ${name} (${BW}x${BH}) — ${parts.length} independently placed fronds`);
+  console.log(
+    `wrote ${name} (${BW}x${BH}) — ${parts.length} independently placed fronds`,
+  );
 }
 
 function blitEldritchProps(
@@ -519,20 +548,41 @@ function blitSciFiProps(
     if (spec.name === "retro_telemetry_terminal") {
       const screen = SCI_FI_DISPLAY_WINDOWS[spec.name];
       if (screen.shape !== "quad") continue;
-      const quad = screen.points.map((point) => ({ x: dx + point.x, y: dy + point.y })) as [
+      const quad = screen.points.map((point) => ({
+        x: dx + point.x,
+        y: dy + point.y,
+      })) as [
         { x: number; y: number },
         { x: number; y: number },
         { x: number; y: number },
         { x: number; y: number },
       ];
-      const values = [0.31, 0.58, 0.45, 0.82, 0.67, 0.39, 0.72, 0.55, 0.76, 0.49];
+      const values = [
+        0.31, 0.58, 0.45, 0.82, 0.67, 0.39, 0.72, 0.55, 0.76, 0.49,
+      ];
       values.forEach((value, i) => {
         const gap = 0.018;
         const barWidth = (0.86 - gap * (values.length - 1)) / values.length;
         const u0 = 0.07 + i * (barWidth + gap);
-        fillPreviewQuad(buf, quad, u0, 0.7 - value * 0.54, u0 + barWidth, 0.7, [71, 208, 199, 255]);
+        fillPreviewQuad(
+          buf,
+          quad,
+          u0,
+          0.7 - value * 0.54,
+          u0 + barWidth,
+          0.7,
+          [71, 208, 199, 255],
+        );
       });
-      fillPreviewQuad(buf, quad, 0.07, 0.84, 0.07 + 0.86 * 0.67, 0.93, [238, 167, 70, 255]);
+      fillPreviewQuad(
+        buf,
+        quad,
+        0.07,
+        0.84,
+        0.07 + 0.86 * 0.67,
+        0.93,
+        [238, 167, 70, 255],
+      );
     } else if (spec.name === "porthole_instrument") {
       const screen = SCI_FI_DISPLAY_WINDOWS[spec.name];
       if (screen.shape !== "round") continue;
@@ -542,8 +592,14 @@ function blitSciFiProps(
         x: cx + u * screen.ax + v * screen.bx,
         y: cy + u * screen.ay + v * screen.by,
       });
-      const plot = (p: { x: number; y: number }, q: { x: number; y: number }, color: [number, number, number, number]) => {
-        const steps = Math.ceil(Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)));
+      const plot = (
+        p: { x: number; y: number },
+        q: { x: number; y: number },
+        color: [number, number, number, number],
+      ) => {
+        const steps = Math.ceil(
+          Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)),
+        );
         for (let i = 0; i <= steps; i++) {
           const x = Math.round(p.x + ((q.x - p.x) * i) / steps);
           const y = Math.round(p.y + ((q.y - p.y) * i) / steps);
@@ -554,7 +610,14 @@ function blitSciFiProps(
       plot(at(0, -1), at(0, 1), [54, 157, 151, 255]);
       const blipAngle = -0.72;
       const blip = at(Math.cos(blipAngle) * 0.72, Math.sin(blipAngle) * 0.72);
-      fillPreviewRect(buf, Math.round(blip.x) - 1, Math.round(blip.y) - 1, 2, 2, [242, 179, 78, 255]);
+      fillPreviewRect(
+        buf,
+        Math.round(blip.x) - 1,
+        Math.round(blip.y) - 1,
+        2,
+        2,
+        [242, 179, 78, 255],
+      );
     }
   }
 }
@@ -574,7 +637,12 @@ function fillPreviewRect(
 
 function fillPreviewQuad(
   buf: ReturnType<typeof backdropPixels>,
-  quad: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
+  quad: [
+    { x: number; y: number },
+    { x: number; y: number },
+    { x: number; y: number },
+    { x: number; y: number },
+  ],
   u0: number,
   v0: number,
   u1: number,
@@ -585,21 +653,43 @@ function fillPreviewQuad(
     const [tl, tr, br, bl] = quad;
     const top = { x: tl.x + (tr.x - tl.x) * u, y: tl.y + (tr.y - tl.y) * u };
     const bottom = { x: bl.x + (br.x - bl.x) * u, y: bl.y + (br.y - bl.y) * u };
-    return { x: top.x + (bottom.x - top.x) * v, y: top.y + (bottom.y - top.y) * v };
+    return {
+      x: top.x + (bottom.x - top.x) * v,
+      y: top.y + (bottom.y - top.y) * v,
+    };
   };
-  const points = [project(u0, v0), project(u1, v0), project(u1, v1), project(u0, v1)];
-  const minX = Math.max(0, Math.floor(Math.min(...points.map((point) => point.x))));
-  const maxX = Math.min(BW - 1, Math.ceil(Math.max(...points.map((point) => point.x))));
-  const minY = Math.max(0, Math.floor(Math.min(...points.map((point) => point.y))));
-  const maxY = Math.min(BH - 1, Math.ceil(Math.max(...points.map((point) => point.y))));
+  const points = [
+    project(u0, v0),
+    project(u1, v0),
+    project(u1, v1),
+    project(u0, v1),
+  ];
+  const minX = Math.max(
+    0,
+    Math.floor(Math.min(...points.map((point) => point.x))),
+  );
+  const maxX = Math.min(
+    BW - 1,
+    Math.ceil(Math.max(...points.map((point) => point.x))),
+  );
+  const minY = Math.max(
+    0,
+    Math.floor(Math.min(...points.map((point) => point.y))),
+  );
+  const maxY = Math.min(
+    BH - 1,
+    Math.ceil(Math.max(...points.map((point) => point.y))),
+  );
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
       let inside = false;
       for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
         const a = points[i];
         const b = points[j];
-        if ((a.y > y + 0.5) !== (b.y > y + 0.5) &&
-          x + 0.5 < ((b.x - a.x) * (y + 0.5 - a.y)) / (b.y - a.y) + a.x)
+        if (
+          a.y > y + 0.5 !== b.y > y + 0.5 &&
+          x + 0.5 < ((b.x - a.x) * (y + 0.5 - a.y)) / (b.y - a.y) + a.x
+        )
           inside = !inside;
       }
       if (inside) buf[y * BW + x] = color;
@@ -642,15 +732,15 @@ function blitPlantPart(
       const sx = Math.floor(localX);
       const sy = Math.floor(localY);
       if (sx < 0 || sx >= cell || sy < 0 || sy >= cell) continue;
-      const si = (((row * cell + sy) * atlasW) + col * cell + sx) * 4;
+      const si = ((row * cell + sy) * atlasW + col * cell + sx) * 4;
       const sa = (atlas[si + 3] / 255) * part.opacity;
       if (!sa) continue;
       const bi = y * BW + x;
       const [br, bg, bb] = dst[bi];
       dst[bi] = [
-        Math.round((atlas[si] * part.tint[0] / 255) * sa + br * (1 - sa)),
-        Math.round((atlas[si + 1] * part.tint[1] / 255) * sa + bg * (1 - sa)),
-        Math.round((atlas[si + 2] * part.tint[2] / 255) * sa + bb * (1 - sa)),
+        Math.round(((atlas[si] * part.tint[0]) / 255) * sa + br * (1 - sa)),
+        Math.round(((atlas[si + 1] * part.tint[1]) / 255) * sa + bg * (1 - sa)),
+        Math.round(((atlas[si + 2] * part.tint[2]) / 255) * sa + bb * (1 - sa)),
         255,
       ];
     }
@@ -705,21 +795,30 @@ function renderRuinsKit() {
   for (const warning of warnings) console.warn(`ruins-kit warning: ${warning}`);
   if (errors.length) {
     for (const error of errors) console.error(`ruins-kit error: ${error}`);
-    throw new Error(`ruins-kit validation failed with ${errors.length} error(s)`);
+    throw new Error(
+      `ruins-kit validation failed with ${errors.length} error(s)`,
+    );
   }
   if (opt("VALIDATE_ONLY") === "1") {
-    console.log(`validated ${jsonPath} — ${meta.sprites.length} sprite(s), ${Object.keys(meta.recipes ?? {}).length} recipe(s)`);
+    console.log(
+      `validated ${jsonPath} — ${meta.sprites.length} sprite(s), ${Object.keys(meta.recipes ?? {}).length} recipe(s)`,
+    );
     return;
   }
 
   const parts = makeRuinsParts(meta, atlas.rgba, atlas.w, atlas.h);
   const wanted = opt("RECIPE");
-  const recipes = Object.entries(meta.recipes ?? {}).filter(([name]) => !wanted || name === wanted);
-  if (!recipes.length) throw new Error(wanted ? `no recipe named ${wanted}` : "no ruins recipes");
+  const recipes = Object.entries(meta.recipes ?? {}).filter(
+    ([name]) => !wanted || name === wanted,
+  );
+  if (!recipes.length)
+    throw new Error(wanted ? `no recipe named ${wanted}` : "no ruins recipes");
 
   const assembled = recipes.map(([name, steps]) => {
     const buf = assembleRuinsRecipe(name, steps, parts);
-    console.log(`validated ${name}: ${buf.w}x${buf.h}, ${steps.length} part(s)`);
+    console.log(
+      `validated ${name}: ${buf.w}x${buf.h}, ${steps.length} part(s)`,
+    );
     return { name, buf };
   });
 
@@ -739,13 +838,21 @@ function validateRuinsKit(
       `image dimensions ${imgW}x${imgH} do not match manifest ${meta.sourceWidth}x${meta.sourceHeight}`,
     );
   }
-  const allSpritesHaveSourceRects = meta.sprites.every((sprite) => sprite.sourceRect);
-  if ((imgW % meta.columns !== 0 || imgH % meta.rows !== 0) && !allSpritesHaveSourceRects) {
+  const allSpritesHaveSourceRects = meta.sprites.every(
+    (sprite) => sprite.sourceRect,
+  );
+  if (
+    (imgW % meta.columns !== 0 || imgH % meta.rows !== 0) &&
+    !allSpritesHaveSourceRects
+  ) {
     warnings.push(
       `${imgW}x${imgH} does not divide evenly into ${meta.columns}x${meta.rows}; preview uses rounded source cell bounds`,
     );
   }
-  if (meta.anchorSpace !== "normalizedCell" && meta.anchorSpace !== "normalizedSourceRect") {
+  if (
+    meta.anchorSpace !== "normalizedCell" &&
+    meta.anchorSpace !== "normalizedSourceRect"
+  ) {
     warnings.push(
       `anchorSpace is ${meta.anchorSpace ?? "missing"}; normalizedCell or normalizedSourceRect is expected`,
     );
@@ -759,25 +866,40 @@ function validateRuinsKit(
   const seen = new Set<string>();
   const spriteByName = new Map<string, RuinsSprite>();
   for (const sprite of meta.sprites) {
-    if (seen.has(sprite.name)) errors.push(`duplicate sprite name ${sprite.name}`);
+    if (seen.has(sprite.name))
+      errors.push(`duplicate sprite name ${sprite.name}`);
     seen.add(sprite.name);
     spriteByName.set(sprite.name, sprite);
-    if (sprite.row < 0 || sprite.row >= meta.rows || sprite.col < 0 || sprite.col >= meta.columns) {
-      errors.push(`${sprite.name} row/col ${sprite.row}/${sprite.col} is outside the ${meta.rows}x${meta.columns} grid`);
+    if (
+      sprite.row < 0 ||
+      sprite.row >= meta.rows ||
+      sprite.col < 0 ||
+      sprite.col >= meta.columns
+    ) {
+      errors.push(
+        `${sprite.name} row/col ${sprite.row}/${sprite.col} is outside the ${meta.rows}x${meta.columns} grid`,
+      );
     }
     if (sprite.sourceRect) {
       const { x, y, w, h } = sprite.sourceRect;
-      if (w <= 0 || h <= 0) errors.push(`${sprite.name}.sourceRect must have positive size`);
+      if (w <= 0 || h <= 0)
+        errors.push(`${sprite.name}.sourceRect must have positive size`);
       if (x < 0 || y < 0 || x + w > imgW || y + h > imgH) {
-        errors.push(`${sprite.name}.sourceRect ${x},${y},${w},${h} is outside the image`);
+        errors.push(
+          `${sprite.name}.sourceRect ${x},${y},${w},${h} is outside the image`,
+        );
       }
     }
     for (const [socketName, socket] of Object.entries(sprite.sockets ?? {})) {
       if (socket.x < 0 || socket.x > 1 || socket.y < 0 || socket.y > 1) {
-        errors.push(`${sprite.name}.${socketName} socket is outside normalized coordinates`);
+        errors.push(
+          `${sprite.name}.${socketName} socket is outside normalized coordinates`,
+        );
       }
       if (meta.socketTypes && !(socket.type in meta.socketTypes)) {
-        errors.push(`${sprite.name}.${socketName} uses unknown socket type ${socket.type}`);
+        errors.push(
+          `${sprite.name}.${socketName} uses unknown socket type ${socket.type}`,
+        );
       }
     }
   }
@@ -788,27 +910,41 @@ function validateRuinsKit(
     for (const [index, step] of steps.entries()) {
       const sprite = spriteByName.get(step.sprite);
       if (!sprite) {
-        errors.push(`${recipeName}[${index}] references missing sprite ${step.sprite}`);
+        errors.push(
+          `${recipeName}[${index}] references missing sprite ${step.sprite}`,
+        );
         previous = step;
         continue;
       }
       const sockets = sprite.sockets ?? {};
       if (index === 0) {
         if (step.attach && !(step.attach in sockets)) {
-          errors.push(`${recipeName}[0] ${step.sprite} is missing attach socket ${step.attach}`);
+          errors.push(
+            `${recipeName}[0] ${step.sprite} is missing attach socket ${step.attach}`,
+          );
         }
       } else {
-        if (!step.from) errors.push(`${recipeName}[${index}] ${step.sprite} is missing from socket`);
-        if (!step.toPrevious) errors.push(`${recipeName}[${index}] ${step.sprite} is missing toPrevious socket`);
+        if (!step.from)
+          errors.push(
+            `${recipeName}[${index}] ${step.sprite} is missing from socket`,
+          );
+        if (!step.toPrevious)
+          errors.push(
+            `${recipeName}[${index}] ${step.sprite} is missing toPrevious socket`,
+          );
         if (step.from && !(step.from in sockets)) {
-          errors.push(`${recipeName}[${index}] ${step.sprite} is missing socket ${step.from}`);
+          errors.push(
+            `${recipeName}[${index}] ${step.sprite} is missing socket ${step.from}`,
+          );
         }
         if (previous && step.toPrevious) {
           const prevSprite = spriteByName.get(previous.sprite);
           const prevSocket = prevSprite?.sockets?.[step.toPrevious];
           const thisSocket = step.from ? sockets[step.from] : undefined;
           if (!prevSocket) {
-            errors.push(`${recipeName}[${index}] previous ${previous.sprite} is missing socket ${step.toPrevious}`);
+            errors.push(
+              `${recipeName}[${index}] previous ${previous.sprite} is missing socket ${step.toPrevious}`,
+            );
           } else if (thisSocket && thisSocket.type !== prevSocket.type) {
             errors.push(
               `${recipeName}[${index}] socket type mismatch: ${step.sprite}.${step.from} is ${thisSocket.type}, previous ${previous.sprite}.${step.toPrevious} is ${prevSocket.type}`,
@@ -863,16 +999,32 @@ function makeRuinsParts(
         };
       }
     }
-    parts.set(sprite.name, { name: sprite.name, data, w: rect.w, h: rect.h, sockets });
+    parts.set(sprite.name, {
+      name: sprite.name,
+      data,
+      w: rect.w,
+      h: rect.h,
+      sockets,
+    });
   }
   return parts;
 }
 
-function sourceSpriteRect(sprite: RuinsSprite, meta: RuinsMeta, imgW: number, imgH: number): Rect {
+function sourceSpriteRect(
+  sprite: RuinsSprite,
+  meta: RuinsMeta,
+  imgW: number,
+  imgH: number,
+): Rect {
   return sprite.sourceRect ?? sourceCellRect(sprite, meta, imgW, imgH);
 }
 
-function sourceCellRect(sprite: RuinsSprite, meta: RuinsMeta, imgW: number, imgH: number): Rect {
+function sourceCellRect(
+  sprite: RuinsSprite,
+  meta: RuinsMeta,
+  imgW: number,
+  imgH: number,
+): Rect {
   const x0 = Math.round((sprite.col * imgW) / meta.columns);
   const x1 = Math.round(((sprite.col + 1) * imgW) / meta.columns);
   const y0 = Math.round((sprite.row * imgH) / meta.rows);
@@ -900,8 +1052,11 @@ function assembleRuinsRecipe(
     } else {
       const previous = placements[placements.length - 1];
       const from = step.from ? part.sockets[step.from] : undefined;
-      const toPrevious = step.toPrevious ? previous.part.sockets[step.toPrevious] : undefined;
-      if (!from || !toPrevious) throw new Error(`${name}: invalid socket at step ${index}`);
+      const toPrevious = step.toPrevious
+        ? previous.part.sockets[step.toPrevious]
+        : undefined;
+      if (!from || !toPrevious)
+        throw new Error(`${name}: invalid socket at step ${index}`);
       x = previous.x + toPrevious.x - from.x;
       y = previous.y + toPrevious.y - from.y;
     }
@@ -919,14 +1074,22 @@ function assembleRuinsRecipe(
     maxX = Math.max(maxX, placement.x + bb.x + bb.w - 1);
     maxY = Math.max(maxY, placement.y + bb.y + bb.h - 1);
   }
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) throw new Error(`${name}: empty assembled recipe`);
+  if (!Number.isFinite(minX) || !Number.isFinite(minY))
+    throw new Error(`${name}: empty assembled recipe`);
 
   const pad = 16;
   const outW = Math.ceil(maxX - minX + 1 + pad * 2);
   const outH = Math.ceil(maxY - minY + 1 + pad * 2);
   const out = new Uint8Array(outW * outH * 4);
   for (const placement of placements) {
-    blitBuf(out, outW, outH, placement.part, Math.round(placement.x - minX + pad), Math.round(placement.y - minY + pad));
+    blitBuf(
+      out,
+      outW,
+      outH,
+      placement.part,
+      Math.round(placement.x - minX + pad),
+      Math.round(placement.y - minY + pad),
+    );
   }
   return { data: out, w: outW, h: outH };
 }
@@ -949,7 +1112,14 @@ function contentBBox(buf: Buf): Rect {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-function blitBuf(dst: Uint8Array, dstW: number, dstH: number, src: Buf, dx: number, dy: number) {
+function blitBuf(
+  dst: Uint8Array,
+  dstW: number,
+  dstH: number,
+  src: Buf,
+  dx: number,
+  dy: number,
+) {
   for (let y = 0; y < src.h; y++) {
     const ty = dy + y;
     if (ty < 0 || ty >= dstH) continue;
@@ -969,7 +1139,10 @@ function blitBuf(dst: Uint8Array, dstW: number, dstH: number, src: Buf, dx: numb
   }
 }
 
-function renderRuinsContactSheet(items: { name: string; buf: Buf }[], outName: string) {
+function renderRuinsContactSheet(
+  items: { name: string; buf: Buf }[],
+  outName: string,
+) {
   const pad = 24;
   const cols = Math.min(3, Math.max(1, items.length));
   const rows = Math.ceil(items.length / cols);
@@ -995,16 +1168,28 @@ function renderRuinsContactSheet(items: { name: string; buf: Buf }[], outName: s
   items.forEach((item, index) => {
     const col = index % cols;
     const row = Math.floor(index / cols);
-    const ox = pad + col * (cellW * S + pad) + Math.floor((cellW - item.buf.w) * S * 0.5);
+    const ox =
+      pad +
+      col * (cellW * S + pad) +
+      Math.floor((cellW - item.buf.w) * S * 0.5);
     const oy = pad + row * (cellH * S + pad) + (cellH - item.buf.h) * S;
     blitScaled(out, cw, ch, item.buf, ox, oy);
   });
 
   writeFileSync(outName, encodePng(out, cw, ch));
-  console.log(`wrote ${outName} (${cw}x${ch}) — ${items.length} ruins recipe preview(s)`);
+  console.log(
+    `wrote ${outName} (${cw}x${ch}) — ${items.length} ruins recipe preview(s)`,
+  );
 }
 
-function blitScaled(dst: Uint8Array, dstW: number, dstH: number, src: Buf, dx: number, dy: number) {
+function blitScaled(
+  dst: Uint8Array,
+  dstW: number,
+  dstH: number,
+  src: Buf,
+  dx: number,
+  dy: number,
+) {
   for (let y = 0; y < src.h; y++) {
     for (let x = 0; x < src.w; x++) {
       const si = (y * src.w + x) * 4;
@@ -1019,8 +1204,12 @@ function blitScaled(dst: Uint8Array, dstW: number, dstH: number, src: Buf, dx: n
           if (tx < 0 || tx >= dstW) continue;
           const di = (ty * dstW + tx) * 4;
           dst[di] = Math.round(src.data[si] * af + dst[di] * (1 - af));
-          dst[di + 1] = Math.round(src.data[si + 1] * af + dst[di + 1] * (1 - af));
-          dst[di + 2] = Math.round(src.data[si + 2] * af + dst[di + 2] * (1 - af));
+          dst[di + 1] = Math.round(
+            src.data[si + 1] * af + dst[di + 1] * (1 - af),
+          );
+          dst[di + 2] = Math.round(
+            src.data[si + 2] * af + dst[di + 2] * (1 - af),
+          );
           dst[di + 3] = 255;
         }
       }
@@ -1042,9 +1231,21 @@ function renderFishGrid() {
 
   const atlases = [
     { pixels: atlas1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
-    { pixels: atlas2, cell: FISH_EXTRA_ATLAS_CELL, layout: FISH_EXTRA_ATLAS_LAYOUT },
-    { pixels: atlas3, cell: FISH_BONUS_ATLAS_CELL, layout: FISH_BONUS_ATLAS_LAYOUT },
-    { pixels: atlas4, cell: ALIEN_FISH_ATLAS_CELL, layout: ALIEN_FISH_ATLAS_LAYOUT },
+    {
+      pixels: atlas2,
+      cell: FISH_EXTRA_ATLAS_CELL,
+      layout: FISH_EXTRA_ATLAS_LAYOUT,
+    },
+    {
+      pixels: atlas3,
+      cell: FISH_BONUS_ATLAS_CELL,
+      layout: FISH_BONUS_ATLAS_LAYOUT,
+    },
+    {
+      pixels: atlas4,
+      cell: ALIEN_FISH_ATLAS_CELL,
+      layout: ALIEN_FISH_ATLAS_LAYOUT,
+    },
     {
       pixels: atlas5,
       cell: POP_CULTURE_FISH_ATLAS_CELL,

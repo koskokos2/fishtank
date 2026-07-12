@@ -3,7 +3,7 @@ import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS } from "./fish";
 import { SWIM_FRAMES } from "./fishbake";
 import { spawnCephalopod } from "./cephalopod";
-import { OCTOPUS_ATLAS, OCTOPUS_FRAMES } from "./octopusAtlas";
+import { OCTOPUS_ATLAS, OCTOPUS_COLS, OCTOPUS_ROWS } from "./octopusAtlas";
 import {
   JELLYFISH_ATLAS,
   JELLYFISH_ATLAS_COLS,
@@ -179,6 +179,14 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     new Promise<void>((resolve) => {
       k.loadSprite(name, src, opt).onLoad(() => resolve());
     });
+  // These pack onto ONE 2048x2048 atlas page only if they don't fragment the shelf
+  // packer. Kaplay uses a next-fit shelf packer (each sprite opens or extends a shelf of
+  // its own height; it never backfills an earlier, shorter shelf), so loading in mixed
+  // heights strands slivers of space and spills the last sprites to a second page. Loading
+  // TALLEST-FIRST keeps each shelf full before the next opens, so all ten (the octopus,
+  // both crawlers, every prop, and the plant/kelp groves) fit one page and the whole
+  // bottom band batches. Order below is strictly by packed height: kelp 1024, the 512s,
+  // pop 384, octopus 172, then the 128-tall crawlers.
   await loadSpriteSeq("luminous-kelp", LUMINOUS_KELP_ATLAS, {
     sliceX: LUMINOUS_KELP_COLS,
     sliceY: LUMINOUS_KELP_ROWS,
@@ -187,10 +195,6 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     sliceX: PLANT_ATLAS_COLS,
     sliceY: PLANT_ATLAS_ROWS,
   });
-  await loadSpriteSeq("hermit-crab", HERMIT_CRAB_ATLAS, {
-    sliceX: HERMIT_CRAB_FRAMES,
-  });
-  await loadSpriteSeq("sea-snail", SEA_SNAIL_ATLAS, { sliceX: SEA_SNAIL_FRAMES });
   await loadSpriteSeq("sci-fi-props", SCI_FI_PROPS_ATLAS, {
     sliceX: SCI_FI_PROPS_ATLAS_COLS,
     sliceY: SCI_FI_PROPS_ATLAS_ROWS,
@@ -203,13 +207,28 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     sliceX: STAR_WARS_PROPS_ATLAS_COLS,
     sliceY: STAR_WARS_PROPS_ATLAS_ROWS,
   });
+  await loadSpriteSeq("small-props", SMALL_PROPS_ATLAS, {
+    sliceX: 4,
+    sliceY: 4,
+  });
   await loadSpriteSeq("pop-culture-props", POP_CULTURE_PROPS_ATLAS, {
     sliceX: POP_CULTURE_PROPS_ATLAS_COLS,
     sliceY: POP_CULTURE_PROPS_ATLAS_ROWS,
   });
-  await loadSpriteSeq("small-props", SMALL_PROPS_ATLAS, {
-    sliceX: 4,
-    sliceY: 4,
+  // The octopus is benthic too (rests on the sand, drawn in the bottom band), so its
+  // pose sheet joins this group to share the page and batch with the sea floor. Its cells
+  // are wrapped into a grid (OCTOPUS_COLS x OCTOPUS_ROWS) so the sheet is 1340x172 — under
+  // the 2048px page limit (it used to be a standalone 2546px big-texture that couldn't
+  // batch at all) and short enough to slot in above the crawlers.
+  await loadSpriteSeq("octopus", OCTOPUS_ATLAS, {
+    sliceX: OCTOPUS_COLS,
+    sliceY: OCTOPUS_ROWS,
+  });
+  await loadSpriteSeq("hermit-crab", HERMIT_CRAB_ATLAS, {
+    sliceX: HERMIT_CRAB_FRAMES,
+  });
+  await loadSpriteSeq("sea-snail", SEA_SNAIL_ATLAS, {
+    sliceX: SEA_SNAIL_FRAMES,
   });
 
   k.loadSprite("backdrop", backdrop.back);
@@ -220,10 +239,9 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
-  // The octopus uses a pose sheet. The jellyfish and nautilus anatomical layers
-  // are separate game objects that each set their own frame, so one atlas load
-  // per creature serves every layer.
-  k.loadSprite("octopus", OCTOPUS_ATLAS, { sliceX: OCTOPUS_FRAMES });
+  // The jellyfish and nautilus anatomical layers are separate game objects that each
+  // set their own frame, so one atlas load per creature serves every layer. (The octopus
+  // pose sheet is loaded above with the benthic band so it shares that page.)
   k.loadSprite("jellyfish", JELLYFISH_ATLAS, {
     sliceX: JELLYFISH_ATLAS_COLS,
     sliceY: JELLYFISH_ATLAS_ROWS,

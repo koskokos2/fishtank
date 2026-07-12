@@ -80,7 +80,8 @@ function extractBlob(row: number, col: number): number[] {
             sy += dy;
             found = true;
           }
-    if (!found) throw new Error(`pose r${row}c${col}: no opaque seed near centre`);
+    if (!found)
+      throw new Error(`pose r${row}c${col}: no opaque seed near centre`);
   }
   const seed = sy * w + sx;
   const seen = new Set<number>([seed]);
@@ -109,7 +110,10 @@ function extractBlob(row: number, col: number): number[] {
 
 const blobs = POSES.map((p) => extractBlob(p.row, p.col));
 const bbox = (blob: number[]) => {
-  let minX = w, minY = h, maxX = 0, maxY = 0;
+  let minX = w,
+    minY = h,
+    maxX = 0,
+    maxY = 0;
   for (const p of blob) {
     const x = p % w;
     const y = (p / w) | 0;
@@ -137,9 +141,13 @@ function mantleX(blob: number[], bb: ReturnType<typeof bbox>): number {
   return n ? sum / n : (bb.minX + bb.maxX) / 2;
 }
 
-// Square output frame: wide enough for the most head-offset pose (horizontal anchored on
-// the head) and the tallest pose (vertical bbox-centred), plus a margin (even side). Sizing
-// from the head-centred reach keeps an arms-forward pose from clipping.
+// Cell size. Width (FRAME) is wide enough for the most head-offset pose (horizontal
+// anchored on the head) plus a margin — sizing from the head-centred reach keeps an
+// arms-forward pose from clipping. Height (CELL_H) only needs the tallest pose's content
+// (bbox-centred), which is much shorter than the width: the octopus reaches wide but not
+// tall, so a square cell would waste ~40% of its height on transparency. Keeping the cell
+// non-square trims that dead band, which lets the sheet pack in a 2-row grid small enough
+// to share a texture page (see MAX_SHEET_W) instead of being a standalone big-texture.
 let halfX = 0;
 let maxH = 0;
 for (const b of blobs) {
@@ -148,20 +156,26 @@ for (const b of blobs) {
   halfX = Math.max(halfX, hx - bb.minX, bb.maxX - hx);
   maxH = Math.max(maxH, bb.maxY - bb.minY + 1);
 }
-const FRAME = (Math.max(2 * Math.ceil(halfX), maxH) + 2 * FRAME_MARGIN + 1) & ~1;
+const FRAME = (2 * Math.ceil(halfX) + 2 * FRAME_MARGIN + 1) & ~1; // cell width (even)
+const CELL_H = (maxH + 2 * FRAME_MARGIN + 1) & ~1; // cell height (even)
 
-// Render a blob into a fresh FRAME-square buffer — head-anchored in x, bbox-centred in y —
-// and report its content rows so the sway can target the arms.
-function centeredBuf(blob: number[]): { buf: Uint8Array; minY: number; maxY: number } {
+// Render a blob into a fresh FRAME-wide × CELL_H-tall buffer — head-anchored in x,
+// bbox-centred in y — and report its content rows so the sway can target the arms.
+function centeredBuf(blob: number[]): {
+  buf: Uint8Array;
+  minY: number;
+  maxY: number;
+} {
   const bb = bbox(blob);
   const offX = Math.round(FRAME / 2 - mantleX(blob, bb));
-  const offY = Math.round((FRAME - (bb.maxY - bb.minY + 1)) / 2) - bb.minY;
-  const buf = new Uint8Array(FRAME * FRAME * 4);
-  let minY = FRAME, maxY = 0;
+  const offY = Math.round((CELL_H - (bb.maxY - bb.minY + 1)) / 2) - bb.minY;
+  const buf = new Uint8Array(FRAME * CELL_H * 4);
+  let minY = CELL_H,
+    maxY = 0;
   for (const p of blob) {
     const lx = (p % w) + offX;
     const ly = ((p / w) | 0) + offY;
-    if (lx < 0 || lx >= FRAME || ly < 0 || ly >= FRAME) continue;
+    if (lx < 0 || lx >= FRAME || ly < 0 || ly >= CELL_H) continue;
     const di = (ly * FRAME + lx) * 4;
     for (let c = 0; c < 4; c++) buf[di + c] = rgba[p * 4 + c];
     if (ly < minY) minY = ly;
@@ -181,20 +195,36 @@ function swayShift(y: number, minY: number, maxY: number, f: number): number {
   return Math.round(SWAY_AMP * lower * Math.sin(phase - 2.4 * lower));
 }
 
-// Layout: SWAY_FRAMES idle-sway frames, then one frame per remaining pose.
+// Layout: SWAY_FRAMES idle-sway frames, then one frame per remaining pose, packed into a
+// row-major grid. A single row would be FRAMES*FRAME ≈ 2546px wide — past the renderer's
+// 2048px texture-page limit, so the sheet would be a standalone texture that can't batch
+// with the rest of the sea floor. Wrapping into the fewest rows that fit under MAX_SHEET_W
+// keeps it small enough to share a page (the octopus then batches with the sand/props).
+const MAX_SHEET_W = 2048;
 const FRAMES = SWAY_FRAMES + (POSES.length - 1);
-const sheetW = FRAMES * FRAME;
-const sheet = new Uint8Array(sheetW * FRAME * 4);
-const put = (frame: number, x: number, y: number, src: Uint8Array, si: number) => {
-  if (x < 0 || x >= FRAME || y < 0 || y >= FRAME) return;
-  const di = (y * sheetW + frame * FRAME + x) * 4;
+const GRID_ROWS = Math.ceil((FRAMES * FRAME) / MAX_SHEET_W);
+const GRID_COLS = Math.ceil(FRAMES / GRID_ROWS);
+const sheetW = GRID_COLS * FRAME;
+const sheetH = GRID_ROWS * CELL_H;
+const sheet = new Uint8Array(sheetW * sheetH * 4);
+const put = (
+  frame: number,
+  x: number,
+  y: number,
+  src: Uint8Array,
+  si: number,
+) => {
+  if (x < 0 || x >= FRAME || y < 0 || y >= CELL_H) return;
+  const gx = (frame % GRID_COLS) * FRAME + x;
+  const gy = ((frame / GRID_COLS) | 0) * CELL_H + y;
+  const di = (gy * sheetW + gx) * 4;
   for (let c = 0; c < 4; c++) sheet[di + c] = src[si + c];
 };
 
 // idle pose -> SWAY_FRAMES swayed copies
 const idle = centeredBuf(blobs[0]);
 for (let f = 0; f < SWAY_FRAMES; f++)
-  for (let y = 0; y < FRAME; y++) {
+  for (let y = 0; y < CELL_H; y++) {
     const sh = swayShift(y, idle.minY, idle.maxY, f);
     for (let x = 0; x < FRAME; x++) {
       const si = (y * FRAME + x) * 4;
@@ -206,7 +236,7 @@ for (let f = 0; f < SWAY_FRAMES; f++)
 for (let i = 1; i < POSES.length; i++) {
   const { buf } = centeredBuf(blobs[i]);
   const frame = SWAY_FRAMES + (i - 1);
-  for (let y = 0; y < FRAME; y++)
+  for (let y = 0; y < CELL_H; y++)
     for (let x = 0; x < FRAME; x++) {
       const si = (y * FRAME + x) * 4;
       if (buf[si + 3] === 0) continue;
@@ -216,23 +246,31 @@ for (let i = 1; i < POSES.length; i++) {
 
 // pose key -> sheet frame index (the idle loop occupies 0..SWAY_FRAMES-1)
 const poseIndex: Record<string, number> = {};
-for (let i = 1; i < POSES.length; i++) poseIndex[POSES[i].key] = SWAY_FRAMES + (i - 1);
+for (let i = 1; i < POSES.length; i++)
+  poseIndex[POSES[i].key] = SWAY_FRAMES + (i - 1);
 
-const b64 = Buffer.from(encodePng(sheet, sheetW, FRAME)).toString("base64");
+const b64 = Buffer.from(encodePng(sheet, sheetW, sheetH)).toString("base64");
 const poseLines = Object.entries(poseIndex)
   .map(([k, v]) => `  ${k}: ${v},`)
   .join("\n");
 const module = `// GENERATED by tools/gen-octopus-atlas.ts - do not edit by hand.
-// A clean ${FRAMES}-frame octopus sheet (${sheetW}x${FRAME}), baked from the twelve
-// "assembled" poses (rows 3-5) of art/octopus-atlas-128.png. Frames 0..${SWAY_FRAMES - 1} are the
-// idle_hover pose with its arms swaying as a subtle whole-pixel travelling wave (the
-// rigid mantle stays put) — the in-place hover loop. The remaining frames are the single
-// crawl/rest/swim poses indexed by OCTOPUS_POSE. Each pose was flood-extracted from the
-// transparent-background source (full mantle dome kept) and centred in the square frame.
+// A clean ${FRAMES}-frame octopus sheet (${sheetW}x${sheetH}, a ${GRID_COLS}x${GRID_ROWS} grid of
+// ${FRAME}x${CELL_H} cells), baked from the twelve "assembled" poses (rows 3-5) of
+// art/octopus-atlas-128.png. Frames 0..${SWAY_FRAMES - 1} are the idle_hover pose with its arms
+// swaying as a subtle whole-pixel travelling wave (the rigid mantle stays put) — the
+// in-place hover loop. The remaining frames are the single crawl/rest/swim poses indexed by
+// OCTOPUS_POSE. Each pose was flood-extracted from the transparent-background source (full
+// mantle dome kept) and centred in its cell. The cells are wider than they are tall (the
+// octopus reaches wide, not tall) and wrapped into a grid so the sheet fits under the 2048px
+// texture-page limit and can batch with the rest of the sea floor. Load with sliceX:
+// OCTOPUS_COLS, sliceY: OCTOPUS_ROWS.
 export const OCTOPUS_ATLAS = "data:image/png;base64,${b64}";
 export const OCTOPUS_FRAMES = ${FRAMES};
 export const OCTOPUS_IDLE_FRAMES = ${SWAY_FRAMES};
+export const OCTOPUS_COLS = ${GRID_COLS};
+export const OCTOPUS_ROWS = ${GRID_ROWS};
 export const OCTOPUS_FRAME_W = ${FRAME};
+export const OCTOPUS_FRAME_H = ${CELL_H};
 // Sheet frame index for each named pose (the idle-hover loop is frames 0..${SWAY_FRAMES - 1}).
 export const OCTOPUS_POSE = {
 ${poseLines}
@@ -242,5 +280,5 @@ ${poseLines}
 writeFileSync(OUT, module);
 console.log(
   `wrote ${OUT} (${(module.length / 1024).toFixed(0)} KB) — ${FRAMES} frames ` +
-    `(${SWAY_FRAMES} idle-sway + ${POSES.length - 1} poses), ${FRAME}px square`,
+    `(${SWAY_FRAMES} idle-sway + ${POSES.length - 1} poses), ${FRAME}x${CELL_H} cells in a ${GRID_COLS}x${GRID_ROWS} grid (${sheetW}x${sheetH})`,
 );
