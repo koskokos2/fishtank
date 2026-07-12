@@ -108,6 +108,9 @@ const k = kaplay({
   width: VW,
   height: VH,
   crisp: true,
+  // Keep the API off window; everything goes through k. The debug overlay gets
+  // kaplay's debug object via installEngineProfiler instead of the global.
+  global: false,
   background: [6, 24, 43],
   // An ambient scene doesn't need ProMotion rates; capping halves the CPU work
   // on 120 Hz displays. The default is 62 rather than 60: the cap skips a vsync

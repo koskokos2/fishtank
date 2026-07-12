@@ -304,7 +304,15 @@ export const withDrawProfile = <T>(name: string, fn: () => T): T => {
   }
 };
 
-export const installEngineProfiler = (k: Pick<KAPLAYCtx, "getTreeRoot">) => {
+// The game runs kaplay with global: false, so the debug object is only
+// reachable through the context; installEngineProfiler stashes it here for the
+// overlay readers (which live in load listeners outside any k scope).
+let kaplayDebug: KAPLAYCtx["debug"] | null = null;
+
+export const installEngineProfiler = (
+  k: Pick<KAPLAYCtx, "getTreeRoot" | "debug">,
+) => {
+  kaplayDebug = k.debug;
   const root = k.getTreeRoot() as ProfileRoot;
   if (profiledRoots.has(root)) return;
   profiledRoots.add(root);
@@ -462,7 +470,7 @@ if (params.has("fps") && !params.has("debug"))
       "font:16px/1.4 monospace;padding:4px 8px;border-radius:4px";
     document.body.append(label);
     setInterval(() => {
-      const d = (globalThis as { debug?: { fps(): number } }).debug;
+      const d = kaplayDebug;
       label.textContent = d ? String(Math.round(d.fps())) : "…";
     }, 250);
   });
@@ -574,7 +582,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     fpsRow.append(fpsPanel, detailToggle);
     box.append(fpsRow);
     setInterval(() => {
-      const d = (globalThis as { debug?: { fps(): number } }).debug;
+      const d = kaplayDebug;
       fpsPanel.textContent = `fps: ${d ? Math.round(d.fps()) : "?"}`;
     }, 250);
 
@@ -727,8 +735,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     pauseCb.type = "checkbox";
     pauseCb.style.accentColor = "#7f7";
     pauseCb.addEventListener("change", () => {
-      const d = (globalThis as { debug?: { paused: boolean } }).debug;
-      if (d) d.paused = pauseCb.checked;
+      if (kaplayDebug) kaplayDebug.paused = pauseCb.checked;
     });
     pauseLabel.append(pauseCb, "pause");
     row.append(pauseLabel);
@@ -998,11 +1005,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       const avg =
         sorted.reduce((a, b) => a + b, 0) / Math.max(1, sorted.length);
       const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
-      const d = (
-        globalThis as {
-          debug?: { fps(): number; drawCalls(): number; numObjects(): number };
-        }
-      ).debug;
+      const d = kaplayDebug;
       const heap = perf.memory;
       trackHeapDrop(heap, now);
       samplePageMemory(now);
