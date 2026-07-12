@@ -47,7 +47,7 @@ crawl/rest/swim poses the app shows); `backdrop` bakes the procedural reef pixel
 directly.
 Open/read the PNG to review.
 Prefer this over guessing when iterating on art. The animated scene layers
-(caustics, plants, motes, bubbles), the nautilus animation, the octopus's and
+(water lighting, plants, motes, bubbles), the nautilus animation, the octopus's and
 jellyfish's live pose-swapping state machines, and all creature motion still need
 `bun run dev` to see.
 
@@ -64,7 +64,8 @@ src/
   nautilusAtlas.ts # GENERATED — the embedded base64 nautilus runtime atlas (16 cols x 4 rows of 128px cells): fixed shell/body, travelling tentacle wave, siphon retraction, one-shot jet plume; indexed by NAUTILUS_*_START
   jellyfishAtlas.ts # GENERATED — the embedded base64 jellyfish pose atlas (4x4 grid of 128px cells: pulse cycle, glides, hover variety, turns, flare/recoil), indexed by name via JELLYFISH_POSE
   octopusAtlas.ts # GENERATED — the embedded base64 octopus sprite sheet baked from the source atlas's twelve "assembled" poses (rows 3-5): an idle-hover arm-sway loop + single crawl/rest/swim pose frames, indexed by name via OCTOPUS_POSE
-  tank.ts     # animated layers over the baked backdrop: caustics, swaying plants, motes, bubbles
+  tank.ts     # animated layers over the baked backdrop: surface light, swaying plants, motes, bubbles
+  waterLighting.ts # pixel-stable backdrop shader: rippled water ceiling + descending light rays
   backdrop.ts # static reef baked to two full-resolution (VW×VH) sprites: the water back plate and a transparent sand overlay (dunes only); far plants render between them so the dune crest occludes their roots, while rotating props stay live
   color.ts    # shared color helpers (hslToRgb, lerp, clamp01) used by backdrop
 tools/

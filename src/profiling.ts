@@ -2,7 +2,7 @@ import type { KAPLAYCtx } from "kaplay";
 
 // Scene-ablation toggles for performance profiling. Normal operation is
 // unaffected (empty query = everything on). Open the page with e.g.
-// ?off=caustics,kelp to skip spawning those layers, ?off=all for the empty
+// ?off=caustics,kelp to skip water lighting or those layers, ?off=all for the empty
 // tank floor, and ?uncap to lift the maxFPS cap — then read the FPS console.
 // Headless tools import scene modules that import this one — no location there.
 const params =
@@ -244,7 +244,6 @@ const DRAW_PROFILE_ORDER = [
   "backdrop",
   "sand",
   "props",
-  "caustics",
   "plants",
   "kelp",
   "motes",

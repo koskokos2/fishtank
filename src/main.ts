@@ -47,6 +47,7 @@ import {
 } from "./popCulturePropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { setupTank } from "./tank";
+import { loadWaterLighting } from "./waterLighting";
 import {
   off,
   uncapped,
@@ -118,6 +119,7 @@ const k = kaplay({
   maxFPS: uncapped ? undefined : capFPS,
 });
 installEngineProfiler(k);
+loadWaterLighting(k);
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
 // to an N×N block, perfectly crisp with no crawl). At the 1920x1080 buffer, 4K

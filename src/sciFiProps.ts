@@ -1,6 +1,4 @@
 import type { KAPLAYCtx } from "kaplay";
-import { groundZ } from "./backdrop";
-import type { PropPlacement } from "./propPlacement";
 import { withDrawProfile } from "./profiling";
 import { drawScreenText, type ScreenQuad } from "./screenText";
 import {
@@ -12,12 +10,6 @@ export type SciFiPropName = keyof typeof SCI_FI_PROPS_ATLAS_LAYOUT;
 export type SciFiDisplayName =
   | "retro_telemetry_terminal"
   | "porthole_instrument";
-
-export type SciFiDisplayData = {
-  primary: number;
-  secondary: number;
-  samples: number[];
-};
 
 export type SciFiPropSpec = {
   name: SciFiPropName;
@@ -64,8 +56,8 @@ type DisplayWindow =
     };
 
 // Cell-local screen-face geometry, traced from the art's 3/4-perspective glass
-// and inset a few pixels from the bezel. Keeping it separate from the generated
-// art makes replacement readout code independent of future atlas regeneration.
+// and inset a few pixels from the bezel. Consumed by the headless previewer
+// (tools/preview.ts) to render the console screens for offline art review.
 export const SCI_FI_DISPLAY_WINDOWS: Record<SciFiDisplayName, DisplayWindow> = {
   retro_telemetry_terminal: {
     shape: "quad",
@@ -86,8 +78,6 @@ export const SCI_FI_DISPLAY_WINDOWS: Record<SciFiDisplayName, DisplayWindow> = {
     by: 18,
   },
 };
-
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
 // Traced corners of the amber wedge console's dark glass, inset from the bezel.
 const AMBER_CONSOLE_SCREEN: ScreenQuad = [
@@ -141,202 +131,4 @@ export function spawnTemperatureReadout(
       },
     },
   ]);
-}
-
-export function spawnSciFiProps(
-  k: KAPLAYCtx,
-  placements: Map<string, PropPlacement>,
-) {
-  const data: Record<SciFiDisplayName, SciFiDisplayData> = {
-    retro_telemetry_terminal: { primary: 0.67, secondary: 0.34, samples: [] },
-    porthole_instrument: { primary: 0.42, secondary: 0.78, samples: [] },
-  };
-
-  for (const spec of SCI_FI_PROP_SPECS) {
-    const layout = SCI_FI_PROPS_ATLAS_LAYOUT[spec.name];
-    const { rootX, rootY, spriteY } = placements.get(spec.name)!;
-    k.add([
-      k.sprite("sci-fi-props", { frame: layout.frame }),
-      k.pos(rootX, spriteY),
-      k.anchor("bot"),
-      k.z(groundZ(rootY)),
-    ]);
-
-    if (
-      spec.name === "retro_telemetry_terminal" ||
-      spec.name === "porthole_instrument"
-    )
-      spawnReadout(k, spec.name, rootX, spriteY, groundZ(rootY) + 0.01, data);
-  }
-
-  return {
-    setDisplayData(name: SciFiDisplayName, next: Partial<SciFiDisplayData>) {
-      const current = data[name];
-      Object.assign(current, next);
-      current.primary = clamp01(current.primary);
-      current.secondary = clamp01(current.secondary);
-      current.samples = current.samples.map(clamp01).slice(-12);
-    },
-  };
-}
-
-function spawnReadout(
-  k: KAPLAYCtx,
-  name: SciFiDisplayName,
-  rootX: number,
-  spriteY: number,
-  z: number,
-  data: Record<SciFiDisplayName, SciFiDisplayData>,
-) {
-  const window = SCI_FI_DISPLAY_WINDOWS[name];
-  const originX = rootX - SCI_FI_PROPS_ATLAS_CELL / 2;
-  const originY = spriteY - SCI_FI_PROPS_ATLAS_CELL;
-  k.add([
-    k.z(z),
-    {
-      draw() {
-        const t = k.time();
-        const value = data[name];
-        const samples = value.samples.length
-          ? value.samples
-          : Array.from({ length: 10 }, (_, i) =>
-              clamp01(
-                0.48 + Math.sin(t * 0.72 + i * 0.83 + value.primary * 3) * 0.27,
-              ),
-            );
-
-        if (window.shape === "round") {
-          const cx = originX + window.cx;
-          const cy = originY + window.cy;
-          const at = (u: number, v: number) =>
-            k.vec2(
-              cx + u * window.ax + v * window.bx,
-              cy + u * window.ay + v * window.by,
-            );
-          const angle = t * 0.36 + value.primary * Math.PI * 2;
-          const rim = Array.from({ length: 24 }, (_, i) => {
-            const a = (i / 24) * Math.PI * 2;
-            return at(Math.cos(a), Math.sin(a));
-          });
-          k.drawMasked(
-            () => {
-              k.drawLine({
-                p1: at(-1, 0),
-                p2: at(1, 0),
-                width: 1,
-                color: k.rgb(54, 157, 151),
-                opacity: 0.35,
-              });
-              k.drawLine({
-                p1: at(0, -1),
-                p2: at(0, 1),
-                width: 1,
-                color: k.rgb(54, 157, 151),
-                opacity: 0.35,
-              });
-              k.drawLine({
-                p1: at(0, 0),
-                p2: at(Math.cos(angle), Math.sin(angle)),
-                width: 1,
-                color: k.rgb(91, 226, 210),
-                opacity: 0.7,
-              });
-              const blipAngle = value.secondary * Math.PI * 2;
-              const blip = at(
-                Math.cos(blipAngle) * 0.72,
-                Math.sin(blipAngle) * 0.72,
-              );
-              k.drawRect({
-                pos: k.vec2(blip.x - 1, blip.y - 1),
-                width: 2,
-                height: 2,
-                color: k.rgb(242, 179, 78),
-                opacity: 0.92,
-              });
-            },
-            () =>
-              k.drawPolygon({
-                pts: rim,
-                color: k.WHITE,
-              }),
-          );
-          return;
-        }
-
-        const quad = window.points.map((point) => ({
-          x: originX + point.x,
-          y: originY + point.y,
-        })) as [Point, Point, Point, Point];
-        const visibleSamples = samples.slice(-12);
-        k.drawMasked(
-          () => {
-            const gap = 0.018;
-            const usableWidth = 0.86;
-            const barWidth =
-              (usableWidth - gap * (visibleSamples.length - 1)) /
-              visibleSamples.length;
-            visibleSamples.forEach((sample, i) => {
-              const u0 = 0.07 + i * (barWidth + gap);
-              const u1 = u0 + barWidth;
-              const v1 = 0.7;
-              const v0 = v1 - sample * 0.54;
-              drawQuad(k, quad, u0, v0, u1, v1, [71, 208, 199], 0.62);
-            });
-            drawQuad(
-              k,
-              quad,
-              0.07,
-              0.84,
-              0.07 + 0.86 * value.secondary,
-              0.93,
-              [238, 167, 70],
-              0.88,
-            );
-          },
-          () =>
-            k.drawPolygon({
-              pts: quad.map((point) => k.vec2(point.x, point.y)),
-              color: k.WHITE,
-            }),
-        );
-      },
-    },
-  ]);
-}
-
-function projectQuad(
-  quad: [Point, Point, Point, Point],
-  u: number,
-  v: number,
-): Point {
-  const [tl, tr, br, bl] = quad;
-  const top = { x: tl.x + (tr.x - tl.x) * u, y: tl.y + (tr.y - tl.y) * u };
-  const bottom = { x: bl.x + (br.x - bl.x) * u, y: bl.y + (br.y - bl.y) * u };
-  return {
-    x: top.x + (bottom.x - top.x) * v,
-    y: top.y + (bottom.y - top.y) * v,
-  };
-}
-
-function drawQuad(
-  k: KAPLAYCtx,
-  quad: [Point, Point, Point, Point],
-  u0: number,
-  v0: number,
-  u1: number,
-  v1: number,
-  color: [number, number, number],
-  opacity: number,
-) {
-  const points = [
-    projectQuad(quad, u0, v0),
-    projectQuad(quad, u1, v0),
-    projectQuad(quad, u1, v1),
-    projectQuad(quad, u0, v1),
-  ];
-  k.drawPolygon({
-    pts: points.map((point) => k.vec2(point.x, point.y)),
-    color: k.rgb(...color),
-    opacity,
-  });
 }

@@ -1,6 +1,7 @@
 import type { KAPLAYCtx, Quad, Vec2, Color } from "kaplay";
 import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
+import { WATER_LIGHT_SHADER } from "./waterLighting";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
@@ -17,20 +18,32 @@ type TankEntityCounts = Readonly<{ plants: number }>;
 // The static scene is baked once into two sprites (see backdrop.ts): the
 // water back plate and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
-// caustics, swaying plants, motes, and source-based bubbles. Depth is faked
-// with z-ordering.
+// shader-driven surface light, swaying plants, motes, and source-based bubbles.
+// Depth is faked with z-ordering.
 export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
-  if (!off("backdrop"))
+  if (!off("backdrop")) {
+    const waterLightUniform = { u_time: 0 };
     k.add([
       profileDraw("backdrop"),
       k.sprite("backdrop"),
       profileDrawEnd(),
       k.pos(0, 0),
       k.z(-200),
+      // Keep the existing ?off=caustics ablation switch even though the old
+      // CPU caustics texture is now a water-surface and god-ray shader.
+      ...(off("caustics")
+        ? []
+        : [
+            k.shader(WATER_LIGHT_SHADER, () => {
+              waterLightUniform.u_time = k.time();
+              return waterLightUniform;
+            }),
+          ]),
     ]);
+  }
   if (!off("sand"))
     k.add([
       profileDraw("sand"),
@@ -77,57 +90,6 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   if (singleShoots > 0) collectSinglePlants(k, singleShoots, fronds);
 
   commitPlantField(k, fronds);
-
-  // Caustics: three overlapping sine fields on a coarse grid read as the
-  // shimmering light mesh, brightest near the surface and fading with depth.
-  // The field is evaluated one texel per cell into a tiny image uploaded to a
-  // texture drawn as a single nearest-scaled quad — the hard cell edges come
-  // from the scaling, at a fraction of the cost of a drawRect per cell. The
-  // three sine terms depend only on the column, the row, and the diagonal, so
-  // each gets a small per-frame table instead of a sin per cell.
-  if (!off("caustics")) {
-    const cell = 12 * S;
-    const cols = Math.ceil(k.width() / cell);
-    const rows = Math.ceil((k.height() * 0.6) / cell);
-    const img = new ImageData(cols, rows);
-    const px = img.data;
-    for (let i = 0; i < cols * rows; i++) {
-      px[i * 4] = 150;
-      px[i * 4 + 1] = 220;
-      px[i * 4 + 2] = 230;
-    }
-    const tex = k.makeCanvas(cols, rows).fb.tex;
-    const colWave = new Float64Array(cols);
-    const rowWave = new Float64Array(rows);
-    const diagWave = new Float64Array(cols + rows - 1);
-    k.add([
-      k.pos(0, 0),
-      k.z(-95),
-      {
-        draw() {
-          withDrawProfile("caustics", () => {
-            const t = k.time();
-            for (let xi = 0; xi < cols; xi++)
-              colWave[xi] = Math.sin((xi * cell * 0.05) / S + t);
-            for (let yi = 0; yi < rows; yi++)
-              rowWave[yi] = Math.sin((yi * cell * 0.07) / S - t * 0.8);
-            for (let d = 0; d < cols + rows - 1; d++)
-              diagWave[d] = Math.sin((d * cell * 0.04) / S + t * 1.3);
-            for (let yi = 0; yi < rows; yi++) {
-              const depth = 1 - (yi * cell) / (k.height() * 0.6);
-              for (let xi = 0; xi < cols; xi++) {
-                const v = colWave[xi] + rowWave[yi] + diagWave[xi + yi];
-                const a = Math.max(0, v) * 0.05 * depth;
-                px[(yi * cols + xi) * 4 + 3] = a > 0.01 ? a * 255 : 0;
-              }
-            }
-            tex.update(img);
-            k.drawUVQuad({ tex, width: cols * cell, height: rows * cell });
-          });
-        },
-      },
-    ]);
-  }
 
   if (!off("motes")) spawnMotes(k, 30);
   // Fresh pools per scene build so a dev reload can't leave controllers from a
