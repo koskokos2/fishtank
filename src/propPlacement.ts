@@ -267,7 +267,10 @@ export function insidePropFootprint(
 // Points on the expanded-footprint boundary count as inside, so every stop
 // point the helpers hand back sits a standoff strictly outside it — a creature
 // parked exactly on the edge would count as "inside" next trip, making its
-// clamp skip the very prop it is touching.
+// clamp skip the very prop it is touching. Adjacent footprints (each grown by
+// halfWidth) can overlap into one band, so each candidate steps clear of every
+// footprint that contains it, not just the first — `x` comes back unchanged
+// only when no clear column exists inside [minX, maxX].
 export function nearestClearX(
   x: number,
   halfWidth: number,
@@ -276,20 +279,37 @@ export function nearestClearX(
   minX = -Infinity,
   maxX = Infinity,
 ): number {
+  // Conflicts is re-checked per candidate: a crawler's ground line
+  // (sandTopAt(cx) + depth) follows the crest, so which props it meets changes
+  // with cx.
+  const blockerAt = (cx: number): PropObstacle | undefined => {
+    for (let i = 0; i < obstacles.length; i++) {
+      const o = obstacles[i];
+      if (!conflicts(o, cx, depth)) continue;
+      if (cx >= o.x0 - halfWidth && cx <= o.x1 + halfWidth) return o;
+    }
+    return undefined;
+  };
+  if (!blockerAt(x)) return x;
+  let left = x;
+  let right = x;
+  // Bounded by the obstacle count: each candidate strictly leaves the footprint
+  // it hit, so it can enter each at most once.
   for (let i = 0; i < obstacles.length; i++) {
-    const o = obstacles[i];
-    if (!conflicts(o, x, depth)) continue;
-    const lo = o.x0 - halfWidth;
-    const hi = o.x1 + halfWidth;
-    if (x < lo || x > hi) continue;
-    // Prefer the nearer exit, but never one beyond the caller's wall margin —
-    // clamping it back would strand the creature inside the footprint.
-    const left = lo - standoff;
-    const right = hi + standoff;
-    if (left >= minX && (right > maxX || x - lo <= hi - x)) return left;
-    if (right <= maxX) return right;
-    return x;
+    const o = blockerAt(left);
+    if (!o) break;
+    left = o.x0 - halfWidth - standoff;
   }
+  for (let i = 0; i < obstacles.length; i++) {
+    const o = blockerAt(right);
+    if (!o) break;
+    right = o.x1 + halfWidth + standoff;
+  }
+  const leftOk = left >= minX && !blockerAt(left);
+  const rightOk = right <= maxX && !blockerAt(right);
+  // Prefer the nearer clear exit (tie → left); if only one is valid, take it.
+  if (leftOk && (!rightOk || x - left <= right - x)) return left;
+  if (rightOk) return right;
   return x;
 }
 

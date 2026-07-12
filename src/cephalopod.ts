@@ -63,18 +63,22 @@ const CRAWL_GAIT = [
   OCTOPUS_POSE.activeSwimPulse,
   OCTOPUS_POSE.crawlPush,
 ] as const;
-const OCTO_SIT = 26; // body-centre height (px) above the sand so the arms rest on it
-const OCTO_HALF = 70; // half-width of the octopus's large frame — every prop blocks it
+const OCTO_SIT = 20; // body-centre height (px) above the sand so the arms rest on it
+const OCTO_HALF = 70; // half-width of the octopus's large frame — footprint clearance
+// Half-width of the body's actual underside contact — the arm-base span that
+// rests on the sand, much narrower than the prop-footprint OCTO_HALF. groundY
+// rides the sand under this span so the body seats on the local contour instead
+// of floating up to a far uphill edge on a steep dune.
+const OCTO_CONTACT_HALF = 22;
+// Crest rider: the octopus's contact plane is the dune top itself. Props whose
+// ground line sits below the crest don't block it (it passes behind them); this
+// is what makes its footprint queries elevation-aware, like the crab's depth.
+const OCTO_GROUND_DEPTH = 0;
 // Exceeds the 12*S crawl-arrival threshold, so a walk-out target set just past
 // a footprint edge is actually cleared before the octopus parks short of it.
 const OCTO_STANDOFF = 14 * S;
 const OCTO_DESCEND_STOP = 22 * S; // height above the sand where the descent push-pulses quit
 const OCTO_LAND_POSE = 6 * S; // height above the sand where it braces into the landing pose
-// If a settling octopus stays trapped over a prop footprint this long (adjacent
-// props' footprints, each grown by OCTO_HALF, can overlap into a band with no
-// clear touchdown spot), it gives up avoiding and lands anyway, then crawls out
-// along the sand — otherwise it hovers just above the substrate forever.
-const OCTO_LAND_STUCK_LIMIT = 1.5; // s
 const BURY_DEPTH = 4 * S; // px the body presses into the sand on touchdown
 const BURY_DUR = 0.35; // s for the landing press-in to ease back out
 // =========================== NAUTILUS ART ===========================
@@ -242,6 +246,7 @@ const JELLY_PERSONAL = 130 * S;
 export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const cfg = KINDS[kindName];
   const minY = 24 * S;
+  const mX = 40 * S; // horizontal wall margin (keeps the body on-screen)
   const swimFloorAt = (atX: number) =>
     Math.max(
       minY,
@@ -256,16 +261,17 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     minY + (swimFloorAt(atX) - minY) * cfg.level.max;
   // Octopus only: the seated height on the sand contour at column x — its body
   // centre rides OCTO_SIT above the dune so the arms drape onto the ground.
-  // Follows the highest sand under the whole body (centre ± half-width), so on a
-  // steep dune the wide frame rides on top of the slope instead of burying its
-  // uphill edge; on the near-flat bed the samples coincide.
+  // Follows the highest sand under the body's contact span (centre ±
+  // OCTO_CONTACT_HALF), so on a steep dune it seats on the local slope instead
+  // of burying its uphill edge; on the near-flat bed the samples coincide.
   const groundY = (x: number) => {
     const w = k.width() - 1;
-    const sand = Math.max(
-      sandTopAt(clamp(x, 0, w)),
-      sandTopAt(clamp(x - OCTO_HALF, 0, w)),
-      sandTopAt(clamp(x + OCTO_HALF, 0, w)),
-    );
+    let sand = Infinity; // smaller sandTopAt = taller sand, so the highest is the min
+    for (let i = -2; i <= 2; i++)
+      sand = Math.min(
+        sand,
+        sandTopAt(clamp(x + (i * OCTO_CONTACT_HALF) / 2, 0, w)),
+      );
     return sand - OCTO_SIT;
   };
   const spawnX = k.rand(60 * S, k.width() - 60 * S);
@@ -388,7 +394,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
       px,
       OCTO_HALF,
       OCTO_STANDOFF,
-      undefined,
+      OCTO_GROUND_DEPTH,
       60 * S,
       k.width() - 60 * S,
     );
@@ -438,7 +444,8 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
   const longRestChance = k.chance(0.5) ? 0.3 : 0.7;
   let restTimer = k.rand(1, 9) * tempo; // octopus: time left parked-and-resting on the ground
   let buryTimer = 0; // octopus: time left in the press-into-sand dip after a landing
-  let landStuck = 0; // octopus: time spent settling but trapped over a prop footprint
+  let landX: number | null = null; // stable touchdown x picked once per descent
+  let landingClear = true; // false = no clear span exists → land where it is, explicitly
   let restLong = false; // this rest is a long park → curl up (settled) rather than spread
   let swimVigorous = false; // this swim bout is multi-pulse → use the energetic pose row
   let swimRoaming = false; // this excursion wanders the water before settling
@@ -502,6 +509,47 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     body.flipX = facing !== artDir;
   };
 
+  // Octopus: pick one stable touchdown x for the current descent — the current
+  // column when it's clear, else the nearest column clear of prop footprints on
+  // its ground plane. When no clear column exists between the walls the data
+  // says there is nowhere to land, so it lands where it is (landingClear=false).
+  const pickLanding = () => {
+    const target = insidePropFootprint(px, OCTO_HALF, OCTO_GROUND_DEPTH)
+      ? nearestClearX(
+          px,
+          OCTO_HALF,
+          OCTO_STANDOFF,
+          OCTO_GROUND_DEPTH,
+          mX,
+          k.width() - mX,
+        )
+      : px;
+    landX = target;
+    landingClear = !insidePropFootprint(target, OCTO_HALF, OCTO_GROUND_DEPTH);
+  };
+
+  // Octopus: push off into a swim bout — bunch, then chain a few pulse-glides
+  // before settling back down. Reused when the swim cooldown fires and as the
+  // escape when a rest's hop is boxed in on both sides.
+  const startSwimBout = () => {
+    const cr = cfg.crawl!;
+    octoMode = "swim";
+    swimSub = "gather";
+    subTimer = cr.gather;
+    descending = false;
+    liftedOff = false;
+    landX = null;
+    pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
+    swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
+    swimRoamLeft = swimRoaming ? k.rand(cr.roamSecs[0], cr.roamSecs[1]) : 0;
+    swimHover = k.rand(cr.roamHover[0], cr.roamHover[1]);
+    swimVigorous = swimRoaming || pulsesLeft >= 2; // energetic pose row
+    swimDir =
+      px < mX * 2 ? 1 : px > k.width() - mX * 2 ? -1 : k.choose([-1, 1]);
+    if (swimDir !== facing) curlTimer = 0.4; // curl through the launch turn
+    beginTurn(swimDir);
+  };
+
   // A jellyfish turn is a visible state rather than an immediate flip. The first
   // half rolls in the old direction, flipX changes at midpoint, and the second
   // half settles in the new direction. Pulse timing pauses for the whole turn.
@@ -536,7 +584,6 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
     profile("cephs", () => {
       const dt = k.dt();
       const drag = cfg.drag;
-      const mX = 40 * S;
       let allowPitch = true; // crawl forces this off; swim turns it back on
       let buryNow = 0; // octopus: current press-into-sand depth (px), eases to 0
       if (cfg.motion === "jet") {
@@ -567,15 +614,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
         const cr = cfg.crawl!;
         if (seenObstacles !== getPropObstacles()) {
           seenObstacles = getPropObstacles();
-          // A rotation swap covers the airborne case too — the settle gate
-          // steers a mid-swim octopus away from a footprint on its own.
           if (octoMode === "crawl") {
-            if (insidePropFootprint(px, OCTO_HALF)) {
+            if (insidePropFootprint(px, OCTO_HALF, OCTO_GROUND_DEPTH)) {
               tx = nearestClearX(
                 px,
                 OCTO_HALF,
                 OCTO_STANDOFF,
-                undefined,
+                OCTO_GROUND_DEPTH,
                 mX,
                 k.width() - mX,
               );
@@ -584,8 +629,18 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
               if (dir !== facing) curlTimer = 0.5;
               beginTurn(dir);
             } else {
-              tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+              tx = clampPathX(
+                px,
+                tx,
+                OCTO_HALF,
+                OCTO_STANDOFF,
+                OCTO_GROUND_DEPTH,
+                OCTO_GROUND_DEPTH,
+              );
             }
+          } else {
+            // Mid-swim: re-pick the touchdown spot against the rotated prop set.
+            landX = null;
           }
         }
         curlTimer -= dt;
@@ -610,7 +665,14 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
                 mX,
                 k.width() - mX,
               );
-              tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+              tx = clampPathX(
+                px,
+                tx,
+                OCTO_HALF,
+                OCTO_STANDOFF,
+                OCTO_GROUND_DEPTH,
+                OCTO_GROUND_DEPTH,
+              );
               let hopDir = dir;
               if (Math.abs(tx - px) < 12 * S) {
                 // A prop clamped the hop to a near-instant park — try the other
@@ -621,10 +683,23 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
                   mX,
                   k.width() - mX,
                 );
-                tx = clampPathX(px, tx, OCTO_HALF, OCTO_STANDOFF);
+                tx = clampPathX(
+                  px,
+                  tx,
+                  OCTO_HALF,
+                  OCTO_STANDOFF,
+                  OCTO_GROUND_DEPTH,
+                  OCTO_GROUND_DEPTH,
+                );
               }
-              if (hopDir !== facing) curlTimer = 0.5; // curl its arms through the turn
-              beginTurn(hopDir);
+              if (Math.abs(tx - px) < 12 * S) {
+                // Boxed in on both sides — leave the ground rather than re-park
+                // in place forever.
+                startSwimBout();
+              } else {
+                if (hopDir !== facing) curlTimer = 0.5; // curl through the turn
+                beginTurn(hopDir);
+              }
             }
           } else {
             // crawling toward the hop; close enough → settle and rest a while
@@ -647,7 +722,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
                 spawnSandPuff(
                   k,
                   px + facing * 8 * S,
-                  sandTopAt(clamp(px, 0, k.width() - 1)),
+                  groundY(px) + OCTO_SIT,
                   0.32,
                   1,
                   2,
@@ -657,28 +732,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             }
             // only push off for a swim while actively moving (rests are protected)
             swimCooldown -= dt;
-            if (swimCooldown <= 0) {
-              octoMode = "swim";
-              swimSub = "gather";
-              subTimer = cr.gather;
-              descending = false;
-              liftedOff = false;
-              pulsesLeft = Math.round(k.rand(cr.pulses[0], cr.pulses[1]));
-              swimRoaming = k.chance(cr.roamChance); // wander the water, or a single dive?
-              swimRoamLeft = swimRoaming
-                ? k.rand(cr.roamSecs[0], cr.roamSecs[1])
-                : 0;
-              swimHover = k.rand(cr.roamHover[0], cr.roamHover[1]);
-              swimVigorous = swimRoaming || pulsesLeft >= 2; // energetic pose row
-              swimDir =
-                px < mX * 2
-                  ? 1
-                  : px > k.width() - mX * 2
-                    ? -1
-                    : k.choose([-1, 1]);
-              if (swimDir !== facing) curlTimer = 0.4; // curl through the launch turn
-              beginTurn(swimDir);
-            }
+            if (swimCooldown <= 0) startSwimBout();
           }
           // ride the sand contour: a P-controller eases py to the seated ground height
           // (offset down by buryNow right after a landing, so it presses in and recovers)
@@ -765,66 +819,41 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             }
           } else {
             // SETTLE: very close to the sand now (the push-pulses quit above it).
-            // Stop stroking, keep a little forward glide while sinking the last bit,
-            // and touch down.
-            const inwardDir =
-              px < mX + 18 * S
-                ? 1
-                : px > k.width() - mX - 18 * S
-                  ? -1
-                  : swimDir;
-            // A prop under the touchdown point overrides the wall steer — landing
-            // on it isn't an option, so head for the nearer clear edge instead.
-            const inFootprint = insidePropFootprint(px, OCTO_HALF);
-            // Trapped over a footprint with nowhere clear to sink? Count the time;
-            // once it exceeds the limit, give up avoiding and settle where it is.
-            landStuck = inFootprint ? landStuck + dt : 0;
-            const forceLand = landStuck > OCTO_LAND_STUCK_LIMIT;
+            // Steer to the touchdown x picked once per descent (re-picked only when
+            // the prop set rotates or a wall interrupts), sinking where it's clear.
+            if (landX === null) pickLanding();
+            const ldx = landX! - px;
             const steerDir =
-              inFootprint && !forceLand
-                ? nearestClearX(
-                    px,
-                    OCTO_HALF,
-                    OCTO_STANDOFF,
-                    undefined,
-                    mX,
-                    k.width() - mX,
-                  ) >= px
-                  ? 1
-                  : -1
-                : inwardDir;
+              Math.abs(ldx) > 4 * S ? (ldx > 0 ? 1 : -1) : swimDir;
             if (steerDir !== swimDir) {
               swimDir = steerDir;
               beginTurn(steerDir);
             }
             vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
-            if (!inFootprint || forceLand) vy += cr.sink * dt;
+            if (
+              !landingClear ||
+              !insidePropFootprint(px, OCTO_HALF, OCTO_GROUND_DEPTH)
+            )
+              vy += cr.sink * dt;
           }
           // Touch down from any sub-state the moment the body meets the sand: a bout
           // that drifts over the rising dune settles on contact instead of pinning
           // to the crest. `liftedOff` gates it so a just-launched bunch (py still at
           // the ground) can't re-land before it has climbed.
-          if (swimSub !== "settle") landStuck = 0;
           if (py < groundY(px) - 8 * S) liftedOff = true;
           if (
             liftedOff &&
-            (landStuck > OCTO_LAND_STUCK_LIMIT ||
-              !insidePropFootprint(px, OCTO_HALF)) &&
+            (!insidePropFootprint(px, OCTO_HALF, OCTO_GROUND_DEPTH) ||
+              !landingClear) &&
             py >= groundY(px) - 4 * S &&
             vy >= 0
           ) {
             octoMode = "crawl";
             descending = false;
-            landStuck = 0;
+            landX = null;
+            landingClear = true;
             // touchdown: kick up a puff of sand and press the body into it
-            spawnSandPuff(
-              k,
-              px,
-              sandTopAt(clamp(px, 0, k.width() - 1)),
-              2,
-              2,
-              2,
-            );
+            spawnSandPuff(k, px, groundY(px) + OCTO_SIT, 2, 2, 2);
             buryTimer = BURY_DUR;
             restLong = false;
             restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
@@ -1039,6 +1068,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           swimDir = inward;
           beginTurn(inward);
           vx = inward * Math.max(Math.abs(vx) * 0.35, cfg.crawl!.speed * 0.9);
+          landX = null; // re-pick the touchdown spot from the clamped position
           // A roamer keeps wandering; a single dive transitions to glide-down.
           if (!(swimRoaming && swimRoamLeft > 0)) swimSub = "settle";
         }
