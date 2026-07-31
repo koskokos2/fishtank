@@ -46,3 +46,17 @@ Generated with the built-in image generation tool using existing fishtank atlase
   12. Broken patinated trident head of Poseidon
 - Constraints: no fish, humans, text, numbers, watermark, frame, modern items, overlaps, or magenta inside the sprites
 
+### Approved replacement relics
+
+The original wax-and-rope, wind bag, and cave-stone cells were replaced with
+separately generated sprites while preserving the other nine atlas cells:
+
+1. Helios sacred bull skull — aged ivory skull, gilded horns, sun-disc ornament,
+   wine-red ceremonial cords, compact seabed base
+2. Tiresias underworld lantern — squat black-bronze ritual lantern, Greek
+   meander cutouts, hard-edged pale spectral flame, pomegranate ornament
+3. Cyclops head — colossal weathered stone head, one turquoise eye, cracked
+   sculptural beard, oxidized-bronze trim, compact seabed base
+
+Each replacement uses the same polished hand-pixeled treatment and palette as
+the original sheet and was generated on a flat `#ff00ff` chroma background.

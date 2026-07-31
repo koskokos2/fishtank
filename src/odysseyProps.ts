@@ -13,12 +13,12 @@ export type OdysseyPropSpec = {
 // the shared runtime rotation assigns the actual visible slots.
 export const ODYSSEY_PROP_SPECS: OdysseyPropSpec[] = [
   { name: "wine_dark_amphora", fx: 0.04, depth: 18 },
-  { name: "siren_wax_and_rope", fx: 0.125, depth: 38 },
-  { name: "aeolus_wind_bag", fx: 0.21, depth: 25 },
+  { name: "helios_sacred_bull_skull", fx: 0.125, depth: 38 },
+  { name: "tiresias_underworld_lantern", fx: 0.21, depth: 25 },
   { name: "moly_herb_dish", fx: 0.295, depth: 44 },
   { name: "circe_golden_cup", fx: 0.38, depth: 20 },
   { name: "lotus_eater_bloom", fx: 0.465, depth: 36 },
-  { name: "cyclops_cave_stone", fx: 0.55, depth: 28 },
+  { name: "cyclops_head", fx: 0.55, depth: 28 },
   { name: "siren_broken_mast", fx: 0.635, depth: 50 },
   { name: "penelope_loom_shuttle", fx: 0.72, depth: 22 },
   { name: "trojan_war_helmet", fx: 0.805, depth: 42 },

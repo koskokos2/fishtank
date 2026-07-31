@@ -10,6 +10,11 @@ const SOURCE = "art/odyssey-props-atlas-transparent-v2.png";
 const OUTPUT = "art/odyssey-props-atlas-128.png";
 const MANIFEST = "art/odyssey-props-atlas-128.json";
 const MODULE = "src/odysseyPropsAtlas.ts";
+const REPLACEMENTS: Record<string, string> = {
+  helios_sacred_bull_skull: "art/odyssey-replacements/helios-bull-skull-transparent.png",
+  tiresias_underworld_lantern: "art/odyssey-replacements/underworld-lantern-transparent.png",
+  cyclops_head: "art/odyssey-replacements/cyclops-head-transparent.png",
+};
 const SOURCE_W = 1448;
 const SOURCE_H = 1086;
 const COLS = 4;
@@ -70,6 +75,59 @@ function downsample(work: Uint8Array): Uint8Array {
     }
   }
   return out;
+}
+
+function normalizeReplacement(
+  rgba: Uint8Array,
+  imageW: number,
+  bounds: Rect,
+): Uint8Array {
+  const maxContent = 330;
+  const scale = Math.min(maxContent / bounds.w, maxContent / bounds.h);
+  const targetW = Math.max(1, Math.round(bounds.w * scale));
+  const targetH = Math.max(1, Math.round(bounds.h * scale));
+  const offsetX = Math.round((WORK_TILE - targetW) / 2);
+  const offsetY = Math.round((WORK_TILE - targetH) / 2);
+  const work = new Uint8Array(WORK_TILE * WORK_TILE * 4);
+
+  for (let y = 0; y < targetH; y++) {
+    const sy = bounds.y + (y + 0.5) * bounds.h / targetH - 0.5;
+    const y0 = Math.max(bounds.y, Math.min(bounds.y + bounds.h - 1, Math.floor(sy)));
+    const y1 = Math.max(bounds.y, Math.min(bounds.y + bounds.h - 1, y0 + 1));
+    const fy = sy - Math.floor(sy);
+    for (let x = 0; x < targetW; x++) {
+      const sx = bounds.x + (x + 0.5) * bounds.w / targetW - 0.5;
+      const x0 = Math.max(bounds.x, Math.min(bounds.x + bounds.w - 1, Math.floor(sx)));
+      const x1 = Math.max(bounds.x, Math.min(bounds.x + bounds.w - 1, x0 + 1));
+      const fx = sx - Math.floor(sx);
+      const samples = [
+        { x: x0, y: y0, weight: (1 - fx) * (1 - fy) },
+        { x: x1, y: y0, weight: fx * (1 - fy) },
+        { x: x0, y: y1, weight: (1 - fx) * fy },
+        { x: x1, y: y1, weight: fx * fy },
+      ];
+      let alpha = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      for (const sample of samples) {
+        const si = (sample.y * imageW + sample.x) * 4;
+        const a = rgba[si + 3] / 255;
+        const wa = sample.weight * a;
+        alpha += wa;
+        red += rgba[si] * wa;
+        green += rgba[si + 1] * wa;
+        blue += rgba[si + 2] * wa;
+      }
+      if (!alpha) continue;
+      const di = ((offsetY + y) * WORK_TILE + offsetX + x) * 4;
+      work[di] = Math.round(red / alpha);
+      work[di + 1] = Math.round(green / alpha);
+      work[di + 2] = Math.round(blue / alpha);
+      work[di + 3] = Math.round(alpha * 255);
+    }
+  }
+  return work;
 }
 
 function alphaRows(rgba: Uint8Array) {
@@ -136,25 +194,42 @@ if (manifest.tileSize !== TILE || manifest.columns !== COLS || manifest.rows !==
 const sheetW = TILE * COLS;
 const sheetH = TILE * ROWS;
 const sheet = new Uint8Array(sheetW * sheetH * 4);
+const replacementSources = new Map(
+  Object.entries(REPLACEMENTS).map(([name, path]) => [name, decodePng(readFileSync(path))]),
+);
 for (let row = 0; row < ROWS; row++) {
   for (let col = 0; col < COLS; col++) {
+    const sprite = manifest.sprites.find((entry) => entry.row === row && entry.col === col);
+    if (!sprite) throw new Error(`${MANIFEST}: missing sprite at row ${row}, col ${col}`);
     const x0 = Math.round((col * source.w) / COLS);
     const x1 = Math.round(((col + 1) * source.w) / COLS);
     const y0 = Math.round((row * source.h) / ROWS);
     const y1 = Math.round(((row + 1) * source.h) / ROWS);
-    const bb = alphaBBox(source.rgba, source.w, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
-    if (bb.w > WORK_TILE || bb.h > WORK_TILE)
-      throw new Error(`Odyssey relic (${row},${col}) is ${bb.w}x${bb.h}, larger than ${WORK_TILE}px`);
+    let work: Uint8Array;
+    const replacement = replacementSources.get(sprite.name);
+    if (replacement) {
+      const bb = alphaBBox(replacement.rgba, replacement.w, {
+        x: 0,
+        y: 0,
+        w: replacement.w,
+        h: replacement.h,
+      });
+      work = normalizeReplacement(replacement.rgba, replacement.w, bb);
+    } else {
+      const bb = alphaBBox(source.rgba, source.w, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      if (bb.w > WORK_TILE || bb.h > WORK_TILE)
+        throw new Error(`Odyssey relic (${row},${col}) is ${bb.w}x${bb.h}, larger than ${WORK_TILE}px`);
 
-    const work = new Uint8Array(WORK_TILE * WORK_TILE * 4);
-    const offX = Math.round((WORK_TILE - bb.w) / 2) - bb.x;
-    const offY = Math.round((WORK_TILE - bb.h) / 2) - bb.y;
-    for (let y = bb.y; y < bb.y + bb.h; y++) {
-      for (let x = bb.x; x < bb.x + bb.w; x++) {
-        const si = (y * source.w + x) * 4;
-        if (source.rgba[si + 3] < 16) continue;
-        const wi = ((y + offY) * WORK_TILE + x + offX) * 4;
-        work.set(source.rgba.subarray(si, si + 4), wi);
+      work = new Uint8Array(WORK_TILE * WORK_TILE * 4);
+      const offX = Math.round((WORK_TILE - bb.w) / 2) - bb.x;
+      const offY = Math.round((WORK_TILE - bb.h) / 2) - bb.y;
+      for (let y = bb.y; y < bb.y + bb.h; y++) {
+        for (let x = bb.x; x < bb.x + bb.w; x++) {
+          const si = (y * source.w + x) * 4;
+          if (source.rgba[si + 3] < 16) continue;
+          const wi = ((y + offY) * WORK_TILE + x + offX) * 4;
+          work.set(source.rgba.subarray(si, si + 4), wi);
+        }
       }
     }
     const tile = downsample(work);
