@@ -2,8 +2,9 @@ import type { KAPLAYCtx } from "kaplay";
 
 // Scene-ablation toggles for performance profiling. Normal operation is
 // unaffected (empty query = everything on). Open the page with e.g.
-// ?off=caustics,kelp to skip water lighting or those layers, ?off=all for the empty
-// tank floor, and ?uncap to lift the maxFPS cap — then read the FPS console.
+// ?off=caustics,kelp to skip the surface light map or those layers,
+// ?off=water-light to skip the procedural ray/glow shader, ?off=all for the
+// empty tank floor, and ?uncap to lift the maxFPS cap — then read the FPS console.
 // Headless tools import scene modules that import this one — no location there.
 const params =
   typeof location === "undefined"

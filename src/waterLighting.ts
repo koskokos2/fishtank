@@ -16,7 +16,7 @@ export const WATER_LIGHTING_TUNING = {
   // fraction (0 = left, 0.5 = centre/noon, 1 = right) to pin it and ignore the
   // clock; leave it null to let it drift over the day.
   emitter: {
-    xOverride: null as number | null,
+    xOverride: 0.5 as number | null,
     heightAboveSurface: 0.18, // smaller = source closer to water / wider fan
     surfaceSpread: 0.38, // how much horizontal ceiling area emits rays
     motionSpeed: 0.11,
@@ -72,39 +72,6 @@ export const WATER_LIGHTING_TUNING = {
     fanMaskStart: 2.5,
     fanMaskEnd: 3.4,
     projectionFloor: 0.06,
-  },
-
-  // Layered, curved wave fields seen on the underside of the water surface.
-  // domeScale and domeCurvature make the ceiling read as a small view onto a
-  // much larger curved surface instead of a flat sheet facing the camera.
-  surface: {
-    intensity: 0.82,
-    haloIntensity: 0.28,
-    darkeningBetweenCaustics: 0.06,
-    color: [0.68, 1.0, 0.95],
-    haloColor: [0.2, 0.78, 0.84],
-    zoneStart: 0.05,
-    zoneEnd: 0.15, // dense ceiling, then an exact zero below the surface band
-    domeScale: [1.0, 2.65],
-    domeCurvature: 0.85,
-    primaryFrequency: 63.0,
-    secondaryFrequency: 91.0,
-    horizontalFrequency: 172.0,
-    primaryWidth: 0.17,
-    primarySoftness: 0.2,
-    secondaryWidth: 0.12,
-    secondarySoftness: 0.17,
-    haloWidth: 0.4,
-    haloSoftness: 0.42,
-    warpAmountA: 0.9,
-    warpAmountB: 0.52,
-    animationSpeed: 0.09,
-    radialHorizontalScale: 1.0,
-    radialVerticalScale: 2.05,
-    radialFadeStart: 0.035,
-    radialFadeEnd: 0.54, // caustics are exactly zero far from the emitter
-    grainMin: 0.68,
-    grainCell: [4, 3],
   },
 
   // Bright opening and soft glow around the emitter.
@@ -227,13 +194,6 @@ float dashHash(vec2 v) {
   return fract((p3.x + p3.y) * p3.z);
 }
 
-// A narrow highlight around a warped wave phase. Combining several of these
-// produces soft, intersecting ribbons without the straight Voronoi boundaries
-// that made the previous surface resemble cracked glass.
-float causticLine(float phase, float width, float softness) {
-  return 1.0 - smoothstep(width, width + softness, abs(sin(phase)));
-}
-
 // A smooth version of the broad dune contour from backdrop.ts. The tiny grain
 // there is deliberately omitted: rays should fade across a clean band instead
 // of tracing every one-pixel bump in the sand.
@@ -317,170 +277,9 @@ vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
   vec2 p = (floor(uv * renderSize) + 0.5) / renderSize;
   float t = u_time;
 
-  // Several warped wave fields are projected across a shallow dome. Their
-  // curved intersections suggest an immense spherical surface overhead, while
-  // independent fragment masks keep the bands choppy rather than diagrammatic.
+  // Surface caustics are now a generated sprite layer. This shader keeps only
+  // the aperture and ray fields, sharing the same emitter position with it.
   vec2 renderPx = floor(uv * renderSize);
-  float surfaceZone = 1.0 - smoothstep(
-    ${glslFloat(WATER_LIGHTING_TUNING.surface.zoneStart)},
-    ${glslFloat(WATER_LIGHTING_TUNING.surface.zoneEnd)},
-    p.y
-  );
-  float surfaceCaustics = 0.0;
-  float surfaceHalo = 0.0;
-
-  // The branch is coherent across scanlines and skips the surface pattern for
-  // most of the tank. Unlike the old Voronoi pass, there are no polygon cells.
-  if (p.y < ${glslFloat(WATER_LIGHTING_TUNING.surface.zoneEnd)}) {
-    vec2 domePos = vec2(
-      p.x - u_emitterX,
-      p.y - ${glslFloat(WATER_LIGHTING_TUNING.glow.apertureY)}
-    ) * ${glslVec2(WATER_LIGHTING_TUNING.surface.domeScale)};
-    vec2 warpedDome = domePos;
-    warpedDome.x += sin(
-      domePos.y * 13.0 + domePos.x * 5.0
-        - t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.78)}
-    ) * 0.032;
-    warpedDome.x += sin(
-      domePos.y * 29.0 - domePos.x * 11.0
-        + t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.44)}
-    ) * 0.015;
-    warpedDome.y += sin(
-      domePos.x * 19.0
-        + t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed)}
-    ) * 0.024;
-    warpedDome.y += sin(
-      domePos.x * 37.0 - domePos.y * 7.0
-        - t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.56)}
-    ) * 0.01;
-
-    float domeRadius = length(warpedDome);
-    float sphereCoordinate = domeRadius
-      + domeRadius * domeRadius * domeRadius
-        * ${glslFloat(WATER_LIGHTING_TUNING.surface.domeCurvature)};
-    float domeAngle = atan(warpedDome.y, warpedDome.x);
-    float primaryPhase = sphereCoordinate
-      * ${glslFloat(WATER_LIGHTING_TUNING.surface.primaryFrequency)}
-      + sin(
-        domeAngle * 6.0
-          + t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed)}
-      ) * ${glslFloat(WATER_LIGHTING_TUNING.surface.warpAmountA)}
-      + sin(
-        warpedDome.x * 17.0 - warpedDome.y * 5.0
-          - t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.67)}
-      ) * ${glslFloat(WATER_LIGHTING_TUNING.surface.warpAmountB)};
-
-    vec2 shiftedDome = warpedDome + vec2(
-      sin(t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.5)})
-        * 0.018,
-      cos(t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.39)})
-        * 0.011
-    );
-    float shiftedRadius = length(shiftedDome);
-    float shiftedSphere = shiftedRadius
-      + shiftedRadius * shiftedRadius * shiftedRadius
-        * ${glslFloat(WATER_LIGHTING_TUNING.surface.domeCurvature * 0.72)};
-    float secondaryPhase = shiftedSphere
-      * ${glslFloat(WATER_LIGHTING_TUNING.surface.secondaryFrequency)}
-      + sin(
-        domeAngle * 9.0
-          - t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.73)}
-      ) * ${glslFloat(WATER_LIGHTING_TUNING.surface.warpAmountA * 0.8)}
-      + sin(
-        warpedDome.x * 31.0 + warpedDome.y * 11.0
-          + t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.46)}
-      ) * ${glslFloat(WATER_LIGHTING_TUNING.surface.warpAmountB)};
-
-    float horizontalPhase = p.y
-      * ${glslFloat(WATER_LIGHTING_TUNING.surface.horizontalFrequency)}
-      + sphereCoordinate * 12.0
-      + sin(
-        p.x * 31.0
-          + t * ${glslFloat(WATER_LIGHTING_TUNING.surface.animationSpeed * 0.61)}
-      ) * 0.8
-      + sin(p.x * 67.0 - p.y * 19.0) * 0.35;
-
-    float fragmentA = smoothstep(
-      -0.42,
-      0.62,
-      sin(p.x * 83.0 + p.y * 41.0 - t * 0.11)
-        + sin(p.x * 37.0 - p.y * 89.0 + t * 0.07)
-    );
-    float fragmentB = smoothstep(
-      -0.16,
-      0.78,
-      sin(p.x * 131.0 - p.y * 57.0 + t * 0.06)
-        + sin(p.x * 53.0 + p.y * 113.0 - t * 0.09) * 0.48
-    );
-
-    float primaryCore = causticLine(
-      primaryPhase,
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.primaryWidth)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.primarySoftness)}
-    ) * (0.2 + fragmentA * 0.8);
-    float secondaryCore = causticLine(
-      secondaryPhase,
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.secondaryWidth)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.secondarySoftness)}
-    ) * fragmentB * 0.78;
-    float horizontalCore = causticLine(
-      horizontalPhase,
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.secondaryWidth)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.secondarySoftness)}
-    ) * (0.3 + (1.0 - fragmentB) * 0.7) * 0.55;
-    float waveCore = min(
-      1.0,
-      primaryCore + secondaryCore + horizontalCore
-    );
-
-    float primaryHalo = causticLine(
-      primaryPhase,
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.haloWidth)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.haloSoftness)}
-    ) * (0.35 + fragmentA * 0.65);
-    float secondaryHalo = causticLine(
-      secondaryPhase,
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.haloWidth * 0.82)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.haloSoftness)}
-    ) * fragmentB * 0.58;
-    float horizontalHalo = causticLine(
-      horizontalPhase,
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.haloWidth * 0.72)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.haloSoftness)}
-    ) * 0.34;
-    float waveHalo = max(
-      0.0,
-      max(primaryHalo, max(secondaryHalo, horizontalHalo)) - waveCore * 0.55
-    );
-
-    float causticGrain = ${glslFloat(WATER_LIGHTING_TUNING.surface.grainMin)}
-      + dashHash(
-        floor(renderPx / ${glslVec2(WATER_LIGHTING_TUNING.surface.grainCell)})
-      ) * ${glslFloat(1 - WATER_LIGHTING_TUNING.surface.grainMin)};
-    vec2 radialPos = vec2(
-      (p.x - u_emitterX)
-        * ${glslFloat(WATER_LIGHTING_TUNING.surface.radialHorizontalScale)},
-      (p.y - ${glslFloat(WATER_LIGHTING_TUNING.glow.apertureY)})
-        * ${glslFloat(WATER_LIGHTING_TUNING.surface.radialVerticalScale)}
-    );
-    float radialFocus = 1.0 - smoothstep(
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.radialFadeStart)},
-      ${glslFloat(WATER_LIGHTING_TUNING.surface.radialFadeEnd)},
-      length(radialPos)
-    );
-    float hotspot = radialFocus * radialFocus;
-    float radialBrightness = radialFocus * (0.34 + radialFocus * 0.66);
-
-    surfaceCaustics = waveCore
-      * causticGrain
-      * surfaceZone
-      * radialBrightness
-      * (0.58 + hotspot * 0.72);
-    surfaceHalo = waveHalo
-      * (0.7 + causticGrain * 0.3)
-      * surfaceZone
-      * radialBrightness;
-  }
 
   // The hot white-cyan opening at top centre anchors both caustics and rays.
   float centre = 1.0 - smoothstep(
@@ -573,21 +372,8 @@ vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
     vec3(${glslFloat(WATER_LIGHTING_TUNING.majorRays.maxOverlap)})
   ) * rayShimmer * rayGrain;
 
-  // A slight ceiling darkening and a separate aqua halo give the wave ribbons
-  // tonal depth instead of a single clean vector stroke.
-  vec3 lit = base.rgb * (
-    1.0
-    - surfaceZone * ${glslFloat(WATER_LIGHTING_TUNING.surface.darkeningBetweenCaustics)}
-  );
-  vec3 surfaceColor = ${glslVec3(WATER_LIGHTING_TUNING.surface.color)};
-  vec3 surfaceHaloColor = ${glslVec3(WATER_LIGHTING_TUNING.surface.haloColor)};
-  lit += surfaceHaloColor
-    * surfaceHalo
-    * ${glslFloat(WATER_LIGHTING_TUNING.surface.haloIntensity)};
-  lit += surfaceColor
-    * surfaceCaustics
-    * ${glslFloat(WATER_LIGHTING_TUNING.surface.intensity)};
-  lit += surfaceColor
+  vec3 lit = base.rgb;
+  lit += vec3(0.68, 1.0, 0.95)
     * skyGlow
     * ${glslFloat(WATER_LIGHTING_TUNING.glow.intensity)};
   lit += rayLight * ${glslFloat(WATER_LIGHTING_TUNING.majorRays.intensity)};

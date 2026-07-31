@@ -1,4 +1,13 @@
-import type { KAPLAYCtx, Quad, Vec2, Color } from "kaplay";
+import type {
+  KAPLAYCtx,
+  Quad,
+  Vec2,
+  Color,
+  GameObj,
+  SpriteComp,
+  PosComp,
+  OpacityComp,
+} from "kaplay";
 import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
 import {
@@ -22,7 +31,7 @@ type TankEntityCounts = Readonly<{ plants: number }>;
 // The static scene is baked once into two sprites (see backdrop.ts): the
 // water back plate and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
-// shader-driven surface light, swaying plants, motes, and source-based bubbles.
+// shader-driven rays, sprite caustics, swaying plants, motes, and bubbles.
 // Depth is faked with z-ordering.
 export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The baked layers hold everything static; only the layers below animate.
@@ -36,9 +45,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
       profileDrawEnd(),
       k.pos(0, 0),
       k.z(-200),
-      // Keep the existing ?off=caustics ablation switch even though the old
-      // CPU caustics texture is now a water-surface and god-ray shader.
-      ...(off("caustics")
+      ...(off("water-light")
         ? []
         : [
             k.shader(WATER_LIGHT_SHADER, () => {
@@ -55,6 +62,53 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
             }),
           ]),
     ]);
+  }
+  if (!off("backdrop") && !off("caustics")) {
+    // The generated atlas is authored at RES=3. Scaling by the current RES
+    // preserves its 640x128 design-space footprint for every runtime density;
+    // at the default density it remains native-resolution, scale 1 artwork.
+    const causticsScale = RES / 3;
+    type CausticsLayer = GameObj<SpriteComp | PosComp | OpacityComp>;
+    const layerA = k.add([
+      profileDraw("caustics"),
+      k.sprite("caustics"),
+      profileDrawEnd(),
+      k.pos(0, 0),
+      k.scale(causticsScale),
+      k.opacity(1),
+      k.z(-195),
+    ]) as CausticsLayer;
+    const layerB = k.add([
+      profileDraw("caustics"),
+      k.sprite("caustics"),
+      profileDrawEnd(),
+      k.pos(0, 0),
+      k.scale(causticsScale),
+      k.opacity(0),
+      k.z(-195),
+    ]) as CausticsLayer;
+    const pingPong = [0, 1, 2, 3, 2, 1] as const;
+    // Thirteen complete ping-pong cycles fit exactly inside the shader's loop,
+    // keeping the modulo boundary visually seamless. Each fade is ~8.05 s.
+    const transitionCount = pingPong.length * 13;
+    const transitionSeconds =
+      WATER_LIGHTING_TUNING.animationLoopSeconds / transitionCount;
+    k.onUpdate(() => {
+      const time = k.time() % WATER_LIGHTING_TUNING.animationLoopSeconds;
+      const progress = time / transitionSeconds;
+      const step = Math.floor(progress);
+      const mix = progress - step;
+      const smoothMix = mix * mix * (3 - 2 * mix);
+      layerA.frame = pingPong[step % pingPong.length];
+      layerB.frame = pingPong[(step + 1) % pingPong.length];
+      layerA.opacity = 1 - smoothMix;
+      layerB.opacity = smoothMix;
+
+      // The reference's surface pattern spans the whole ceiling. Keep the
+      // sprite screen-aligned; only the procedural aperture/rays follow the sun.
+      layerA.pos.x = layerB.pos.x = 0;
+      layerA.pos.y = layerB.pos.y = 0;
+    });
   }
   if (!off("sand"))
     k.add([

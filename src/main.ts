@@ -46,6 +46,7 @@ import {
   POP_CULTURE_PROPS_ATLAS_ROWS,
 } from "./popCulturePropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
+import { CAUSTICS_FRAMES, CAUSTICS_SPRITE } from "./causticsSprite";
 import { setupTank } from "./tank";
 import { loadWaterLighting } from "./waterLighting";
 import {
@@ -238,6 +239,7 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
 
   k.loadSprite("backdrop", backdrop.back);
   k.loadSprite("backdrop-sand", backdrop.sand);
+  k.loadSprite("caustics", CAUSTICS_SPRITE, { sliceY: CAUSTICS_FRAMES });
   fishSheets.forEach((sheet, i) => {
     k.loadSprite(`fish-${i}`, sheet, {
       sliceX: SWIM_FRAMES,

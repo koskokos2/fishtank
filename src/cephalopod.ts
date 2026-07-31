@@ -823,13 +823,15 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
             // the prop set rotates or a wall interrupts), sinking where it's clear.
             if (landX === null) pickLanding();
             const ldx = landX! - px;
-            const steerDir =
-              Math.abs(ldx) > 4 * S ? (ldx > 0 ? 1 : -1) : swimDir;
+            const arrived = Math.abs(ldx) <= 4 * S;
+            const steerDir = arrived ? swimDir : ldx > 0 ? 1 : -1;
             if (steerDir !== swimDir) {
               swimDir = steerDir;
               beginTurn(steerDir);
             }
-            vx += (swimDir * cr.speed * 2.2 - vx) * 3 * dt;
+            // ease to a stop over the touchdown spot instead of driving past it
+            // and steering back forever
+            vx += ((arrived ? 0 : swimDir * cr.speed * 2.2) - vx) * 3 * dt;
             if (
               !landingClear ||
               !insidePropFootprint(px, OCTO_HALF, OCTO_GROUND_DEPTH)
@@ -839,10 +841,13 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
           // Touch down from any sub-state the moment the body meets the sand: a bout
           // that drifts over the rising dune settles on contact instead of pinning
           // to the crest. `liftedOff` gates it so a just-launched bunch (py still at
-          // the ground) can't re-land before it has climbed.
+          // the ground) can't re-land before it has climbed — but a settling bout is
+          // always landing-eligible: a bout swum up-slope stays pinned to the rising
+          // sand and never clears the lift threshold, and without this it could
+          // never leave swim mode.
           if (py < groundY(px) - 8 * S) liftedOff = true;
           if (
-            liftedOff &&
+            (liftedOff || swimSub === "settle") &&
             (!insidePropFootprint(px, OCTO_HALF, OCTO_GROUND_DEPTH) ||
               !landingClear) &&
             py >= groundY(px) - 4 * S &&
