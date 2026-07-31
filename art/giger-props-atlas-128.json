@@ -10,16 +10,16 @@
   "layout": "runtime-grid",
   "sprites": [
     { "name": "necronom_reliquary", "row": 0, "col": 0, "category": "gigerRelic", "role": "necronom" },
-    { "name": "birth_machine_capsule", "row": 0, "col": 1, "category": "gigerRelic", "role": "birthMachine" },
+    { "name": "birth_machine_reliquary", "row": 0, "col": 1, "category": "gigerRelic", "role": "birthMachine" },
     { "name": "passage_portal_fragment", "row": 0, "col": 2, "category": "gigerRelic", "role": "passages" },
     { "name": "li_portrait_shrine", "row": 0, "col": 3, "category": "gigerRelic", "role": "liPortraits" },
     { "name": "harkonnen_chair_wreck", "row": 1, "col": 0, "category": "gigerRelic", "role": "duneFurniture" },
-    { "name": "giger_bar_stool_relic", "row": 1, "col": 1, "category": "gigerRelic", "role": "architecturalFurniture" },
-    { "name": "biomechanical_microphone_stand", "row": 1, "col": 2, "category": "gigerRelic", "role": "performanceDesign" },
-    { "name": "kookoo_facial_frame", "row": 1, "col": 3, "category": "gigerRelic", "role": "kookoo" },
+    { "name": "pelvic_bar_stool", "row": 1, "col": 1, "category": "gigerRelic", "role": "architecturalFurniture" },
+    { "name": "sensory_coupling_stand", "row": 1, "col": 2, "category": "gigerRelic", "role": "performanceDesign" },
+    { "name": "kookoo_bondage_frame", "row": 1, "col": 3, "category": "gigerRelic", "role": "kookoo" },
     { "name": "brain_salad_gate", "row": 2, "col": 0, "category": "gigerRelic", "role": "brainSaladSurgery" },
-    { "name": "atomic_child_toy", "row": 2, "col": 1, "category": "gigerRelic", "role": "atomicChildren" },
+    { "name": "coupling_altar", "row": 2, "col": 1, "category": "gigerRelic", "role": "erotomechanicalCoupling" },
     { "name": "biomechanical_timepiece", "row": 2, "col": 2, "category": "gigerRelic", "role": "functionalDesign" },
-    { "name": "mordor_engine_core", "row": 2, "col": 3, "category": "gigerRelic", "role": "mordor" }
+    { "name": "mordor_containment_cradle", "row": 2, "col": 3, "category": "gigerRelic", "role": "mordor" }
   ]
 }

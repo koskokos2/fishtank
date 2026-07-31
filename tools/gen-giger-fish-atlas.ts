@@ -10,20 +10,20 @@ const SOURCE = "art/giger-fish-atlas-transparent.png";
 const OUTPUT = "art/giger-fish-atlas-128.png";
 const MANIFEST = "art/giger-fish-atlas-128.json";
 const MODULE = "src/gigerFishAtlas.ts";
-const SOURCE_W = 1075;
-const SOURCE_H = 1463;
+const SOURCE_W = 1067;
+const SOURCE_H = 1474;
 const COLS = 3;
 const ROWS = 4;
 const TILE = 128;
 const WORK_TILE = 384;
-const ROW_CUTS = [0, 423, 738, 1036, SOURCE_H] as const;
+const ROW_CUTS = [0, 403, 703, 1038, SOURCE_H] as const;
 // Long fins overlap the nominal thirds differently in each row. These cuts sit
 // inside the measured transparent gutter for that row.
 const COL_CUTS = [
-  [0, 382, 704, SOURCE_W],
-  [0, 374, 692, SOURCE_W],
-  [0, 370, 684, SOURCE_W],
-  [0, 338, 674, SOURCE_W],
+  [0, 364, 728, SOURCE_W],
+  [0, 359, 714, SOURCE_W],
+  [0, 350, 705, SOURCE_W],
+  [0, 339, 680, SOURCE_W],
 ] as const;
 
 function alphaBBox(rgba: Uint8Array, imageW: number, region: Rect): Rect {

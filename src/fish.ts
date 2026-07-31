@@ -691,12 +691,12 @@ export const FISH_KINDS: FishKind[] = [
     motion: "flowing",
   }, // slow  — ceremonial fins and blue eye drift in upper water
   {
-    name: "atomic_nursery_fish",
+    name: "erotomechanical_couplingfish",
     level: { min: 0.22, max: 0.66 },
     speed: 1,
     length: 18,
     motion: "standard",
-  }, // med   — compact masked machine with wheel-like fin joints
+  }, // med   — paired piston-and-receptacle bodies cruise as one machine
   {
     name: "kookoo_fanfin",
     level: { min: 0.12, max: 0.58 },
