@@ -771,8 +771,25 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       box.append(grid);
       if (title) {
         const heading = document.createElement("div");
-        heading.textContent = title;
-        heading.style.cssText = "grid-column:1/-1;opacity:.7;margin-bottom:2px";
+        heading.style.cssText =
+          "grid-column:1/-1;opacity:.7;margin-bottom:2px;" +
+          "display:flex;align-items:center;gap:6px";
+        const label = document.createElement("span");
+        label.textContent = title;
+        heading.append(label);
+        const allBtn = document.createElement("button");
+        allBtn.textContent = "×";
+        allBtn.title = `Toggle all ${title}`;
+        allBtn.style.cssText =
+          "background:none;border:none;color:#7f7;cursor:pointer;" +
+          "font:11px monospace;padding:0;line-height:1";
+        allBtn.addEventListener("click", () => {
+          const cbs = entries.map(([name]) => boxes.get(name)!);
+          const turnOn = cbs.some((cb) => !cb.checked);
+          for (const cb of cbs) cb.checked = turnOn;
+          apply();
+        });
+        heading.append(allBtn);
         grid.append(heading);
       }
       for (const [name, display] of entries) {
