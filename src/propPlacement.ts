@@ -47,6 +47,12 @@ import {
   GIGER_PROPS_ATLAS_CELL,
   GIGER_PROPS_ATLAS_LAYOUT,
 } from "./gigerPropsAtlas";
+import { GRINDELWALD_PROP_SPECS } from "./grindelwaldProps";
+import {
+  GRINDELWALD_PROPS_ATLAS,
+  GRINDELWALD_PROPS_ATLAS_CELL,
+  GRINDELWALD_PROPS_ATLAS_LAYOUT,
+} from "./grindelwaldPropsAtlas";
 import {
   SMALL_PROPS_ATLAS,
   SMALL_PROPS_ATLAS_CELL,
@@ -76,6 +82,7 @@ export type WhitelistedProp = {
     | "pop-culture-props"
     | "odyssey-props"
     | "giger-props"
+    | "grindelwald-props"
     | "small-props";
   frame: number;
   cell: number;
@@ -243,6 +250,14 @@ export const PROP_WHITELIST: readonly WhitelistedProp[] = [
     GIGER_PROP_SPECS.map((spec) => spec.name),
     GIGER_PROPS_ATLAS_CELL,
     GIGER_PROPS_ATLAS_LAYOUT,
+  ),
+  ...familyProps(
+    "grindelwald",
+    "grindelwald-props",
+    GRINDELWALD_PROPS_ATLAS,
+    GRINDELWALD_PROP_SPECS.map((spec) => spec.name),
+    GRINDELWALD_PROPS_ATLAS_CELL,
+    GRINDELWALD_PROPS_ATLAS_LAYOUT,
   ),
   ...familyProps(
     "small",

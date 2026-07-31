@@ -44,6 +44,10 @@ import {
   STAR_WARS_PROPS_ATLAS_CELL,
   STAR_WARS_PROPS_ATLAS_LAYOUT,
 } from "../src/starWarsPropsAtlas";
+import { POP_CULTURE_PROPS_ATLAS } from "../src/popCulturePropsAtlas";
+import { ODYSSEY_PROPS_ATLAS } from "../src/odysseyPropsAtlas";
+import { GIGER_PROPS_ATLAS } from "../src/gigerPropsAtlas";
+import { GRINDELWALD_PROPS_ATLAS } from "../src/grindelwaldPropsAtlas";
 import { RES } from "../src/res";
 import {
   JELLYFISH_ARMS_START,
@@ -397,12 +401,17 @@ function backdropWithProps() {
 }
 
 // A deterministic cross-section of the runtime pool for headless review. The
-// app samples randomly; the preview strides through the whitelist so all four
-// atlas families are represented consistently between runs.
+// app samples randomly; the preview strides through the whitelist so the atlas
+// families are represented consistently between runs.
 function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
+  const propFamily = opt("PROP_FAMILY");
+  const pool = propFamily
+    ? PROP_WHITELIST.filter((prop) => prop.id.startsWith(`${propFamily}:`))
+    : PROP_WHITELIST;
+  if (!pool.length) throw new Error(`no props found for family ${propFamily}`);
   const selected = Array.from(
     { length: PROP_SLOTS.length },
-    (_, index) => PROP_WHITELIST[(index * 5) % PROP_WHITELIST.length],
+    (_, index) => pool[(index * 5) % pool.length],
   );
   const atlasBySprite: Record<
     WhitelistedProp["sprite"],
@@ -411,6 +420,10 @@ function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
     "sci-fi-props": decodePng(dataUrlToBuffer(SCI_FI_PROPS_ATLAS)),
     "eldritch-props": decodePng(dataUrlToBuffer(ELDRITCH_PROPS_ATLAS)),
     "star-wars-props": decodePng(dataUrlToBuffer(STAR_WARS_PROPS_ATLAS)),
+    "pop-culture-props": decodePng(dataUrlToBuffer(POP_CULTURE_PROPS_ATLAS)),
+    "odyssey-props": decodePng(dataUrlToBuffer(ODYSSEY_PROPS_ATLAS)),
+    "giger-props": decodePng(dataUrlToBuffer(GIGER_PROPS_ATLAS)),
+    "grindelwald-props": decodePng(dataUrlToBuffer(GRINDELWALD_PROPS_ATLAS)),
     "small-props": decodePng(dataUrlToBuffer(SMALL_PROPS_ATLAS)),
   };
 

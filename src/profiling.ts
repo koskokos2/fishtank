@@ -748,6 +748,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ["obj-pop-culture", "pop-culture"],
       ["obj-odyssey", "odyssey"],
       ["obj-giger", "giger"],
+      ["obj-grindelwald", "grindelwald"],
       ["obj-small", "small"],
     ];
     const boxes = new Map<string, HTMLInputElement>();

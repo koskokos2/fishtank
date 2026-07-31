@@ -55,6 +55,11 @@ import {
   GIGER_PROPS_ATLAS_COLS,
   GIGER_PROPS_ATLAS_ROWS,
 } from "./gigerPropsAtlas";
+import {
+  GRINDELWALD_PROPS_ATLAS,
+  GRINDELWALD_PROPS_ATLAS_COLS,
+  GRINDELWALD_PROPS_ATLAS_ROWS,
+} from "./grindelwaldPropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { CAUSTICS_FRAMES, CAUSTICS_SPRITE } from "./causticsSprite";
 import { setupTank } from "./tank";
@@ -203,10 +208,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   // packer. Kaplay uses a next-fit shelf packer (each sprite opens or extends a shelf of
   // its own height; it never backfills an earlier, shorter shelf), so loading in mixed
   // heights strands slivers of space and spills the last sprites to a second page. Loading
-  // TALLEST-FIRST keeps each shelf full before the next opens, so all ten (the octopus,
-  // both crawlers, every prop, and the plant/kelp groves) fit one page and the whole
-  // bottom band batches. Order below is strictly by packed height: kelp 1024, the 512s,
-  // pop 384, octopus 172, then the 128-tall crawlers.
+  // TALLEST-FIRST keeps each shelf full before the next opens, minimizing page
+  // fragmentation across the octopus, both crawlers, every prop family, and the
+  // plant/kelp groves. Order below is strictly by packed height: kelp 1024, the
+  // 512s, the 384s, octopus 172, then the 128-tall crawlers.
   await loadSpriteSeq("luminous-kelp", LUMINOUS_KELP_ATLAS, {
     sliceX: LUMINOUS_KELP_COLS,
     sliceY: LUMINOUS_KELP_ROWS,
@@ -242,6 +247,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   await loadSpriteSeq("giger-props", GIGER_PROPS_ATLAS, {
     sliceX: GIGER_PROPS_ATLAS_COLS,
     sliceY: GIGER_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("grindelwald-props", GRINDELWALD_PROPS_ATLAS, {
+    sliceX: GRINDELWALD_PROPS_ATLAS_COLS,
+    sliceY: GRINDELWALD_PROPS_ATLAS_ROWS,
   });
   // The octopus is benthic too (rests on the sand, drawn in the bottom band), so its
   // pose sheet joins this group to share the page and batch with the sea floor. Its cells
