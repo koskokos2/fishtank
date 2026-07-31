@@ -1,0 +1,25 @@
+{
+  "image": "odyssey-fish-atlas-128.png",
+  "sourceImage": "odyssey-fish-atlas-transparent.png",
+  "chromaReference": "odyssey-fish-atlas-chroma.png",
+  "tileSize": 128,
+  "sourceWidth": 1075,
+  "sourceHeight": 1464,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    { "name": "cyclops_lanternfish", "row": 0, "col": 0, "category": "odysseyFish", "role": "cyclops" },
+    { "name": "siren_betta", "row": 0, "col": 1, "category": "odysseyFish", "role": "sirens" },
+    { "name": "scylla_eel", "row": 0, "col": 2, "category": "odysseyFish", "role": "scylla" },
+    { "name": "charybdis_ray", "row": 1, "col": 0, "category": "odysseyFish", "role": "charybdis" },
+    { "name": "lotus_puffer", "row": 1, "col": 1, "category": "odysseyFish", "role": "lotusEaters" },
+    { "name": "aeolus_sailfin", "row": 1, "col": 2, "category": "odysseyFish", "role": "aeolus" },
+    { "name": "circe_lionfish", "row": 2, "col": 0, "category": "odysseyFish", "role": "circe" },
+    { "name": "calypso_angelfish", "row": 2, "col": 1, "category": "odysseyFish", "role": "calypso" },
+    { "name": "laestrygon_grouper", "row": 2, "col": 2, "category": "odysseyFish", "role": "laestrygonians" },
+    { "name": "argos_dogfish", "row": 3, "col": 0, "category": "odysseyFish", "role": "argos" },
+    { "name": "athena_owlfin", "row": 3, "col": 1, "category": "odysseyFish", "role": "athena" },
+    { "name": "odysseus_compassfish", "row": 3, "col": 2, "category": "odysseyFish", "role": "odysseus" }
+  ]
+}

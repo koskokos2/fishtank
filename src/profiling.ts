@@ -29,6 +29,30 @@ export const configureEntityCountDefaults = (
   entityCountDefaults = Object.entries(counts);
 };
 
+// Info-icon previews for the fish/object set toggles: each set's owning module
+// (fish.ts, propPlacement.ts) registers its members' atlas crop coordinates so
+// the settings panel can render name + thumbnail without profiling.ts knowing
+// about fish or props itself.
+export type SetPreviewItem = {
+  name: string;
+  src: string; // atlas data URL
+  cell: number; // native px per atlas cell (square)
+  row: number;
+  col: number;
+};
+const setPreviews = new Map<string, readonly SetPreviewItem[]>();
+// Additive: a gate's members can be registered from more than one call site
+// (e.g. propPlacement.ts's rotating whitelist and its fixed display props both
+// contribute to the same "star-wars"/"sci-fi" families), so a later call must
+// extend the list rather than replace it.
+export const registerSetPreview = (
+  gate: string,
+  items: readonly SetPreviewItem[],
+) => {
+  const existing = setPreviews.get(gate);
+  setPreviews.set(gate, existing ? [...existing, ...items] : items);
+};
+
 type HeapMemory = {
   usedJSHeapSize: number;
   totalJSHeapSize: number;
@@ -600,8 +624,95 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       }
     }
 
+    // Set-preview panel: a tiny ⓘ next to a fish/object set row pins this open
+    // on the left with that set's members' names + atlas-cropped thumbnails,
+    // so a set can be identified before deciding to disable it. Sits
+    // bottom-left so it never collides with the top-left detail panel.
+    const PREVIEW_THUMB_SIZE = 64;
+    const previewBox = document.createElement("div");
+    previewBox.style.cssText =
+      "position:fixed;left:8px;bottom:8px;z-index:9;background:#000c;color:#7f7;" +
+      "font:13px/1.5 monospace;padding:6px 18px 6px 10px;border-radius:4px;" +
+      "width:480px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);" +
+      "overflow:auto;display:none";
+    document.body.append(previewBox);
+    const previewClose = document.createElement("button");
+    previewClose.textContent = "×";
+    previewClose.style.cssText =
+      "position:absolute;top:0;right:2px;background:none;border:none;" +
+      "color:#7f7a;font:15px monospace;cursor:pointer;padding:2px 4px";
+    previewBox.append(previewClose);
+    const previewTitle = document.createElement("div");
+    previewTitle.style.cssText = "font-weight:bold;margin-bottom:4px";
+    previewBox.append(previewTitle);
+    const previewGrid = document.createElement("div");
+    previewGrid.style.cssText =
+      "display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));" +
+      "gap:8px 12px";
+    previewBox.append(previewGrid);
+
+    const atlasImages = new Map<string, Promise<HTMLImageElement>>();
+    const loadAtlasImage = (src: string) => {
+      let p = atlasImages.get(src);
+      if (!p) {
+        p = new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("atlas thumb load failed"));
+          img.src = src;
+        });
+        atlasImages.set(src, p);
+      }
+      return p;
+    };
+    let activePreviewGate: string | null = null;
+    const closePreview = () => {
+      previewBox.style.display = "none";
+      activePreviewGate = null;
+    };
+    const openPreview = (gate: string, label: string) => {
+      if (activePreviewGate === gate) {
+        closePreview();
+        return;
+      }
+      activePreviewGate = gate;
+      previewBox.style.display = "";
+      previewTitle.textContent = label;
+      previewGrid.replaceChildren();
+      for (const item of setPreviews.get(gate) ?? []) {
+        const cell = document.createElement("div");
+        cell.style.cssText = "display:flex;align-items:center;gap:6px";
+        const canvas = document.createElement("canvas");
+        canvas.width = PREVIEW_THUMB_SIZE;
+        canvas.height = PREVIEW_THUMB_SIZE;
+        canvas.style.cssText = "flex:none;image-rendering:pixelated";
+        const nameEl = document.createElement("span");
+        nameEl.textContent = item.name;
+        cell.append(canvas, nameEl);
+        previewGrid.append(cell);
+        loadAtlasImage(item.src).then((img) => {
+          const cx = canvas.getContext("2d")!;
+          cx.imageSmoothingEnabled = false;
+          cx.drawImage(
+            img,
+            item.col * item.cell,
+            item.row * item.cell,
+            item.cell,
+            item.cell,
+            0,
+            0,
+            PREVIEW_THUMB_SIZE,
+            PREVIEW_THUMB_SIZE,
+          );
+        });
+      }
+    };
+    previewClose.addEventListener("click", closePreview);
+
     // Scene-element checkboxes: each maps to an ?off= gate, which only runs at
-    // spawn time — applying a change rewrites the query and reloads.
+    // spawn time — applying a change rewrites the query and reloads. Every
+    // checkbox across every grid below shares one `boxes` map and `apply`, so
+    // toggling one section's gates never clobbers another's.
     const TOGGLES = [
       "backdrop",
       "sand",
@@ -616,32 +727,89 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "crabs",
       "kelp",
     ];
-    const menu = document.createElement("div");
-    menu.style.cssText =
-      "display:grid;grid-template-columns:1fr 1fr;gap:1px 12px;" +
-      "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
-    box.append(menu);
+    // Fish-atlas and prop-family themes: same off= gate mechanism as TOGGLES,
+    // gate names prefixed so they can't collide with each other or TOGGLES
+    // (both have a "pop-culture" entry). Kept in sync by hand with fishKindSet's
+    // FISH_SET_ATLASES (fish.ts) and the families built into PROP_WHITELIST
+    // (propPlacement.ts) — profiling.ts stays a leaf module with no game imports.
+    const FISH_SET_TOGGLES: (readonly [string, string])[] = [
+      ["fish-main", "main"],
+      ["fish-extra", "extra"],
+      ["fish-bonus", "bonus"],
+      ["fish-alien", "alien"],
+      ["fish-pop-culture", "pop-culture"],
+      ["fish-odyssey", "odyssey"],
+      ["fish-giger", "giger"],
+    ];
+    const OBJECT_SET_TOGGLES: (readonly [string, string])[] = [
+      ["obj-sci-fi", "sci-fi"],
+      ["obj-eldritch", "eldritch"],
+      ["obj-star-wars", "star-wars"],
+      ["obj-pop-culture", "pop-culture"],
+      ["obj-odyssey", "odyssey"],
+      ["obj-giger", "giger"],
+      ["obj-small", "small"],
+    ];
     const boxes = new Map<string, HTMLInputElement>();
     const apply = () => {
-      const offNow = TOGGLES.filter((n) => !boxes.get(n)!.checked);
+      const offNow = [...boxes.entries()]
+        .filter(([, cb]) => !cb.checked)
+        .map(([name]) => name);
       const p = new URLSearchParams(location.search);
       if (offNow.length) p.set("off", offNow.join(","));
       else p.delete("off");
       location.search = p.toString();
     };
-    for (const name of TOGGLES) {
-      const label = document.createElement("label");
-      label.style.cssText =
-        "display:flex;gap:6px;align-items:center;cursor:pointer";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = !off(name);
-      cb.style.accentColor = "#7f7";
-      cb.addEventListener("change", apply);
-      boxes.set(name, cb);
-      label.append(cb, name);
-      menu.append(label);
-    }
+    const addToggleGrid = (
+      title: string,
+      entries: readonly (readonly [string, string])[],
+    ) => {
+      const grid = document.createElement("div");
+      grid.style.cssText =
+        "display:grid;grid-template-columns:1fr 1fr;gap:1px 12px;" +
+        "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
+      box.append(grid);
+      if (title) {
+        const heading = document.createElement("div");
+        heading.textContent = title;
+        heading.style.cssText = "grid-column:1/-1;opacity:.7;margin-bottom:2px";
+        grid.append(heading);
+      }
+      for (const [name, display] of entries) {
+        const label = document.createElement("label");
+        label.style.cssText =
+          "display:flex;gap:6px;align-items:center;cursor:pointer";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !off(name);
+        cb.style.accentColor = "#7f7";
+        cb.addEventListener("change", apply);
+        boxes.set(name, cb);
+        label.append(cb, display);
+        if (setPreviews.has(name)) {
+          const info = document.createElement("button");
+          info.textContent = "ⓘ";
+          info.title = `Preview ${display}`;
+          info.style.cssText =
+            "background:none;border:none;color:#7f7a;cursor:pointer;" +
+            "font:11px monospace;padding:0;line-height:1";
+          // A click inside a <label> also toggles its checkbox unless the
+          // default is prevented before the event finishes bubbling.
+          info.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openPreview(name, display);
+          });
+          label.append(info);
+        }
+        grid.append(label);
+      }
+      return grid;
+    };
+    const menu = addToggleGrid(
+      "",
+      TOGGLES.map((n) => [n, n] as const),
+    );
     const allBtn = document.createElement("label");
     allBtn.style.cssText =
       "display:flex;gap:6px;align-items:center;cursor:pointer";
@@ -650,11 +818,14 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     allCb.checked = TOGGLES.every((n) => !off(n));
     allCb.style.accentColor = "#7f7";
     allCb.addEventListener("change", () => {
-      for (const cb of boxes.values()) cb.checked = allCb.checked;
+      for (const name of TOGGLES) boxes.get(name)!.checked = allCb.checked;
       apply();
     });
     allBtn.append(allCb, "(all)");
     menu.append(allBtn);
+
+    addToggleGrid("fish sets", FISH_SET_TOGGLES);
+    addToggleGrid("object sets", OBJECT_SET_TOGGLES);
 
     // Buffer resolution and frame cap need a reload (both are fixed at init);
     // pause is live and splits update cost from draw cost — if fps rises while

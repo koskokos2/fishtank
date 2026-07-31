@@ -2,34 +2,53 @@ import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { clamp01 } from "./color";
 import {
+  off,
   profile,
   profileDraw,
   profileDrawEnd,
+  registerSetPreview,
   withDrawProfile,
 } from "./profiling";
 import { spawnSandPuff } from "./sandPuff";
 import { RES, VH } from "./res";
 import { SCI_FI_PROP_SPECS, spawnTemperatureReadout } from "./sciFiProps";
 import {
+  SCI_FI_PROPS_ATLAS,
   SCI_FI_PROPS_ATLAS_CELL,
   SCI_FI_PROPS_ATLAS_LAYOUT,
 } from "./sciFiPropsAtlas";
 import { ELDRITCH_PROP_SPECS } from "./eldritchProps";
 import {
+  ELDRITCH_PROPS_ATLAS,
   ELDRITCH_PROPS_ATLAS_CELL,
   ELDRITCH_PROPS_ATLAS_LAYOUT,
 } from "./eldritchPropsAtlas";
 import { STAR_WARS_PROP_SPECS, spawnFpsReadout } from "./starWarsProps";
 import {
+  STAR_WARS_PROPS_ATLAS,
   STAR_WARS_PROPS_ATLAS_CELL,
   STAR_WARS_PROPS_ATLAS_LAYOUT,
 } from "./starWarsPropsAtlas";
 import { POP_CULTURE_PROP_SPECS } from "./popCultureProps";
 import {
+  POP_CULTURE_PROPS_ATLAS,
   POP_CULTURE_PROPS_ATLAS_CELL,
   POP_CULTURE_PROPS_ATLAS_LAYOUT,
 } from "./popCulturePropsAtlas";
+import { ODYSSEY_PROP_SPECS } from "./odysseyProps";
 import {
+  ODYSSEY_PROPS_ATLAS,
+  ODYSSEY_PROPS_ATLAS_CELL,
+  ODYSSEY_PROPS_ATLAS_LAYOUT,
+} from "./odysseyPropsAtlas";
+import { GIGER_PROP_SPECS } from "./gigerProps";
+import {
+  GIGER_PROPS_ATLAS,
+  GIGER_PROPS_ATLAS_CELL,
+  GIGER_PROPS_ATLAS_LAYOUT,
+} from "./gigerPropsAtlas";
+import {
+  SMALL_PROPS_ATLAS,
   SMALL_PROPS_ATLAS_CELL,
   SMALL_PROPS_ATLAS_LAYOUT,
 } from "./smallPropsAtlas";
@@ -55,6 +74,8 @@ export type WhitelistedProp = {
     | "eldritch-props"
     | "star-wars-props"
     | "pop-culture-props"
+    | "odyssey-props"
+    | "giger-props"
     | "small-props";
   frame: number;
   cell: number;
@@ -143,40 +164,90 @@ function atlasProps(
   });
 }
 
+// Same off= gate mechanism as fishKindSet's sets, one gate per prop family, so
+// a theme can be turned off without hiding the whole props layer. The preview
+// registration always runs (even when the family is gated off) so the
+// settings panel's info icon can still show what a disabled set contains.
+function familyProps(
+  family: string,
+  sprite: WhitelistedProp["sprite"],
+  src: string,
+  names: readonly string[],
+  cell: number,
+  layouts: Record<
+    string,
+    Layout & { frame?: number; row?: number; col?: number }
+  >,
+): WhitelistedProp[] {
+  const props = atlasProps(family, sprite, names, cell, layouts);
+  registerSetPreview(
+    `obj-${family}`,
+    props.map((p) => ({
+      name: p.name,
+      src,
+      cell: p.cell,
+      row: layouts[p.name].row!,
+      col: layouts[p.name].col!,
+    })),
+  );
+  return off(`obj-${family}`) ? [] : props;
+}
+
 // This is the complete prop pool built from the selections in each family.
 // The family spec arrays remain the single source of truth for those whitelists.
 export const PROP_WHITELIST: readonly WhitelistedProp[] = [
-  ...atlasProps(
+  ...familyProps(
     "sci-fi",
     "sci-fi-props",
+    SCI_FI_PROPS_ATLAS,
     SCI_FI_PROP_SPECS.map((spec) => spec.name),
     SCI_FI_PROPS_ATLAS_CELL,
     SCI_FI_PROPS_ATLAS_LAYOUT,
   ),
-  ...atlasProps(
+  ...familyProps(
     "eldritch",
     "eldritch-props",
+    ELDRITCH_PROPS_ATLAS,
     ELDRITCH_PROP_SPECS.map((spec) => spec.name),
     ELDRITCH_PROPS_ATLAS_CELL,
     ELDRITCH_PROPS_ATLAS_LAYOUT,
   ),
-  ...atlasProps(
+  ...familyProps(
     "star-wars",
     "star-wars-props",
+    STAR_WARS_PROPS_ATLAS,
     STAR_WARS_PROP_SPECS.map((spec) => spec.name),
     STAR_WARS_PROPS_ATLAS_CELL,
     STAR_WARS_PROPS_ATLAS_LAYOUT,
   ),
-  ...atlasProps(
+  ...familyProps(
     "pop-culture",
     "pop-culture-props",
+    POP_CULTURE_PROPS_ATLAS,
     POP_CULTURE_PROP_SPECS.map((spec) => spec.name),
     POP_CULTURE_PROPS_ATLAS_CELL,
     POP_CULTURE_PROPS_ATLAS_LAYOUT,
   ),
-  ...atlasProps(
+  ...familyProps(
+    "odyssey",
+    "odyssey-props",
+    ODYSSEY_PROPS_ATLAS,
+    ODYSSEY_PROP_SPECS.map((spec) => spec.name),
+    ODYSSEY_PROPS_ATLAS_CELL,
+    ODYSSEY_PROPS_ATLAS_LAYOUT,
+  ),
+  ...familyProps(
+    "giger",
+    "giger-props",
+    GIGER_PROPS_ATLAS,
+    GIGER_PROP_SPECS.map((spec) => spec.name),
+    GIGER_PROPS_ATLAS_CELL,
+    GIGER_PROPS_ATLAS_LAYOUT,
+  ),
+  ...familyProps(
     "small",
     "small-props",
+    SMALL_PROPS_ATLAS,
     SMALL_PROP_NAMES,
     SMALL_PROPS_ATLAS_CELL,
     SMALL_PROPS_ATLAS_LAYOUT,
@@ -184,29 +255,28 @@ export const PROP_WHITELIST: readonly WhitelistedProp[] = [
 ];
 
 // The two display-category props sit outside the rotation: spawned once and
-// never evicted. Their obstacle entries live after the rotating slots'.
+// never evicted. Their obstacle entries live after the rotating slots'. Each
+// still respects its family's obj-<family> gate, so disabling a theme hides
+// its HUD piece too. Their preview items add onto the family's whitelist
+// preview registered above (registerSetPreview is additive).
 const FIXED_PROPS: readonly { prop: WhitelistedProp; slot: PropSlot }[] = [
-  {
-    prop: atlasProps(
-      "star-wars",
-      "star-wars-props",
-      ["galactic_field_terminal"],
-      STAR_WARS_PROPS_ATLAS_CELL,
-      STAR_WARS_PROPS_ATLAS_LAYOUT,
-    )[0],
+  ...familyProps(
+    "star-wars",
+    "star-wars-props",
+    STAR_WARS_PROPS_ATLAS,
+    ["galactic_field_terminal"],
+    STAR_WARS_PROPS_ATLAS_CELL,
+    STAR_WARS_PROPS_ATLAS_LAYOUT,
     // Corner HUD piece: tucked almost into the bottom-left corner.
-    slot: { fx: 0.025, depth: 128 },
-  },
-  {
-    prop: atlasProps(
-      "sci-fi",
-      "sci-fi-props",
-      ["amber_wedge_console"],
-      SCI_FI_PROPS_ATLAS_CELL,
-      SCI_FI_PROPS_ATLAS_LAYOUT,
-    )[0],
-    slot: { fx: 0.64, depth: 34 },
-  },
+  ).map((prop) => ({ prop, slot: { fx: 0.025, depth: 128 } })),
+  ...familyProps(
+    "sci-fi",
+    "sci-fi-props",
+    SCI_FI_PROPS_ATLAS,
+    ["amber_wedge_console"],
+    SCI_FI_PROPS_ATLAS_CELL,
+    SCI_FI_PROPS_ATLAS_LAYOUT,
+  ).map((prop) => ({ prop, slot: { fx: 0.64, depth: 34 } })),
 ];
 
 // Use the lowest screen-space terrain point under the whole contact footprint,
@@ -576,6 +646,8 @@ export function spawnFixedProps(k: KAPLAYCtx) {
 }
 
 export function spawnRotatingProps(k: KAPLAYCtx) {
+  // Every family disabled via the settings panel — nothing to rotate.
+  if (!PROP_WHITELIST.length) return;
   if (PROP_WHITELIST.length < VISIBLE_PROP_COUNT + 1)
     throw new Error(
       `The prop rotation needs at least ${VISIBLE_PROP_COUNT + 1} whitelisted props`,

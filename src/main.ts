@@ -1,6 +1,6 @@
 import kaplay from "kaplay";
 import { makeBackdrop } from "./backdrop";
-import { spawnFish, makeFishSheets, FISH_KINDS } from "./fish";
+import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
 import { SWIM_FRAMES } from "./fishbake";
 import { spawnCephalopod } from "./cephalopod";
 import { OCTOPUS_ATLAS, OCTOPUS_COLS, OCTOPUS_ROWS } from "./octopusAtlas";
@@ -45,6 +45,16 @@ import {
   POP_CULTURE_PROPS_ATLAS_COLS,
   POP_CULTURE_PROPS_ATLAS_ROWS,
 } from "./popCulturePropsAtlas";
+import {
+  ODYSSEY_PROPS_ATLAS,
+  ODYSSEY_PROPS_ATLAS_COLS,
+  ODYSSEY_PROPS_ATLAS_ROWS,
+} from "./odysseyPropsAtlas";
+import {
+  GIGER_PROPS_ATLAS,
+  GIGER_PROPS_ATLAS_COLS,
+  GIGER_PROPS_ATLAS_ROWS,
+} from "./gigerPropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
 import { CAUSTICS_FRAMES, CAUSTICS_SPRITE } from "./causticsSprite";
 import { setupTank } from "./tank";
@@ -147,9 +157,13 @@ window.addEventListener("resize", fitWindow);
 
 // Each fish is a random kind; one that swims fully offscreen (a dart can carry
 // it out) is despawned and replaced by a fresh random fish entering from an edge,
-// so the population holds at ENTITY_COUNTS.fish.
-const fishKindIndices = FISH_KINDS.map((_, i) => i);
+// so the population holds at ENTITY_COUNTS.fish. Sets disabled via the settings
+// panel's ?off=fish-<set> gates are excluded from the pool entirely.
+const fishKindIndices = FISH_KINDS.map((_, i) => i).filter(
+  (i) => !off(`fish-${fishKindSet(FISH_KINDS[i].name)}`),
+);
 const spawnRandomFish = (enterFromEdge: boolean) => {
+  if (!fishKindIndices.length) return;
   const kind = k.choose(fishKindIndices);
   spawnFish(k, `fish-${kind}`, FISH_KINDS[kind], {
     enterFromEdge,
@@ -220,6 +234,14 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   await loadSpriteSeq("pop-culture-props", POP_CULTURE_PROPS_ATLAS, {
     sliceX: POP_CULTURE_PROPS_ATLAS_COLS,
     sliceY: POP_CULTURE_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("odyssey-props", ODYSSEY_PROPS_ATLAS, {
+    sliceX: ODYSSEY_PROPS_ATLAS_COLS,
+    sliceY: ODYSSEY_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("giger-props", GIGER_PROPS_ATLAS, {
+    sliceX: GIGER_PROPS_ATLAS_COLS,
+    sliceY: GIGER_PROPS_ATLAS_ROWS,
   });
   // The octopus is benthic too (rests on the sand, drawn in the bottom band), so its
   // pose sheet joins this group to share the page and batch with the sea floor. Its cells

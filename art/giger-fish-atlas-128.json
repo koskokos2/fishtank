@@ -1,0 +1,25 @@
+{
+  "image": "giger-fish-atlas-128.png",
+  "sourceImage": "giger-fish-atlas-transparent.png",
+  "chromaReference": "giger-fish-atlas-chroma.png",
+  "tileSize": 128,
+  "sourceWidth": 1075,
+  "sourceHeight": 1463,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    { "name": "necronom_ray", "row": 0, "col": 0, "category": "gigerFish", "role": "necronom" },
+    { "name": "li_spinefish", "row": 0, "col": 1, "category": "gigerFish", "role": "liPortraits" },
+    { "name": "birth_machine_puffer", "row": 0, "col": 2, "category": "gigerFish", "role": "birthMachine" },
+    { "name": "passage_angler", "row": 1, "col": 0, "category": "gigerFish", "role": "passages" },
+    { "name": "biomechanoid_surgeonfish", "row": 1, "col": 1, "category": "gigerFish", "role": "biomechanoid" },
+    { "name": "mordor_eel", "row": 1, "col": 2, "category": "gigerFish", "role": "mordor" },
+    { "name": "spell_oraclefish", "row": 2, "col": 0, "category": "gigerFish", "role": "spell" },
+    { "name": "atomic_nursery_fish", "row": 2, "col": 1, "category": "gigerFish", "role": "atomicChildren" },
+    { "name": "kookoo_fanfin", "row": 2, "col": 2, "category": "gigerFish", "role": "kookoo" },
+    { "name": "brain_salad_crownfish", "row": 3, "col": 0, "category": "gigerFish", "role": "brainSaladSurgery" },
+    { "name": "victory_lionfish", "row": 3, "col": 1, "category": "gigerFish", "role": "victory" },
+    { "name": "biomechanical_trainfish", "row": 3, "col": 2, "category": "gigerFish", "role": "industrialDesign" }
+  ]
+}

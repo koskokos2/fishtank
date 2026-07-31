@@ -1,0 +1,25 @@
+{
+  "image": "odyssey-props-atlas-128.png",
+  "sourceImage": "odyssey-props-atlas-transparent-v2.png",
+  "chromaReference": "odyssey-props-atlas-chroma.png",
+  "tileSize": 128,
+  "sourceWidth": 1448,
+  "sourceHeight": 1086,
+  "columns": 4,
+  "rows": 3,
+  "layout": "runtime-grid",
+  "sprites": [
+    { "name": "wine_dark_amphora", "row": 0, "col": 0, "category": "odysseyRelic", "role": "cyclopsWine" },
+    { "name": "siren_wax_and_rope", "row": 0, "col": 1, "category": "odysseyRelic", "role": "sirenDefense" },
+    { "name": "aeolus_wind_bag", "row": 0, "col": 2, "category": "odysseyRelic", "role": "capturedWinds" },
+    { "name": "moly_herb_dish", "row": 0, "col": 3, "category": "odysseyRelic", "role": "hermesProtection" },
+    { "name": "circe_golden_cup", "row": 1, "col": 0, "category": "odysseyRelic", "role": "transformationPotion" },
+    { "name": "lotus_eater_bloom", "row": 1, "col": 1, "category": "odysseyRelic", "role": "forgetfulness" },
+    { "name": "cyclops_cave_stone", "row": 1, "col": 2, "category": "odysseyRelic", "role": "polyphemus" },
+    { "name": "siren_broken_mast", "row": 1, "col": 3, "category": "odysseyRelic", "role": "boundToMast" },
+    { "name": "penelope_loom_shuttle", "row": 2, "col": 0, "category": "odysseyRelic", "role": "wovenRuse" },
+    { "name": "trojan_war_helmet", "row": 2, "col": 1, "category": "odysseyRelic", "role": "warVeteran" },
+    { "name": "ithacan_bow", "row": 2, "col": 2, "category": "odysseyRelic", "role": "suitorContest" },
+    { "name": "poseidon_trident_fragment", "row": 2, "col": 3, "category": "odysseyRelic", "role": "seaGodWrath" }
+  ]
+}

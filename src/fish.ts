@@ -21,6 +21,16 @@ import {
   POP_CULTURE_FISH_ATLAS_LAYOUT,
 } from "./popCultureFishAtlas";
 import {
+  ODYSSEY_FISH_ATLAS,
+  ODYSSEY_FISH_ATLAS_CELL,
+  ODYSSEY_FISH_ATLAS_LAYOUT,
+} from "./odysseyFishAtlas";
+import {
+  GIGER_FISH_ATLAS,
+  GIGER_FISH_ATLAS_CELL,
+  GIGER_FISH_ATLAS_LAYOUT,
+} from "./gigerFishAtlas";
+import {
   cellBBox,
   copyRect,
   motionBeatScale,
@@ -31,7 +41,12 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { spawnBubble } from "./tank";
 import { RES } from "./res";
-import { profile, profileDraw, profileDrawEnd } from "./profiling";
+import {
+  profile,
+  profileDraw,
+  profileDrawEnd,
+  registerSetPreview,
+} from "./profiling";
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
@@ -44,7 +59,72 @@ export type FishKind = {
   motion: FishMotionProfile;
 };
 
-// Names must match one of the five atlas layouts. Every fish faces left.
+// A fish's set is which atlas its cell lives in — derived by lookup rather than
+// stored per-kind, so FISH_KINDS stays the single place species are declared.
+// Used by the settings panel to gate whole themes on/off, and (via
+// registerSetPreview below) to show each set's members as name + thumbnail.
+const FISH_SET_ATLASES: readonly {
+  name: string;
+  src: string;
+  cell: number;
+  layout: Record<string, { row: number; col: number }>;
+}[] = [
+  { name: "main", src: FISH_ATLAS, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
+  {
+    name: "extra",
+    src: FISH_EXTRA_ATLAS,
+    cell: FISH_EXTRA_ATLAS_CELL,
+    layout: FISH_EXTRA_ATLAS_LAYOUT,
+  },
+  {
+    name: "bonus",
+    src: FISH_BONUS_ATLAS,
+    cell: FISH_BONUS_ATLAS_CELL,
+    layout: FISH_BONUS_ATLAS_LAYOUT,
+  },
+  {
+    name: "alien",
+    src: ALIEN_FISH_ATLAS,
+    cell: ALIEN_FISH_ATLAS_CELL,
+    layout: ALIEN_FISH_ATLAS_LAYOUT,
+  },
+  {
+    name: "pop-culture",
+    src: POP_CULTURE_FISH_ATLAS,
+    cell: POP_CULTURE_FISH_ATLAS_CELL,
+    layout: POP_CULTURE_FISH_ATLAS_LAYOUT,
+  },
+  {
+    name: "odyssey",
+    src: ODYSSEY_FISH_ATLAS,
+    cell: ODYSSEY_FISH_ATLAS_CELL,
+    layout: ODYSSEY_FISH_ATLAS_LAYOUT,
+  },
+  {
+    name: "giger",
+    src: GIGER_FISH_ATLAS,
+    cell: GIGER_FISH_ATLAS_CELL,
+    layout: GIGER_FISH_ATLAS_LAYOUT,
+  },
+];
+export const FISH_SETS: readonly string[] = FISH_SET_ATLASES.map((a) => a.name);
+export const fishKindSet = (name: string): string =>
+  FISH_SET_ATLASES.find((a) => name in a.layout)?.name ?? "main";
+
+for (const { name, src, cell, layout } of FISH_SET_ATLASES) {
+  registerSetPreview(
+    `fish-${name}`,
+    Object.entries(layout).map(([kindName, { row, col }]) => ({
+      name: kindName,
+      src,
+      cell,
+      row,
+      col,
+    })),
+  );
+}
+
+// Names must match one of the seven atlas layouts. Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
@@ -475,6 +555,176 @@ export const FISH_KINDS: FishKind[] = [
     length: 22,
     motion: "paddle",
   }, // slow  — ornate purple hoverer with a curled tail
+  // --- Odyssey atlas ---
+  {
+    name: "cyclops_lanternfish",
+    level: { min: 0.55, max: 0.92 },
+    speed: 0.65,
+    length: 28,
+    motion: "paddle",
+  }, // slow  — one-eyed deep-water ambush fish
+  {
+    name: "siren_betta",
+    level: { min: 0.15, max: 0.62 },
+    speed: 0.7,
+    length: 20,
+    motion: "flowing",
+  }, // slow  — long musical fins trail through upper water
+  {
+    name: "scylla_eel",
+    level: { min: 0.48, max: 0.92 },
+    speed: 0.9,
+    length: 38,
+    motion: "flowing",
+  }, // med   — many-crested lower-water monster
+  {
+    name: "charybdis_ray",
+    level: { min: 0.4, max: 0.85 },
+    speed: 0.75,
+    length: 32,
+    motion: "flowing",
+  }, // slow  — broad ray with a rolling whirlpool gait
+  {
+    name: "lotus_puffer",
+    level: { min: 0.2, max: 0.65 },
+    speed: 0.55,
+    length: 18,
+    motion: "paddle",
+  }, // slow  — dreamy midwater hoverer
+  {
+    name: "aeolus_sailfin",
+    level: { min: 0.08, max: 0.55 },
+    speed: 1.1,
+    length: 24,
+    motion: "flowing",
+  }, // fast  — wind-sailed upper-water cruiser
+  {
+    name: "circe_lionfish",
+    level: { min: 0.3, max: 0.74 },
+    speed: 0.85,
+    length: 26,
+    motion: "flowing",
+  }, // med   — regal spines move in a slow spell-like wave
+  {
+    name: "calypso_angelfish",
+    level: { min: 0.18, max: 0.62 },
+    speed: 0.75,
+    length: 24,
+    motion: "flowing",
+  }, // slow  — ornate island-flower fins
+  {
+    name: "laestrygon_grouper",
+    level: { min: 0.58, max: 0.94 },
+    speed: 0.65,
+    length: 40,
+    motion: "standard",
+  }, // slow  — massive craggy bottom cruiser
+  {
+    name: "argos_dogfish",
+    level: { min: 0.32, max: 0.75 },
+    speed: 1,
+    length: 28,
+    motion: "standard",
+  }, // med   — alert, steady silver-brown cruiser
+  {
+    name: "athena_owlfin",
+    level: { min: 0.1, max: 0.55 },
+    speed: 0.8,
+    length: 20,
+    motion: "flowing",
+  }, // med   — feather-finned upper-water guide
+  {
+    name: "odysseus_compassfish",
+    level: { min: 0.22, max: 0.68 },
+    speed: 1.15,
+    length: 26,
+    motion: "standard",
+  }, // fast  — weathered hero fish that keeps its course
+  // --- Biomechanical Dream Archive atlas ---
+  {
+    name: "necronom_ray",
+    level: { min: 0.42, max: 0.86 },
+    speed: 0.8,
+    length: 34,
+    motion: "flowing",
+  }, // med   — skeletal wings flex through lower water
+  {
+    name: "li_spinefish",
+    level: { min: 0.16, max: 0.62 },
+    speed: 0.7,
+    length: 26,
+    motion: "flowing",
+  }, // slow  — long ribbed spines trail behind a pale faceplate
+  {
+    name: "birth_machine_puffer",
+    level: { min: 0.35, max: 0.78 },
+    speed: 0.55,
+    length: 22,
+    motion: "paddle",
+  }, // slow  — armored cartridge body hovers in midwater
+  {
+    name: "passage_angler",
+    level: { min: 0.58, max: 0.95 },
+    speed: 0.6,
+    length: 30,
+    motion: "paddle",
+  }, // slow  — tunnel-mouthed deep-water ambush drifter
+  {
+    name: "biomechanoid_surgeonfish",
+    level: { min: 0.28, max: 0.7 },
+    speed: 1.05,
+    length: 26,
+    motion: "standard",
+  }, // fast  — precise instrument fins drive a clean cruise
+  {
+    name: "mordor_eel",
+    level: { min: 0.52, max: 0.94 },
+    speed: 0.9,
+    length: 42,
+    motion: "flowing",
+  }, // med   — segmented industrial body undulates near the floor
+  {
+    name: "spell_oraclefish",
+    level: { min: 0.18, max: 0.62 },
+    speed: 0.7,
+    length: 24,
+    motion: "flowing",
+  }, // slow  — ceremonial fins and blue eye drift in upper water
+  {
+    name: "atomic_nursery_fish",
+    level: { min: 0.22, max: 0.66 },
+    speed: 1,
+    length: 18,
+    motion: "standard",
+  }, // med   — compact masked machine with wheel-like fin joints
+  {
+    name: "kookoo_fanfin",
+    level: { min: 0.12, max: 0.58 },
+    speed: 0.85,
+    length: 24,
+    motion: "flowing",
+  }, // med   — needle-fan silhouette sweeps through upper water
+  {
+    name: "brain_salad_crownfish",
+    level: { min: 0.2, max: 0.65 },
+    speed: 0.8,
+    length: 26,
+    motion: "standard",
+  }, // med   — crowned split-face cruiser
+  {
+    name: "victory_lionfish",
+    level: { min: 0.38, max: 0.82 },
+    speed: 0.65,
+    length: 30,
+    motion: "flowing",
+  }, // slow  — monumental architectural spines pulse gently
+  {
+    name: "biomechanical_trainfish",
+    level: { min: 0.3, max: 0.72 },
+    speed: 1.25,
+    length: 32,
+    motion: "standard",
+  }, // fast  — piston-bodied industrial pursuit fish
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -482,12 +732,14 @@ export const FISH_KINDS: FishKind[] = [
 // Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
 // decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const [img1, img2, img3, img4, img5] = await Promise.all([
+  const [img1, img2, img3, img4, img5, img6, img7] = await Promise.all([
     loadImage(FISH_ATLAS),
     loadImage(FISH_EXTRA_ATLAS),
     loadImage(FISH_BONUS_ATLAS),
     loadImage(ALIEN_FISH_ATLAS),
     loadImage(POP_CULTURE_FISH_ATLAS),
+    loadImage(ODYSSEY_FISH_ATLAS),
+    loadImage(GIGER_FISH_ATLAS),
   ]);
 
   const toPixels = (img: HTMLImageElement) => {
@@ -509,6 +761,8 @@ export async function makeFishSheets(): Promise<string[]> {
   const a3 = toPixels(img3);
   const a4 = toPixels(img4);
   const a5 = toPixels(img5);
+  const a6 = toPixels(img6);
+  const a7 = toPixels(img7);
 
   const atlases = [
     { pixels: a1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
@@ -519,6 +773,16 @@ export async function makeFishSheets(): Promise<string[]> {
       pixels: a5,
       cell: POP_CULTURE_FISH_ATLAS_CELL,
       layout: POP_CULTURE_FISH_ATLAS_LAYOUT,
+    },
+    {
+      pixels: a6,
+      cell: ODYSSEY_FISH_ATLAS_CELL,
+      layout: ODYSSEY_FISH_ATLAS_LAYOUT,
+    },
+    {
+      pixels: a7,
+      cell: GIGER_FISH_ATLAS_CELL,
+      layout: GIGER_FISH_ATLAS_LAYOUT,
     },
   ];
 
