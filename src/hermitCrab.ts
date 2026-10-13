@@ -6,7 +6,7 @@
 // legs never paddle while it is parked.
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
-import { HERMIT_CRAB_GROUND_OFFSET } from "./hermitCrabAtlas";
+import { HERMIT_CRAB_GROUND_OFFSET } from "./crabTheme";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
 import { profile, profileDraw, profileDrawEnd } from "./profiling";

@@ -1,0 +1,117 @@
+{
+  "name": "crawling-hand",
+  "source": "art/crawling-hand-atlas-transparent.png",
+  "layout": {
+    "columns": 6,
+    "rows": 1,
+    "tile": 128
+  },
+  "animation": {
+    "walk": {
+      "from": 0,
+      "to": 5,
+      "loop": true
+    },
+    "idle": 1
+  },
+  "groundLine": 118,
+  "scale": 0.25846153846153846,
+  "frames": [
+    {
+      "frame": 0,
+      "sourceBounds": {
+        "x": 64,
+        "y": 112,
+        "width": 421,
+        "height": 317
+      },
+      "draw": {
+        "x": 10,
+        "y": 37,
+        "width": 109,
+        "height": 82
+      },
+      "wristX": 94
+    },
+    {
+      "frame": 1,
+      "sourceBounds": {
+        "x": 90,
+        "y": 112,
+        "width": 363,
+        "height": 317
+      },
+      "draw": {
+        "x": 25,
+        "y": 37,
+        "width": 94,
+        "height": 82
+      },
+      "wristX": 94
+    },
+    {
+      "frame": 2,
+      "sourceBounds": {
+        "x": 89,
+        "y": 112,
+        "width": 376,
+        "height": 325
+      },
+      "draw": {
+        "x": 21,
+        "y": 35,
+        "width": 97,
+        "height": 84
+      },
+      "wristX": 94
+    },
+    {
+      "frame": 3,
+      "sourceBounds": {
+        "x": 120,
+        "y": 113,
+        "width": 365,
+        "height": 315
+      },
+      "draw": {
+        "x": 24,
+        "y": 38,
+        "width": 94,
+        "height": 81
+      },
+      "wristX": 94
+    },
+    {
+      "frame": 4,
+      "sourceBounds": {
+        "x": 98,
+        "y": 112,
+        "width": 355,
+        "height": 320
+      },
+      "draw": {
+        "x": 27,
+        "y": 36,
+        "width": 92,
+        "height": 83
+      },
+      "wristX": 94
+    },
+    {
+      "frame": 5,
+      "sourceBounds": {
+        "x": 46,
+        "y": 112,
+        "width": 419,
+        "height": 316
+      },
+      "draw": {
+        "x": 10,
+        "y": 37,
+        "width": 108,
+        "height": 82
+      },
+      "wristX": 94
+    }
+  ]
+}

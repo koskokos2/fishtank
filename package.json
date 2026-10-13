@@ -18,6 +18,7 @@
     "atlas:halloween": "bun tools/gen-halloween-fish-atlas.ts && bun tools/gen-halloween-props-atlas.ts",
     "atlas:goth-plants": "bun tools/gen-goth-plant-atlas.ts",
     "atlas:goth-kelp": "bun tools/gen-goth-kelp-atlas.ts",
+    "atlas:crawling-hands": "bun tools/gen-crawling-hand-atlas.ts",
     "atlas:grindelwald": "bun tools/gen-grindelwald-props-atlas.ts",
     "atlas:regenerate": "bun tools/regenerate-atlas.ts",
     "preview:ruins-kit": "bun tools/preview.ts MODE=ruins-kit",

@@ -15,7 +15,7 @@ import {
   NAUTILUS_ATLAS_ROWS,
 } from "./nautilusAtlas";
 import { spawnHermitCrab } from "./hermitCrab";
-import { HERMIT_CRAB_ATLAS, HERMIT_CRAB_FRAMES } from "./hermitCrabAtlas";
+import { HERMIT_CRAB_ATLAS, HERMIT_CRAB_FRAMES } from "./crabTheme";
 import { spawnSeaSnail } from "./seaSnail";
 import { SEA_SNAIL_ATLAS, SEA_SNAIL_FRAMES } from "./seaSnailAtlas";
 import { spawnLuminousKelpGrove } from "./luminousKelp";

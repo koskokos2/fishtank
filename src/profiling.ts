@@ -19,6 +19,7 @@ export const birthdayFishEnabled = params.get("birthday") === "1";
 // A skin for the existing plant field; the plants visibility gate still applies.
 export const gothPlantsEnabled = params.get("goth-plants") === "1";
 export const gothKelpEnabled = params.get("goth-kelp") === "1";
+export const crawlingHandsEnabled = params.get("crawling-hands") === "1";
 // ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
 // devices (halves sustained load and heat) without needing a separate build.
 export const capFPS = Number(params.get("cap")) || 62;
@@ -855,27 +856,33 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "",
       TOGGLES.map((n) => [n, n] as const),
     );
-    const addGothSkinToggle = (layer: "plants" | "kelp", enabled: boolean) => {
+    const addSkinToggle = (
+      layer: "plants" | "kelp" | "crabs",
+      enabled: boolean,
+      query = `goth-${layer}`,
+      display = `goth ${layer}`,
+    ) => {
       const label = document.createElement("label");
       label.style.cssText =
         "display:flex;gap:6px;align-items:center;cursor:pointer";
       label.title =
-        `Replace the ${layer} with gothic ${layer}. The ${layer} checkbox controls visibility.`;
+        `Replace the ${layer} with ${display}. The ${layer} checkbox controls visibility.`;
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = enabled;
       cb.style.accentColor = "#7f7";
       cb.addEventListener("change", () => {
         const p = new URLSearchParams(location.search);
-        if (cb.checked) p.set(`goth-${layer}`, "1");
-        else p.delete(`goth-${layer}`);
+        if (cb.checked) p.set(query, "1");
+        else p.delete(query);
         location.search = p.toString();
       });
-      label.append(cb, `goth ${layer}`);
+      label.append(cb, display);
       boxes.get(layer)!.closest("label")!.after(label);
     };
-    addGothSkinToggle("plants", gothPlantsEnabled);
-    addGothSkinToggle("kelp", gothKelpEnabled);
+    addSkinToggle("plants", gothPlantsEnabled);
+    addSkinToggle("kelp", gothKelpEnabled);
+    addSkinToggle("crabs", crawlingHandsEnabled, "crawling-hands", "crawling hands");
     const allBtn = document.createElement("label");
     allBtn.style.cssText =
       "display:flex;gap:6px;align-items:center;cursor:pointer";
