@@ -3,8 +3,8 @@
 // clusters attach to shared anatomical joints and sway on independent clocks.
 import type { KAPLAYCtx, Color, Quad, Vec2 } from "kaplay";
 import { sandTopAt } from "./backdrop";
-import { LUMINOUS_KELP_PART, LUMINOUS_KELP_TIP } from "./kelpTheme";
-import { profile, withDrawProfile } from "./profiling";
+import { getKelpTheme } from "./kelpTheme";
+import { gothKelpEnabled, profile, withDrawProfile } from "./profiling";
 import { RES } from "./res";
 
 const S = RES;
@@ -17,7 +17,7 @@ const REAR_Z = -180; // behind fish and the sand crest
 const FRONT_Z = 18; // selected stalks occlude passing fish
 
 type Point = { x: number; y: number };
-type PartName = keyof typeof LUMINOUS_KELP_PART;
+type PartName = keyof ReturnType<typeof getKelpTheme>["parts"];
 type Layer = "rear" | "front";
 
 // One kelp module ready to draw. The sway controller mutates pos/angle (and, for
@@ -171,6 +171,8 @@ const STEM_PARTS: PartName[] = [
 ];
 
 export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
+  const theme = getKelpTheme(gothKelpEnabled);
+  const { parts: LUMINOUS_KELP_PART, tips: LUMINOUS_KELP_TIP } = theme;
   const rootX = Math.max(
     18 * S,
     Math.min(k.width() - 18 * S, spec.fx * k.width()),
@@ -181,7 +183,7 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
   const rear = spec.layer === "rear";
   const defaultOpacity = rear ? 0.88 : 0.98;
 
-  const data = k.getSprite("luminous-kelp")?.data;
+  const data = k.getSprite(theme.sprite)?.data;
   const rearColor = k.rgb(186, 207, 190);
   const frontColor = k.rgb(238, 249, 232);
 
@@ -443,12 +445,9 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
   ];
   drawList.sort((a, b) => a.zOffset - b.zOffset);
 
-  const controller = k.add([
-    k.z(z),
-    {
-      update() {
-        profile("kelp", () => {
-          const time = k.time();
+  const updatePose = () => {
+    profile("kelp", () => {
+      const time = k.time();
       const current =
         Math.sin(time * 0.25 + spec.phase) * 0.74 +
         Math.sin(time * 0.11 + spec.phase * 0.57) * 0.34;
@@ -550,9 +549,16 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
           Math.sin(time * (0.36 + index * 0.045) + spec.phase + index * 2.1) *
           (1.1 + index * 0.35);
         place(crown, crownPoint, crownParentAngle + crown.angleOffset + flutter);
-        });
-        });
-      },
+      });
+    });
+  };
+  // Live skin changes can happen while paused; lay out the joints before drawing.
+  updatePose();
+
+  const controller = k.add([
+    k.z(z),
+    {
+      update: updatePose,
       draw() {
         withDrawProfile("kelp", () => {
           if (data) {
@@ -574,7 +580,7 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
           // Fallback if the atlas somehow isn't resolved yet.
           for (const p of drawList)
             k.drawSprite({
-              sprite: "luminous-kelp",
+              sprite: theme.sprite,
               frame: p.frame,
               pos: p.pos,
               anchor: "center",

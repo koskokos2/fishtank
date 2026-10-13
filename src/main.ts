@@ -15,16 +15,12 @@ import {
   NAUTILUS_ATLAS_ROWS,
 } from "./nautilusAtlas";
 import { spawnHermitCrab } from "./hermitCrab";
-import { HERMIT_CRAB_ATLAS, HERMIT_CRAB_FRAMES } from "./crabTheme";
+import { getCrabTheme } from "./crabTheme";
 import { spawnSeaSnail } from "./seaSnail";
 import { SEA_SNAIL_ATLAS, SEA_SNAIL_FRAMES } from "./seaSnailAtlas";
 import { spawnLuminousKelpGrove } from "./luminousKelp";
-import {
-  LUMINOUS_KELP_ATLAS,
-  LUMINOUS_KELP_COLS,
-  LUMINOUS_KELP_ROWS,
-} from "./kelpTheme";
-import { PLANT_ATLAS, PLANT_ATLAS_COLS, PLANT_ATLAS_ROWS } from "./plantTheme";
+import { getKelpTheme } from "./kelpTheme";
+import { getPlantTheme } from "./plantTheme";
 import {
   SCI_FI_PROPS_ATLAS,
   SCI_FI_PROPS_ATLAS_COLS,
@@ -79,6 +75,9 @@ import {
   installEngineProfiler,
   onSettingsChange,
   birthdayFishEnabled,
+  gothPlantsEnabled,
+  gothKelpEnabled,
+  crawlingHandsEnabled,
 } from "./profiling";
 import { VW, VH } from "./res";
 import { installBirthdayFish, loadBirthdayFish, syncBirthdaySparkles } from "./birthdayFish";
@@ -172,12 +171,31 @@ function installLiveControls() {
     groups.set(name, { key, dispose: group.dispose });
     spawn(group.context);
   };
+  // Separate asset names keep both skins cached, including their different UVs.
+  // Old groups keep their own art/geometry until the requested atlas is ready.
+  const requestedSkins = new Set<string>();
+  const skinReady = (theme: { sprite: string; src: string }, options: Parameters<typeof k.loadSprite>[2]) => {
+    if (k.getSprite(theme.sprite)?.data) return true;
+    if (!requestedSkins.has(theme.sprite)) {
+      requestedSkins.add(theme.sprite);
+      k.loadSprite(theme.sprite, theme.src, options)
+        .onLoad(() => reconcile()) // Read current flags, never apply an obsolete request.
+        .onError(error => console.error(`Could not load skin ${theme.sprite}`, error));
+    }
+    return false;
+  };
   let birthdayState: boolean | undefined;
   const reconcile = () => {
     const plantCount = num("plants", DEFAULT_ENTITY_COUNTS.plants);
-    const plantKey = `${off("plants")}:${plantCount}`;
+    const plants = getPlantTheme(gothPlantsEnabled);
+    const kelp = getKelpTheme(gothKelpEnabled);
+    const crab = getCrabTheme(crawlingHandsEnabled);
+    const plantsReady = off("plants") || plantCount === 0 || skinReady(plants, { sliceX: plants.cols, sliceY: plants.rows });
+    const plantKey = `${off("plants")}:${plantCount}:${plants.sprite}`;
     const propKey = `${off("props")}:${new URLSearchParams(location.search).get("off")?.split(",").filter(n => n.startsWith("obj-")).sort().join(",") ?? ""}`;
     for (const layer of ["backdrop", "sand", "props", "plants", "motes", "bubbles"]) {
+      // Pearling bubbles reference the plant field, so replace the two together.
+      if (!plantsReady && (layer === "plants" || layer === "bubbles")) continue;
       const key = layer === "backdrop" ? "live" : layer === "props" ? propKey
         : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}` : String(off(layer));
       reconcileGroup(layer, key, ctx => {
@@ -204,14 +222,18 @@ function installLiveControls() {
       });
     }
     const crabs = off("crabs") ? 0 : num("crabs", DEFAULT_ENTITY_COUNTS.crabs);
-    reconcileGroup("crabs", String(crabs), ctx => {
-      for (let i = 0; i < crabs; i++) spawnHermitCrab(ctx, ctx.width() * ((i + 0.5) / crabs));
-    });
+    if (!crabs || skinReady(crab, { sliceX: crab.frames })) {
+      reconcileGroup("crabs", `${crabs}:${crab.sprite}`, ctx => {
+        for (let i = 0; i < crabs; i++) spawnHermitCrab(ctx, ctx.width() * ((i + 0.5) / crabs));
+      });
+    }
     const snails = off("crabs") ? 0 : num("snail", DEFAULT_ENTITY_COUNTS.snail);
     reconcileGroup("snail", String(snails), ctx => {
       for (let i = 0; i < snails; i++) spawnSeaSnail(ctx);
     });
-    reconcileGroup("kelp", String(off("kelp")), ctx => { if (!off("kelp")) spawnLuminousKelpGrove(ctx); });
+    if (off("kelp") || skinReady(kelp, { sliceX: kelp.cols, sliceY: kelp.rows })) {
+      reconcileGroup("kelp", `${off("kelp")}:${kelp.sprite}`, ctx => { if (!off("kelp")) spawnLuminousKelpGrove(ctx); });
+    }
     if (off("puffs")) for (const puff of k.get("sand-puff")) puff.destroy();
     if (birthdayState !== birthdayFishEnabled) {
       birthdayState = birthdayFishEnabled;
@@ -259,14 +281,11 @@ function installLiveControls() {
   // fragmentation across the octopus, both crawlers, every prop family, and the
   // plant/kelp groves. Order below is strictly by packed height: kelp 1024, the
   // 512s, the 384s, octopus 172, then the 128-tall crawlers.
-  await loadSpriteSeq("luminous-kelp", LUMINOUS_KELP_ATLAS, {
-    sliceX: LUMINOUS_KELP_COLS,
-    sliceY: LUMINOUS_KELP_ROWS,
-  });
-  await loadSpriteSeq("plant-atlas-v2", PLANT_ATLAS, {
-    sliceX: PLANT_ATLAS_COLS,
-    sliceY: PLANT_ATLAS_ROWS,
-  });
+  const kelp = getKelpTheme(gothKelpEnabled);
+  const plants = getPlantTheme(gothPlantsEnabled);
+  const crab = getCrabTheme(crawlingHandsEnabled);
+  await loadSpriteSeq(kelp.sprite, kelp.src, { sliceX: kelp.cols, sliceY: kelp.rows });
+  await loadSpriteSeq(plants.sprite, plants.src, { sliceX: plants.cols, sliceY: plants.rows });
   await loadSpriteSeq("sci-fi-props", SCI_FI_PROPS_ATLAS, {
     sliceX: SCI_FI_PROPS_ATLAS_COLS,
     sliceY: SCI_FI_PROPS_ATLAS_ROWS,
@@ -312,8 +331,8 @@ function installLiveControls() {
     sliceX: OCTOPUS_COLS,
     sliceY: OCTOPUS_ROWS,
   });
-  await loadSpriteSeq("hermit-crab", HERMIT_CRAB_ATLAS, {
-    sliceX: HERMIT_CRAB_FRAMES,
+  await loadSpriteSeq(crab.sprite, crab.src, {
+    sliceX: crab.frames,
   });
   await loadSpriteSeq("sea-snail", SEA_SNAIL_ATLAS, {
     sliceX: SEA_SNAIL_FRAMES,

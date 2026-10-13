@@ -12,10 +12,11 @@ import {
   WATER_LIGHTING_TUNING,
   waterLightingTime,
 } from "./waterLighting";
-import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantTheme";
+import { getPlantTheme } from "./plantTheme";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
   off,
+  gothPlantsEnabled,
   profile,
   profileDraw,
   profileDrawEnd,
@@ -122,7 +123,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
 
 let pearlingPlants: PlantCluster[] = [];
 
-type PlantName = keyof typeof PLANT_ATLAS_LAYOUT;
+type PlantName = keyof ReturnType<typeof getPlantTheme>["layout"];
 type PlantTheme = "ribbon" | "broad" | "fern" | "mixed";
 export type PlantSpec = {
   fx: number;
@@ -325,6 +326,7 @@ function collectPlantCluster(
   spec: PlantSpec,
   out: Frond[],
 ): PlantCluster {
+  const { cell: PLANT_ATLAS_CELL, layout: PLANT_ATLAS_LAYOUT } = getPlantTheme(gothPlantsEnabled);
   const rootX = spec.fx * k.width();
   const rootY = spec.foreground
     ? k.height() + spec.depth * S
@@ -393,6 +395,7 @@ const SINGLE_PLANT_KINDS: PlantName[] = [
 // A single swaying frond rooted on the dune contour. Stratified across the width
 // (one per bin, jittered) so the scatter stays balanced instead of clumping.
 function collectSinglePlants(k: KAPLAYCtx, count: number, out: Frond[]) {
+  const { cell: PLANT_ATLAS_CELL, layout: PLANT_ATLAS_LAYOUT } = getPlantTheme(gothPlantsEnabled);
   for (let i = 0; i < count; i++) {
     const fx = (i + k.rand(0.15, 0.85)) / count;
     const rootX = fx * k.width();
@@ -468,7 +471,8 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
   // quads let us feed drawUVQuad directly; drawSprite(frame) is equivalent to
   // drawUVQuad with quad=frame and size=tex.wh*frame.wh, but re-resolves by name
   // and allocates a fresh opts object every frond every frame.
-  const data = k.getSprite("plant-atlas-v2")?.data;
+  const theme = getPlantTheme(gothPlantsEnabled);
+  const data = k.getSprite(theme.sprite)?.data;
   const BAND = 6;
   const bands = new Map<number, Frond[]>();
   for (const frond of fronds) {
@@ -529,7 +533,7 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
             // Fallback if the atlas somehow isn't resolved yet.
             for (const it of items)
               k.drawSprite({
-                sprite: "plant-atlas-v2",
+                sprite: theme.sprite,
                 frame: it.frond.frame,
                 pos: it.pos,
                 anchor: "bot",

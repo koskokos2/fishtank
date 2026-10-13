@@ -7,6 +7,7 @@ import { gothPlantsEnabled } from "./profiling";
 export function getPlantTheme(useGoth: boolean) {
   return useGoth
     ? {
+        sprite: "plant-atlas-v2-goth",
         src: goth.GOTH_PLANT_ATLAS,
         cell: goth.GOTH_PLANT_ATLAS_CELL,
         cols: goth.GOTH_PLANT_ATLAS_COLS,
@@ -14,6 +15,7 @@ export function getPlantTheme(useGoth: boolean) {
         layout: goth.GOTH_PLANT_ATLAS_LAYOUT,
       }
     : {
+        sprite: "plant-atlas-v2",
         src: normal.PLANT_ATLAS,
         cell: normal.PLANT_ATLAS_CELL,
         cols: normal.PLANT_ATLAS_COLS,

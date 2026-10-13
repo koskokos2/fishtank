@@ -6,10 +6,10 @@
 // legs never paddle while it is parked.
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
-import { HERMIT_CRAB_GROUND_OFFSET } from "./crabTheme";
+import { getCrabTheme } from "./crabTheme";
 import { RES } from "./res";
 import { spawnSandPuff } from "./sandPuff";
-import { profile, profileDraw, profileDrawEnd } from "./profiling";
+import { crawlingHandsEnabled, profile, profileDraw, profileDrawEnd } from "./profiling";
 import { chooseSubstrateDepth, maxSubstrateDepthAt } from "./substrate";
 import {
   clampPathX,
@@ -38,6 +38,7 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
 export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
+  const theme = getCrabTheme(crawlingHandsEnabled);
   let x = clamp(
     startX ?? k.rand(EDGE, k.width() - EDGE),
     EDGE,
@@ -61,7 +62,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
 
   const groundCentreY = (atX: number, depth: number) =>
     sandTopAt(clamp(atX, 0, k.width() - 1)) -
-    HERMIT_CRAB_GROUND_OFFSET * CRAB_SCALE +
+    theme.groundOffset * CRAB_SCALE +
     depth;
 
   const baseY = (atX: number, depth: number) =>
@@ -69,7 +70,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
 
   const crab = k.add([
     profileDraw("crabs"),
-    k.sprite("hermit-crab"),
+    k.sprite(theme.sprite),
     profileDrawEnd(),
     k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),

@@ -21,9 +21,9 @@ export const uncapped = params.has("uncap");
 // Opt-in schedule; unchecked always hides birthday fish.
 export let birthdayFishEnabled = params.get("birthday") === "1";
 // A skin for the existing plant field; the plants visibility gate still applies.
-export const gothPlantsEnabled = params.get("goth-plants") === "1";
-export const gothKelpEnabled = params.get("goth-kelp") === "1";
-export const crawlingHandsEnabled = params.get("crawling-hands") === "1";
+export let gothPlantsEnabled = params.get("goth-plants") === "1";
+export let gothKelpEnabled = params.get("goth-kelp") === "1";
+export let crawlingHandsEnabled = params.get("crawling-hands") === "1";
 // ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
 // devices (halves sustained load and heat) without needing a separate build.
 export const capFPS = Number(params.get("cap")) || 62;
@@ -39,6 +39,9 @@ function updateSettings(next: URLSearchParams, reload = false) {
   for (const name of (next.get("off") ?? "").split(",").filter(Boolean)) OFF.add(name);
   if (OFF.has("water-light")) OFF.add("caustics");
   birthdayFishEnabled = next.get("birthday") === "1";
+  gothPlantsEnabled = next.get("goth-plants") === "1";
+  gothKelpEnabled = next.get("goth-kelp") === "1";
+  crawlingHandsEnabled = next.get("crawling-hands") === "1";
   if (kaplayDebug) kaplayDebug.paused = next.has("pause");
   for (const listener of settingsListeners) listener();
 }
@@ -902,7 +905,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         const p = new URLSearchParams(location.search);
         if (cb.checked) p.set(query, "1");
         else p.delete(query);
-        updateSettings(p, true);
+        updateSettings(p);
       });
       label.append(cb, display);
       boxes.get(layer)!.closest("label")!.after(label);

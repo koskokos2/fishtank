@@ -32,7 +32,38 @@ const state = () => ({
     };
   }),
 });
+const skinNames = ["plant-atlas-v2", "plant-atlas-v2-goth", "luminous-kelp", "luminous-kelp-goth", "hermit-crab", "crawling-hand"];
+const skinAssetIds = new Map<object, number>();
+let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefined;
+const drawUVQuad = k.drawUVQuad;
+k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  skinAssets: () => Object.fromEntries(skinNames.map(name => {
+    const data = k.getSprite(name)?.data;
+    if (data && !skinAssetIds.has(data)) skinAssetIds.set(data, skinAssetIds.size + 1);
+    return [name, data ? skinAssetIds.get(data) : null];
+  })),
+  // Inspect real custom-draw UVs, rather than only asserting that assets loaded.
+  plantDrawing: async () => {
+    let kelpMinY = Infinity, kelpMaxY = -Infinity;
+    const seen = new Set<string>();
+    const assets = skinNames.slice(0, 4).map(name => ({ name, data: k.getSprite(name)?.data }));
+    drawProbe = options => {
+      for (const { name, data } of assets) {
+        if (data && data.tex === options.tex && data.frames.includes(options.quad!)) {
+          seen.add(name);
+          if (name.startsWith("luminous-kelp")) {
+            const y = (options.pos as { y: number }).y;
+            kelpMinY = Math.min(kelpMinY, y);
+            kelpMaxY = Math.max(kelpMaxY, y);
+          }
+        }
+      }
+    };
+    await new Promise(resolve => setTimeout(resolve, 100));
+    drawProbe = undefined;
+    return { skins: [...seen].sort(), kelpHeight: (kelpMaxY - kelpMinY) / k.height() };
+  },
   settingsLayer: (name: string) => k.get(`settings-${name}`).map(object => ({
     id: object.id, hidden: object.hidden, sprite: object.sprite as string | undefined,
   })),

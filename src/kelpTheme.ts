@@ -7,6 +7,7 @@ import { gothKelpEnabled } from "./profiling";
 export function getKelpTheme(useGoth: boolean) {
   return useGoth
     ? {
+        sprite: "luminous-kelp-goth",
         src: goth.GOTH_KELP_ATLAS,
         cols: goth.GOTH_KELP_COLS,
         rows: goth.GOTH_KELP_ROWS,
@@ -15,6 +16,7 @@ export function getKelpTheme(useGoth: boolean) {
         tips: goth.GOTH_KELP_TIP,
       }
     : {
+        sprite: "luminous-kelp",
         src: normal.LUMINOUS_KELP_ATLAS,
         cols: normal.LUMINOUS_KELP_COLS,
         rows: normal.LUMINOUS_KELP_ROWS,

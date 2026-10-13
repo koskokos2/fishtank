@@ -88,8 +88,9 @@ mode for fixed daytime rays, or click **backdrop** to take manual control live.
 
 Layer checkboxes, fish/object sets, population counts, birthday fish and pause
 update live and keep the address bar in sync. Only the affected group is rebuilt;
-other creatures keep swimming. Resolution, frame cap and the goth/crawling-hand
-atlas switches still reload because they select renderer or sprite assets at startup.
+other creatures keep swimming. Goth plants, goth kelp and crawling hands also
+switch live; alternate atlases load on first use and stay cached for later switches.
+Resolution and frame cap still reload because they configure the renderer at startup.
 
 ```sh
 bun run preview:caustics

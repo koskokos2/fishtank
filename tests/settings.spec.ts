@@ -121,3 +121,69 @@ test("the off=all shortcut can be selectively re-enabled without reloading", asy
   expect(await layer(page, "kelp")).toHaveLength(0);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
 });
+
+const skinSwitches = [
+  { label: "goth plants", query: "goth-plants", group: "plants", normal: "plant-atlas-v2", alternate: "plant-atlas-v2-goth" },
+  { label: "goth kelp", query: "goth-kelp", group: "kelp", normal: "luminous-kelp", alternate: "luminous-kelp-goth" },
+  { label: "crawling hands", query: "crawling-hands", group: "crabs", normal: "hermit-crab", alternate: "crawling-hand" },
+];
+
+for (const startAlternate of [false, true]) {
+  test(`skins switch live both ways and reuse cached atlases (start alternate: ${startAlternate})`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await open(page, startAlternate ? "goth-plants=1&goth-kelp=1&crawling-hands=1" : "");
+    await checkbox(page, "pause").check();
+    const origin = await page.evaluate(() => performance.timeOrigin);
+    const unchanged = await Promise.all(["fish", "snail", "props", "octo"].map(name => layer(page, name)));
+    for (const skin of skinSwitches) {
+      const before = await layer(page, skin.group);
+      await checkbox(page, skin.label).setChecked(!startAlternate);
+      await expect.poll(async () => (await layer(page, skin.group))[0]?.id).not.toBe(before[0].id);
+      expect(new URL(page.url()).searchParams.get(skin.query)).toBe(startAlternate ? null : "1");
+    }
+    const drawing = await page.evaluate(() => window.birthdayTest.plantDrawing());
+    expect(drawing.kelpHeight).toBeGreaterThan(0.25);
+    expect(drawing.skins).toEqual(
+      (startAlternate ? ["plant-atlas-v2", "luminous-kelp"] : ["plant-atlas-v2-goth", "luminous-kelp-goth"]).sort(),
+    );
+    expect((await layer(page, "crabs")).every(o => o.sprite === (startAlternate ? "hermit-crab" : "crawling-hand"))).toBe(true);
+    await page.screenshot({ path: test.info().outputPath("live-skins.png") });
+    const cached = await page.evaluate(() => window.birthdayTest.skinAssets());
+    expect(Object.values(cached).every(Boolean)).toBe(true);
+    for (let i = 0; i < 3; i++) {
+      for (const skin of skinSwitches) {
+        await checkbox(page, skin.label).setChecked(startAlternate);
+        await checkbox(page, skin.label).setChecked(!startAlternate);
+      }
+    }
+    expect(await page.evaluate(() => window.birthdayTest.skinAssets())).toEqual(cached);
+    expect(await Promise.all(["fish", "snail", "props", "octo"].map(name => layer(page, name)))).toEqual(unchanged);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+    expect(errors).toEqual([]);
+  });
+}
+
+test("hidden skin changes load when enabled; rapid changes keep the latest selection", async ({ page }) => {
+  await open(page, "off=plants,kelp,crabs");
+  await checkbox(page, "pause").check();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  for (const skin of skinSwitches) {
+    await checkbox(page, skin.label).check();
+    expect(await layer(page, skin.group)).toHaveLength(0);
+    expect((await page.evaluate(() => window.birthdayTest.skinAssets()))[skin.alternate]).toBeNull();
+    // Start decoding an alternate atlas, then change our mind in the same task.
+    await page.evaluate(({ group, label }) => {
+      const inputs = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+      const find = (text: string) => inputs.find(input => input.parentElement?.textContent?.trim() === text)!;
+      find(group).click();
+      find(label).click();
+    }, skin);
+    await expect.poll(async () => (await page.evaluate(() => window.birthdayTest.skinAssets()))[skin.alternate]).toBeTruthy();
+    expect(new URL(page.url()).searchParams.has(skin.query)).toBe(false);
+    expect((await layer(page, skin.group)).length).toBeGreaterThan(0);
+  }
+  expect((await page.evaluate(() => window.birthdayTest.plantDrawing())).skins).toEqual(["luminous-kelp", "plant-atlas-v2"]);
+  expect((await layer(page, "crabs")).every(o => o.sprite === "hermit-crab")).toBe(true);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+});
