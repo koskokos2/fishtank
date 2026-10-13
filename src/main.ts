@@ -23,7 +23,7 @@ import {
   LUMINOUS_KELP_ATLAS,
   LUMINOUS_KELP_COLS,
   LUMINOUS_KELP_ROWS,
-} from "./luminousKelpAtlas";
+} from "./kelpTheme";
 import { PLANT_ATLAS, PLANT_ATLAS_COLS, PLANT_ATLAS_ROWS } from "./plantTheme";
 import {
   SCI_FI_PROPS_ATLAS,

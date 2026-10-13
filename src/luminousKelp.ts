@@ -3,7 +3,7 @@
 // clusters attach to shared anatomical joints and sway on independent clocks.
 import type { KAPLAYCtx, Color, Quad, Vec2 } from "kaplay";
 import { sandTopAt } from "./backdrop";
-import { LUMINOUS_KELP_PART, LUMINOUS_KELP_TIP } from "./luminousKelpAtlas";
+import { LUMINOUS_KELP_PART, LUMINOUS_KELP_TIP } from "./kelpTheme";
 import { profile, withDrawProfile } from "./profiling";
 import { RES } from "./res";
 
