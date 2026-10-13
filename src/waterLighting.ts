@@ -65,7 +65,9 @@ vec2 surfacePoint(vec2 p) {
 float rayField(vec2 entry) {
   float transmitted = waves(entry);
   float streaks = noise(vec2(entry.x * 9.0, 2.0 + sin(u_time * 0.03) * 0.4));
-  float shaft = smoothstep(-0.12, 0.60, transmitted + streaks * 0.45);
+  // Fixed at the selected 70% sharpness, with a smooth edge transition.
+  float feather = mix(0.48, 0.04, 0.70);
+  float shaft = smoothstep(0.24 - feather, 0.24 + feather, transmitted + streaks * 0.45);
   return shaft * shaft;
 }
 

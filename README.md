@@ -75,6 +75,8 @@ surface texture has been removed. `?off=caustics` disables the rays; `off=water-
 legacy alias. `?light-time=12` freezes just the lighting at 12 seconds; remove
 that parameter to resume its slow light motion. The backdrop uses a fixed seed.
 
+Ray sharpness is fixed at 70%.
+
 ```sh
 bun run preview:caustics
 # Or choose an output directory after building:
