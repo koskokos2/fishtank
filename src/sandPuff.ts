@@ -103,7 +103,6 @@ export function spawnSandPuff(
             }
           }
           if (grains.length === 0) {
-            activeBursts--;
             puff.destroy();
           }
         });
@@ -122,4 +121,9 @@ export function spawnSandPuff(
       },
     },
   ]);
+  puff.tag("sand-puff");
+  puff.onDestroy(() => {
+    activeBursts--;
+    activeGrains -= grains.length;
+  });
 }

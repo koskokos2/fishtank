@@ -95,5 +95,6 @@ export function attachBirthdaySparkles(k: KAPLAYCtx, fish: FishActor, palette: n
       },
     },
   ]);
-  fish.onDestroy(() => trail.destroy());
+  const ownerDestroyed = fish.onDestroy(() => trail.destroy());
+  trail.onDestroy(() => ownerDestroyed.cancel());
 }

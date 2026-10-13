@@ -204,10 +204,10 @@ function familyProps(
       col: layouts[p.name].col!,
     })),
   );
-  return off(`obj-${family}`) ? [] : props;
+  return props;
 }
 
-// This is the complete prop pool built from the selections in each family.
+// Complete prop catalog; current family selections are filtered at spawn time.
 // The family spec arrays remain the single source of truth for those whitelists.
 export const PROP_WHITELIST: readonly WhitelistedProp[] = [
   ...familyProps(
@@ -465,12 +465,12 @@ function shuffled<T>(k: KAPLAYCtx, values: readonly T[]) {
   return result;
 }
 
-function refillPropCycle(k: KAPLAYCtx, visibleIds: ReadonlySet<string>) {
+function refillPropCycle(k: KAPLAYCtx, visibleIds: ReadonlySet<string>, pool: readonly WhitelistedProp[]) {
   // Refill from the complete whitelist, but count the props already on screen
   // as shown for the new cycle so they don't immediately repeat into another
   // slot. Once those visible props are evicted, they stay out until the next
   // cycle reset.
-  return shuffled(k, PROP_WHITELIST).filter((prop) => !visibleIds.has(prop.id));
+  return shuffled(k, pool).filter((prop) => !visibleIds.has(prop.id));
 }
 
 function claimSlot(
@@ -484,7 +484,7 @@ function claimSlot(
     x1: left + prop.layout.contactRight,
     baseY: placement.rootY,
   };
-  obstacles = [...slotObstacles];
+  obstacles = slotObstacles.filter(Boolean);
 }
 
 function spawnProp(
@@ -665,8 +665,15 @@ function dropInProp(
   );
 }
 
+export function resetPropObstacles() {
+  slotObstacles.length = 0;
+  obstacles = [];
+}
+
+const propEnabled = (prop: WhitelistedProp) => !off(`obj-${prop.id.split(":")[0]}`);
+
 export function spawnFixedProps(k: KAPLAYCtx) {
-  FIXED_PROPS.forEach(({ prop, slot }, index) => {
+  FIXED_PROPS.filter(({ prop }) => propEnabled(prop)).forEach(({ prop, slot }, index) => {
     const object = spawnProp(k, prop, slot, PROP_SLOTS.length + index);
     if (prop.name === "galactic_field_terminal")
       spawnFpsReadout(k, object.pos.x, object.pos.y, object.z + 0.01);
@@ -677,13 +684,10 @@ export function spawnFixedProps(k: KAPLAYCtx) {
 
 export function spawnRotatingProps(k: KAPLAYCtx) {
   // Every family disabled via the settings panel — nothing to rotate.
-  if (!PROP_WHITELIST.length) return;
-  if (PROP_WHITELIST.length < VISIBLE_PROP_COUNT + 1)
-    throw new Error(
-      `The prop rotation needs at least ${VISIBLE_PROP_COUNT + 1} whitelisted props`,
-    );
+  const pool = PROP_WHITELIST.filter(propEnabled);
+  if (!pool.length) return;
 
-  let propCycle = refillPropCycle(k, new Set());
+  let propCycle = refillPropCycle(k, new Set(), pool);
   const takeNextProp = (visibleIds: ReadonlySet<string>) => {
     for (;;) {
       for (let i = propCycle.length - 1; i >= 0; i--) {
@@ -693,13 +697,13 @@ export function spawnRotatingProps(k: KAPLAYCtx) {
         return prop;
       }
 
-      propCycle = refillPropCycle(k, visibleIds);
+      propCycle = refillPropCycle(k, visibleIds, pool);
     }
   };
 
   const initial: WhitelistedProp[] = [];
   const initialIds = new Set<string>();
-  while (initial.length < VISIBLE_PROP_COUNT) {
+  while (initial.length < Math.min(VISIBLE_PROP_COUNT, pool.length)) {
     const prop = takeNextProp(initialIds);
     initial.push(prop);
     initialIds.add(prop.id);
@@ -713,6 +717,7 @@ export function spawnRotatingProps(k: KAPLAYCtx) {
   // Wait a full rotation period before the first change. Each tick evicts one random
   // occupant and draws from a shuffled no-repeat cycle, so every whitelisted
   // prop is shown at least once before the cycle refills from the full pool.
+  if (pool.length <= displayed.length) return;
   let rotating = false;
   k.loop(
     ROTATION_SECONDS,

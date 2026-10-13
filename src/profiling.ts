@@ -1,6 +1,6 @@
 import type { KAPLAYCtx } from "kaplay";
 import { BIRTHDAY_START_LABEL } from "./birthdayDate";
-import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride } from "./sunClock";
+import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride, writeSunSettings } from "./sunClock";
 
 // Scene-ablation toggles for performance profiling. Normal operation is
 // unaffected (empty query = everything on). Open the page with e.g.
@@ -8,7 +8,7 @@ import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOve
 // ?off=water-light is a legacy alias for all surface lighting, ?off=all for the
 // empty tank floor, and ?uncap to lift the maxFPS cap — then read the FPS console.
 // Headless tools import scene modules that import this one — no location there.
-const params =
+let params =
   typeof location === "undefined"
     ? new URLSearchParams()
     : new URLSearchParams(location.search);
@@ -19,7 +19,7 @@ export const off = (name: string) => OFF.has("all") ||
   (name === "backdrop" && realTimeSun ? !currentSun().daylight : OFF.has(name));
 export const uncapped = params.has("uncap");
 // Opt-in schedule; unchecked always hides birthday fish.
-export const birthdayFishEnabled = params.get("birthday") === "1";
+export let birthdayFishEnabled = params.get("birthday") === "1";
 // A skin for the existing plant field; the plants visibility gate still applies.
 export const gothPlantsEnabled = params.get("goth-plants") === "1";
 export const gothKelpEnabled = params.get("goth-kelp") === "1";
@@ -27,6 +27,21 @@ export const crawlingHandsEnabled = params.get("crawling-hands") === "1";
 // ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
 // devices (halves sustained load and heat) without needing a separate build.
 export const capFPS = Number(params.get("cap")) || 62;
+const settingsListeners = new Set<() => void>();
+export const onSettingsChange = (listener: () => void) => { settingsListeners.add(listener); };
+function updateSettings(next: URLSearchParams, reload = false) {
+  writeSunSettings(next);
+  const url = `${location.pathname}${next.size ? `?${next}` : ""}${location.hash}`;
+  if (reload) { location.assign(url); return; }
+  history.replaceState(null, "", url);
+  params = next;
+  OFF.clear();
+  for (const name of (next.get("off") ?? "").split(",").filter(Boolean)) OFF.add(name);
+  if (OFF.has("water-light")) OFF.add("caustics");
+  birthdayFishEnabled = next.get("birthday") === "1";
+  if (kaplayDebug) kaplayDebug.paused = next.has("pause");
+  for (const listener of settingsListeners) listener();
+}
 // ?fish=4 style spawn-count overrides; anything unparseable keeps the default.
 export const num = (name: string, fallback: number) => {
   if (!params.has(name)) return fallback;
@@ -349,6 +364,7 @@ export const installEngineProfiler = (
   k: Pick<KAPLAYCtx, "getTreeRoot" | "debug">,
 ) => {
   kaplayDebug = k.debug;
+  kaplayDebug.paused = params.has("pause");
   const root = k.getTreeRoot() as ProfileRoot;
   if (profiledRoots.has(root)) return;
   profiledRoots.add(root);
@@ -734,13 +750,12 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       const p = new URLSearchParams(location.search);
       if (birthdayCb.checked) p.set("birthday", "1");
       else p.delete("birthday");
-      location.search = p.toString();
+      updateSettings(p);
     });
     birthdayLabel.append(birthdayCb, "Birthday fish (scheduled)");
     box.append(birthdayLabel);
 
-    // Scene-element checkboxes: each maps to an ?off= gate, which only runs at
-    // spawn time — applying a change rewrites the query and reloads. Every
+    // Scene-element checkboxes: each maps to a live ?off= gate. Every
     // checkbox across every grid below shares one `boxes` map and `apply`, so
     // toggling one section's gates never clobbers another's.
     const TOGGLES = [
@@ -792,7 +807,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       const p = new URLSearchParams(location.search);
       if (offNow.length) p.set("off", offNow.join(","));
       else p.delete("off");
-      location.search = p.toString();
+      updateSettings(p);
     };
     const addToggleGrid = (
       title: string,
@@ -839,12 +854,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
           if (name !== "backdrop") { apply(); return; }
           // Manual backdrop changes are live too, and leave automatic mode.
           setRealTimeSun(false);
-          if (cb.checked) OFF.delete("backdrop");
-          else OFF.add("backdrop");
-          const p = new URLSearchParams(location.search);
-          if (OFF.size) p.set("off", [...OFF].join(","));
-          else p.delete("off");
-          history.replaceState(null, "", `${location.pathname}?${p}${location.hash}`);
+          apply();
           syncSunControls();
         });
         boxes.set(name, cb);
@@ -892,7 +902,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         const p = new URLSearchParams(location.search);
         if (cb.checked) p.set(query, "1");
         else p.delete(query);
-        location.search = p.toString();
+        updateSettings(p, true);
       });
       label.append(cb, display);
       boxes.get(layer)!.closest("label")!.after(label);
@@ -960,14 +970,17 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     }
     sunToggle.addEventListener("change", () => {
       setRealTimeSun(sunToggle.checked);
+      updateSettings(new URLSearchParams(location.search));
       syncSunControls();
     });
     timeSlider.addEventListener("input", () => {
       setSunTimeOverride(Number(timeSlider.value));
+      updateSettings(new URLSearchParams(location.search));
       syncSunControls();
     });
     resetTime.addEventListener("click", () => {
       setSunTimeOverride(null);
+      updateSettings(new URLSearchParams(location.search));
       syncSunControls();
     });
     syncSunControls();
@@ -1007,7 +1020,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       sel.addEventListener("change", () => {
         const p = new URLSearchParams(location.search);
         onPick(sel.value, p);
-        location.search = p.toString();
+        updateSettings(p, true);
       });
       label.append(title, sel);
       row.append(label);
@@ -1055,14 +1068,17 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     const pauseCb = document.createElement("input");
     pauseCb.type = "checkbox";
     pauseCb.style.accentColor = "#7f7";
+    pauseCb.checked = params.has("pause");
     pauseCb.addEventListener("change", () => {
-      if (kaplayDebug) kaplayDebug.paused = pauseCb.checked;
+      const p = new URLSearchParams(location.search);
+      if (pauseCb.checked) p.set("pause", "1");
+      else p.delete("pause");
+      updateSettings(p);
     });
     pauseLabel.append(pauseCb, "pause");
     row.append(pauseLabel);
 
-    // Spawn-count inputs (?fish= etc.); like the toggles, counts are fixed at
-    // spawn time, so a change rewrites the query and reloads.
+    // Spawn-count inputs rebuild only the affected population and update the URL.
     const countRow = document.createElement("div");
     countRow.style.cssText =
       "display:flex;flex-direction:column;gap:2px;margin-top:6px;" +
@@ -1086,7 +1102,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         const v = Math.min(999, Math.max(0, Math.floor(Number(input.value))));
         if (!Number.isFinite(v) || v === fallback) p.delete(name);
         else p.set(name, String(v));
-        location.search = p.toString();
+        input.value = String(Number.isFinite(v) ? v : fallback);
+        updateSettings(p);
       });
       label.append(name, input);
       countRow.append(label);

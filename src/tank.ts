@@ -30,15 +30,16 @@ type TankEntityCounts = Readonly<{ plants: number }>;
 // setupTank places those at the back and adds the *animated* layers over them:
 // sunlight shafts, swaying plants, motes, and bubbles.
 // Depth is faked with z-ordering.
-export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
+export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string) {
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
-  {
+  if (!layer || layer === "backdrop") {
     const fixedLightTime = new URLSearchParams(location.search).get("light-time");
     const waterLightUniform = {
       u_time: 0,
       u_emitterX: WATER_LIGHTING_TUNING.emitterX as number,
+      u_raysEnabled: 1,
     };
     const backdrop = k.add([
       profileDraw("backdrop"),
@@ -46,21 +47,18 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
       profileDrawEnd(),
       k.pos(0, 0),
       k.z(-200),
-      ...(off("caustics") || off("water-light")
-        ? []
-        : [
-            k.shader(WATER_LIGHT_SHADER, () => {
-              waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
-              waterLightUniform.u_emitterX = realTimeSun ? currentSun().emitterX : WATER_LIGHTING_TUNING.emitterX;
-              return waterLightUniform;
-            }),
-          ]),
+      k.shader(WATER_LIGHT_SHADER, () => {
+        waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
+        waterLightUniform.u_emitterX = realTimeSun ? currentSun().emitterX : WATER_LIGHTING_TUNING.emitterX;
+        waterLightUniform.u_raysEnabled = off("caustics") || off("water-light") ? 0 : 1;
+        return waterLightUniform;
+      }),
     ]);
     // Keep the sprite alive so dawn, dusk and manual toggles never rebuild the tank.
     backdrop.hidden = off("backdrop");
     backdrop.onUpdate(() => { backdrop.hidden = off("backdrop"); });
   }
-  if (!off("sand"))
+  if ((!layer || layer === "sand") && !off("sand"))
     k.add([
       profileDraw("sand"),
       k.sprite("backdrop-sand"),
@@ -71,53 +69,58 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
 
   // Six live prop slots draw from the combined whitelist. One random occupant
   // is replaced by a different whitelisted prop every five minutes.
-  if (!off("props")) {
+  if ((!layer || layer === "props") && !off("props")) {
     spawnRotatingProps(k);
 
     // The two display consoles stay put, outside the rotating slots.
     spawnFixedProps(k);
   }
 
-  // Atlas plants keep the good depth language of the old procedural grass, but
-  // each real frond now has its own root pivot and current phase. Their roots use
-  // the actual dune contour and sit several pixels inside the dense sand, where
-  // the atlas' dithered alpha edge reveals the procedural substrate beneath.
-  // The shared plants budget fills mid clusters first, then foreground clumps,
-  // then the lone shoots.
-  const plantBudget = off("plants") ? 0 : counts.plants;
-  // Every frond is collected into one flat list, then committed as a handful of
-  // z-banded draw controllers (see commitPlantField) instead of one game object
-  // per frond. On weak GPUs the per-object scene-graph walk — not the pixels —
-  // is the cost, so collapsing ~150 plant entities into a few controllers is the
-  // single biggest Pi win while keeping every frond on screen.
-  const fronds: Frond[] = [];
-  const midPlants = MID_PLANTS.slice(0, plantBudget).map((spec) =>
-    collectPlantCluster(k, spec, fronds),
-  );
-  FOREGROUND_PLANTS.slice(
-    0,
-    Math.max(0, plantBudget - MID_PLANTS.length),
-  ).forEach((spec) => collectPlantCluster(k, spec, fronds));
+  if (!layer || layer === "plants") {
+    // Atlas plants keep the good depth language of the old procedural grass, but
+    // each real frond now has its own root pivot and current phase. Their roots use
+    // the actual dune contour and sit several pixels inside the dense sand, where
+    // the atlas' dithered alpha edge reveals the procedural substrate beneath.
+    // The shared plants budget fills mid clusters first, then foreground clumps,
+    // then the lone shoots.
+    const plantBudget = off("plants") ? 0 : counts.plants;
+    // Every frond is collected into one flat list, then committed as a handful of
+    // z-banded draw controllers (see commitPlantField) instead of one game object
+    // per frond. On weak GPUs the per-object scene-graph walk — not the pixels —
+    // is the cost, so collapsing ~150 plant entities into a few controllers is the
+    // single biggest Pi win while keeping every frond on screen.
+    const fronds: Frond[] = [];
+    pearlingPlants = MID_PLANTS.slice(0, plantBudget).map((spec) =>
+      collectPlantCluster(k, spec, fronds),
+    );
+    FOREGROUND_PLANTS.slice(
+      0,
+      Math.max(0, plantBudget - MID_PLANTS.length),
+    ).forEach((spec) => collectPlantCluster(k, spec, fronds));
 
-  // Lone shoots scattered between the clusters so the seabed reads as evenly
-  // planted rather than tufted only at the set piece clumps.
-  const singleShoots =
-    plantBudget - MID_PLANTS.length - FOREGROUND_PLANTS.length;
-  if (singleShoots > 0) collectSinglePlants(k, singleShoots, fronds);
+    // Lone shoots scattered between the clusters so the seabed reads as evenly
+    // planted rather than tufted only at the set piece clumps.
+    const singleShoots =
+      plantBudget - MID_PLANTS.length - FOREGROUND_PLANTS.length;
+    if (singleShoots > 0) collectSinglePlants(k, singleShoots, fronds);
 
-  commitPlantField(k, fronds);
+    commitPlantField(k, fronds);
+  }
 
-  if (!off("motes")) spawnMotes(k, 30);
-  // Fresh pools per scene build so a dev reload can't leave controllers from a
-  // previous scene holding stale bubble structs.
-  bubblePools.clear();
-  bubbleColor = null;
-  if (!off("bubbles")) {
-    spawnPlantPearling(k, midPlants);
-    spawnSubstrateSeeps(k);
-    spawnRuinLeaks(k);
+  if ((!layer || layer === "motes") && !off("motes")) spawnMotes(k, 30);
+  if (!layer || layer === "bubbles") {
+    // Replacing the bubble group discards its previous controllers and pools.
+    bubblePools.clear();
+    bubbleColor = null;
+    if (!off("bubbles")) {
+      spawnPlantPearling(k, pearlingPlants);
+      spawnSubstrateSeeps(k);
+      spawnRuinLeaks(k);
+    }
   }
 }
+
+let pearlingPlants: PlantCluster[] = [];
 
 type PlantName = keyof typeof PLANT_ATLAS_LAYOUT;
 type PlantTheme = "ribbon" | "broad" | "fern" | "mixed";

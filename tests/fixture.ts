@@ -33,6 +33,10 @@ const state = () => ({
   }),
 });
 const api = {
+  settingsLayer: (name: string) => k.get(`settings-${name}`).map(object => ({
+    id: object.id, hidden: object.hidden, sprite: object.sprite as string | undefined,
+  })),
+  paused: () => k.debug.paused,
   state,
   reinstall: () => installBirthdayFish(k),
   pause: () => { k.debug.paused = true; },

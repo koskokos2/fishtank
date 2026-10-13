@@ -81,9 +81,15 @@ The toolbar's **real-time sun** mode is enabled by default and uses the device's
 local clock. Rays travel from just beyond the left edge at 04:00 to just beyond
 the right edge at 18:00. From 18:00 until 04:00, the backdrop switches off to show
 the existing dark night background; dawn restores it. These changes happen live.
-**Preview time** temporarily overrides the clock for the current page; **Use real
-time** returns to the clock. Only the mode is saved across reloads. Disable the
+**Preview time** overrides the clock until **Use real time** is selected. The URL
+records the mode (`sun=1` or `sun=0`) and any preview (`sun-time=08:30`), so shared
+links reproduce your selection even on another device. Disable the
 mode for fixed daytime rays, or click **backdrop** to take manual control live.
+
+Layer checkboxes, fish/object sets, population counts, birthday fish and pause
+update live and keep the address bar in sync. Only the affected group is rebuilt;
+other creatures keep swimming. Resolution, frame cap and the goth/crawling-hand
+atlas switches still reload because they select renderer or sprite assets at startup.
 
 ```sh
 bun run preview:caustics

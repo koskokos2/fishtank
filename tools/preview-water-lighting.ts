@@ -13,6 +13,9 @@ mkdirSync(output, { recursive: true });
 const server = serveDist(resolve("dist"), 0);
 const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome" });
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, timezoneId: "UTC" });
+// Install the fake wall clock before the engine starts: installing it mid-scene
+// resets performance.now() and temporarily stalls the engine's frame limiter.
+await page.clock.setFixedTime("2026-10-13T12:00:00Z");
 // Keep the established shader regression frames independent of the wall clock.
 await page.addInitScript(() => {
   if (localStorage.getItem("realTimeSun") === null) localStorage.setItem("realTimeSun", "false");
@@ -125,7 +128,7 @@ try {
   await page.waitForTimeout(1500);
   const liveB = PNG.sync.read(await page.locator("canvas").screenshot());
   check(difference(liveA, liveB, 0, 0.3) > 0.1, "Normal runtime lighting must animate");
-  // Exercise the actual sidebar gate through its normal reload path.
+  // Exercise the actual sidebar gate through its live URL-update path.
   await page.goto(`http://localhost:${server.port}/?debug&light-time=0&off=${hidden}`);
   await page.locator('canvas[data-ready="true"]').waitFor();
   await page.getByRole("checkbox", { name: "caustics", exact: true }).uncheck();
@@ -140,7 +143,12 @@ try {
   await page.getByRole("checkbox", { name: "real-time sun", exact: true }).check();
   const origin = await page.evaluate(() => performance.timeOrigin);
   const backdrop = page.getByRole("checkbox", { name: "backdrop", exact: true });
-  const settle = () => page.waitForTimeout(1100);
+  const settle = async () => {
+    await page.waitForTimeout(1100);
+    await page.evaluate(() => new Promise<void>(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+  };
   await settle();
   check(!await backdrop.isChecked(), "Backdrop must be off before 04:00");
   const night = PNG.sync.read(await page.locator("canvas").screenshot({ path: `${output}/night.png` }));
@@ -182,7 +190,9 @@ try {
   await page.reload();
   await page.locator('canvas[data-ready="true"]').waitFor();
   check(await page.getByRole("checkbox", { name: "real-time sun", exact: true }).isChecked(), "Real-time mode must persist");
-  check(await timeSlider.inputValue() === "1080" && !await backdrop.isChecked(), "Temporary time must reset on reload");
+  check(await timeSlider.inputValue() === "660" && await backdrop.isChecked(), "Shared preview time must survive reloading its URL");
+  await page.getByRole("button", { name: "Use real time", exact: true }).click();
+  check(await timeSlider.inputValue() === "1080" && !await backdrop.isChecked(), "Reset must restore the clock after loading a shared preview");
   check(errors.length === 0, errors.join("\n"));
   console.log(`Water lighting verified: deterministic frames, motion, grouped rays, loop, gates, sidebar, RES=1/2/3/6, local sun clock, live dawn/dusk, preview and persistence.\nPreviews: ${output}`);
 } finally {

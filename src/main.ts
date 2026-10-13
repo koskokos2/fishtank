@@ -1,4 +1,4 @@
-import kaplay from "kaplay";
+import kaplay, { type KAPLAYCtx } from "kaplay";
 import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
 import { SWIM_FRAMES } from "./fishbake";
@@ -67,6 +67,8 @@ import {
   HALLOWEEN_PROPS_ATLAS_ROWS,
 } from "./halloweenPropsAtlas";
 import { setupTank } from "./tank";
+import { liveGroup } from "./liveGroup";
+import { resetPropObstacles } from "./propPlacement";
 import { loadWaterLighting } from "./waterLighting";
 import {
   off,
@@ -75,9 +77,11 @@ import {
   num,
   configureEntityCountDefaults,
   installEngineProfiler,
+  onSettingsChange,
+  birthdayFishEnabled,
 } from "./profiling";
 import { VW, VH } from "./res";
-import { installBirthdayFish, loadBirthdayFish } from "./birthdayFish";
+import { installBirthdayFish, loadBirthdayFish, syncBirthdaySparkles } from "./birthdayFish";
 
 const DEFAULT_ENTITY_COUNTS = {
   fish: 10,
@@ -88,16 +92,6 @@ const DEFAULT_ENTITY_COUNTS = {
   snail: 1,
   plants: 100,
 } as const;
-type EntityCounts = { [K in keyof typeof DEFAULT_ENTITY_COUNTS]: number };
-const ENTITY_COUNTS: EntityCounts = {
-  fish: num("fish", DEFAULT_ENTITY_COUNTS.fish),
-  jelly: num("jelly", DEFAULT_ENTITY_COUNTS.jelly),
-  octo: num("octo", DEFAULT_ENTITY_COUNTS.octo),
-  naut: num("naut", DEFAULT_ENTITY_COUNTS.naut),
-  crabs: num("crabs", DEFAULT_ENTITY_COUNTS.crabs),
-  snail: num("snail", DEFAULT_ENTITY_COUNTS.snail),
-  plants: num("plants", DEFAULT_ENTITY_COUNTS.plants),
-};
 configureEntityCountDefaults(DEFAULT_ENTITY_COUNTS);
 const BACKDROP_SEED = 1;
 
@@ -167,21 +161,67 @@ function fitWindow() {
 fitWindow();
 window.addEventListener("resize", fitWindow);
 
-// Each fish is a random kind; one that swims fully offscreen (a dart can carry
-// it out) is despawned and replaced by a fresh random fish entering from an edge,
-// so the population holds at ENTITY_COUNTS.fish. Sets disabled via the settings
-// panel's ?off=fish-<set> gates are excluded from the pool entirely.
-const fishKindIndices = FISH_KINDS.map((_, i) => i).filter(
-  (i) => !off(`fish-${fishKindSet(FISH_KINDS[i].name)}`),
-);
-const spawnRandomFish = (enterFromEdge: boolean) => {
-  if (!fishKindIndices.length) return;
-  const kind = k.choose(fishKindIndices);
-  spawnFish(k, `fish-${kind}`, FISH_KINDS[kind], {
-    enterFromEdge,
-    onGone: () => spawnRandomFish(true),
-  });
-};
+// Rebuild only the affected layer/population. All atlas textures, the clock,
+// unrelated swimmers and the renderer stay alive.
+function installLiveControls() {
+  const groups = new Map<string, { key: string; dispose: () => void }>();
+  const reconcileGroup = (name: string, key: string, spawn: (ctx: KAPLAYCtx) => void) => {
+    if (groups.get(name)?.key === key) return;
+    groups.get(name)?.dispose();
+    const group = liveGroup(k, name);
+    groups.set(name, { key, dispose: group.dispose });
+    spawn(group.context);
+  };
+  let birthdayState: boolean | undefined;
+  const reconcile = () => {
+    const plantCount = num("plants", DEFAULT_ENTITY_COUNTS.plants);
+    const plantKey = `${off("plants")}:${plantCount}`;
+    const propKey = `${off("props")}:${new URLSearchParams(location.search).get("off")?.split(",").filter(n => n.startsWith("obj-")).sort().join(",") ?? ""}`;
+    for (const layer of ["backdrop", "sand", "props", "plants", "motes", "bubbles"]) {
+      const key = layer === "backdrop" ? "live" : layer === "props" ? propKey
+        : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}` : String(off(layer));
+      reconcileGroup(layer, key, ctx => {
+        if (layer === "props") resetPropObstacles();
+        setupTank(ctx, { plants: plantCount }, layer);
+      });
+    }
+    // The toolbar still works while creature updates are paused.
+    for (const backdrop of k.get("settings-backdrop")) backdrop.hidden = off("backdrop");
+    const fishKinds = FISH_KINDS.map((_, i) => i).filter(i => !off(`fish-${fishKindSet(FISH_KINDS[i].name)}`));
+    const fishCount = off("fish") ? 0 : num("fish", DEFAULT_ENTITY_COUNTS.fish);
+    reconcileGroup("fish", `${fishCount}:${fishKinds.join(",")}`, ctx => {
+      const spawn = (enterFromEdge: boolean) => {
+        if (!fishKinds.length) return;
+        const kind = ctx.choose(fishKinds);
+        spawnFish(ctx, `fish-${kind}`, FISH_KINDS[kind], { enterFromEdge, onGone: () => spawn(true) });
+      };
+      for (let i = 0; i < fishCount; i++) spawn(false);
+    });
+    for (const [name, kind] of [["naut", "nautilus"], ["octo", "octopus"], ["jelly", "jellyfish"]] as const) {
+      const count = off("cephs") ? 0 : num(name, DEFAULT_ENTITY_COUNTS[name]);
+      reconcileGroup(name, String(count), ctx => {
+        for (let i = 0; i < count; i++) spawnCephalopod(ctx, kind);
+      });
+    }
+    const crabs = off("crabs") ? 0 : num("crabs", DEFAULT_ENTITY_COUNTS.crabs);
+    reconcileGroup("crabs", String(crabs), ctx => {
+      for (let i = 0; i < crabs; i++) spawnHermitCrab(ctx, ctx.width() * ((i + 0.5) / crabs));
+    });
+    const snails = off("crabs") ? 0 : num("snail", DEFAULT_ENTITY_COUNTS.snail);
+    reconcileGroup("snail", String(snails), ctx => {
+      for (let i = 0; i < snails; i++) spawnSeaSnail(ctx);
+    });
+    reconcileGroup("kelp", String(off("kelp")), ctx => { if (!off("kelp")) spawnLuminousKelpGrove(ctx); });
+    if (off("puffs")) for (const puff of k.get("sand-puff")) puff.destroy();
+    if (birthdayState !== birthdayFishEnabled) {
+      birthdayState = birthdayFishEnabled;
+      installBirthdayFish(k);
+    }
+    syncBirthdaySparkles(k);
+  };
+  reconcile();
+  onSettingsChange(reconcile);
+}
 
 // The fish sheets and backdrop are baked after async image decode, so resolve them
 // first, then register every sprite together — that way they're all in the load
@@ -300,34 +340,8 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     sliceY: NAUTILUS_ATLAS_ROWS,
   });
 
-  setupTank(k, ENTITY_COUNTS);
-
   k.onLoad(() => {
-    installBirthdayFish(k);
-    if (!off("fish"))
-      for (let i = 0; i < ENTITY_COUNTS.fish; i++) spawnRandomFish(false);
-    // A few cephalopods drift among the fish as larger accent creatures.
-    if (!off("cephs")) {
-      for (let i = 0; i < ENTITY_COUNTS.naut; i++)
-        spawnCephalopod(k, "nautilus");
-      for (let i = 0; i < ENTITY_COUNTS.octo; i++)
-        spawnCephalopod(k, "octopus");
-      for (let i = 0; i < ENTITY_COUNTS.jelly; i++)
-        spawnCephalopod(k, "jellyfish");
-    }
-    // Spread the crabs evenly so each is immediately readable before their
-    // independent routes eventually carry them around the full substrate.
-    if (!off("crabs")) {
-      const crabCount = ENTITY_COUNTS.crabs;
-      for (let i = 0; i < crabCount; i++)
-        spawnHermitCrab(k, k.width() * ((i + 0.5) / crabCount));
-      for (let i = 0; i < ENTITY_COUNTS.snail; i++) spawnSeaSnail(k);
-    }
-    // A dense right-side kelp forest is reconstructed on every load from ordered
-    // random stem, branch, crown, tendril and pod modules. Small juvenile stalks
-    // taper the left edge, while alternating rear/front layers make fish disappear
-    // naturally into the uneven mature grove.
-    if (!off("kelp")) spawnLuminousKelpGrove(k);
+    installLiveControls();
     canvas.dataset.ready = "true";
   });
 })();

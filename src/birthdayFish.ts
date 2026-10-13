@@ -3,7 +3,7 @@ import { shouldShowBirthdayFish, birthdayCheckDelay } from "./birthdayDate";
 import { BIRTHDAY_QR } from "./birthdayQr";
 import { BIRTHDAY_ATLAS, BIRTHDAY_ATLAS_COLS, BIRTHDAY_ATLAS_ROWS, BIRTHDAY_LAYOUT } from "./birthdayFishAtlas";
 import { spawnFish, type FishActor } from "./fish";
-import { birthdayFishEnabled } from "./profiling";
+import { birthdayFishEnabled, off } from "./profiling";
 import { RES } from "./res";
 import { attachBirthdaySparkles } from "./birthdaySparkles";
 
@@ -19,6 +19,19 @@ export function loadBirthdayFish(k: KAPLAYCtx) {
 }
 
 const disposers = new WeakMap<KAPLAYCtx, () => void>();
+
+export function syncBirthdaySparkles(k: KAPLAYCtx) {
+  const trails = k.get("birthday-sparkles");
+  if (off("puffs")) {
+    for (const trail of trails) trail.destroy();
+    return;
+  }
+  BIRTHDAY_LAYOUT.forEach((entry, index) => {
+    for (const fish of k.get(entry.name) as FishActor[]) {
+      if (!trails.some(trail => trail.ownerId === fish.id)) attachBirthdaySparkles(k, fish, index);
+    }
+  });
+}
 
 /** The calendar owns these three identities; ordinary population controls don't. */
 export function installBirthdayFish(k: KAPLAYCtx): () => void {

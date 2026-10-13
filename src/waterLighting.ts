@@ -32,6 +32,7 @@ const WATER_LIGHT_FRAG = `
 precision highp float;
 uniform float u_time;
 uniform float u_emitterX;
+uniform float u_raysEnabled;
 
 float hash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -73,6 +74,7 @@ float rayField(vec2 entry) {
 
 vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
   vec4 base = def_frag();
+  if (u_raysEnabled < 0.5) return base;
   vec2 size = vec2(${f(VW)}, ${f(VH)});
   // KAPLAY UVs address its packed atlas, not the individual sprite. The
   // backdrop fills the viewport, so clip coordinates provide stable tank UVs
