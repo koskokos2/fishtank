@@ -1,4 +1,4 @@
-import type { GameObj, KAPLAYCtx } from "kaplay";
+import type { GameObj, KAPLAYCtx, SpriteComp, PosComp, ScaleComp, RotateComp, ZComp, AreaComp } from "kaplay";
 import { FISH_ATLAS, FISH_ATLAS_CELL, FISH_ATLAS_LAYOUT } from "./fishAtlas";
 import {
   FISH_EXTRA_ATLAS,
@@ -36,6 +36,7 @@ import {
   motionBeatScale,
   shearSheet,
   type FishMotionProfile,
+  type Buf,
 } from "./fishbake";
 import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
@@ -879,6 +880,30 @@ type FishAction =
   | "chase"
   | "flee";
 
+type FishBody = {
+  headX: number; headY: number; tailX: number; tailY: number;
+  kindSpeed: number;
+  menace(fromX: number, fromY: number): void;
+};
+export type FishActor = GameObj<SpriteComp | PosComp | ScaleComp | RotateComp | ZComp | FishBody>;
+export type FishOptions = {
+  enterFromEdge?: boolean;
+  onGone?: () => void;
+  /** Permanent residents turn before their full sprite reaches the glass. */
+  resident?: boolean;
+  /** A resident's horizontal territory, as fractions of the tank width. */
+  swimZone?: { min: number; max: number };
+  /** Pass through other fish and stay out of their chase target pool. */
+  ignoreCollisions?: boolean;
+  /** Gentle open-water behavior, with longer scanning/observation hovers. */
+  calm?: boolean;
+  levelBody?: boolean;
+  scale?: number;
+  position?: { x: number; y: number };
+  /** Authored direction strips avoid mirroring markings such as QR codes. */
+  swimAnimations?: { left: string; right: string };
+};
+
 export function spawnFish(
   k: KAPLAYCtx,
   spriteName: string,
@@ -888,7 +913,7 @@ export function spawnFish(
     length: 10,
     motion: "standard",
   },
-  opts: { enterFromEdge?: boolean; onGone?: () => void } = {},
+  opts: FishOptions = {},
 ) {
   const { level, speed: sp, motion } = kind;
   const minY = 16 * RES;
@@ -903,12 +928,12 @@ export function spawnFish(
   const bandBot = (atX: number) => minY + (swimFloorAt(atX) - minY) * level.max;
 
   const fromLeft = k.chance(0.5);
-  const spawnX = opts.enterFromEdge
+  const spawnX = opts.position?.x ?? (opts.enterFromEdge
     ? fromLeft
       ? 0
       : k.width() - 1
-    : k.rand(40 * RES, k.width() - 40 * RES);
-  const spawnY = k.rand(bandTop(spawnX), bandBot(spawnX));
+    : k.rand(40 * RES, k.width() - 40 * RES));
+  const spawnY = opts.position?.y ?? k.rand(bandTop(spawnX), bandBot(spawnX));
   const fish = k.add([
     profileDraw("fish"),
     k.sprite(spriteName),
@@ -920,7 +945,7 @@ export function spawnFish(
     k.z(groundZ(spawnY)),
     // Enlarged collider acts as a proximity sensor for separation, not a hard
     // hitbox — fish steer away before they actually touch.
-    k.area({ scale: 1.5 }),
+    ...(opts.ignoreCollisions ? [] : [k.area({ scale: 1.5 }), "collidable-fish"]),
     // Head/tail world points, published each frame for capsule-style separation;
     // kindSpeed and menace() let a chaser pick catchable targets and press them.
     {
@@ -932,12 +957,13 @@ export function spawnFish(
       menace(_fromX: number, _fromY: number) {},
     },
     "fish",
-  ]);
-  fish.play("swim", { loop: true });
+  ]) as FishActor;
+  let swimAnimation = opts.swimAnimations?.left ?? "swim";
+  fish.play(swimAnimation, { loop: true });
 
   // The sheet frame width is the fish's tight crop, so the species scale can only
   // be resolved here, once the sprite is attached and measurable.
-  const size = clamp(
+  const size = opts.scale ?? clamp(
     (LEN_PER_SQRT_CM * Math.sqrt(kind.length)) / fish.width,
     MIN_SCALE,
     1,
@@ -945,6 +971,28 @@ export function spawnFish(
   fish.scale = k.vec2(size);
   const renderedLen = fish.width * size;
   const bodyOff = renderedLen * BODY_OFF_FRAC;
+  const halfWidth = renderedLen / 2;
+  const halfHeight = fish.height * size / 2;
+  const inset = 4 * RES;
+  const horizontalBounds = () => {
+    const tankLeft = halfWidth + inset;
+    const tankRight = Math.max(tankLeft, k.width() - halfWidth - inset);
+    const left = Math.max(tankLeft, k.width() * (opts.swimZone?.min ?? 0) + halfWidth + inset);
+    const right = Math.min(tankRight, k.width() * (opts.swimZone?.max ?? 1) - halfWidth - inset);
+    // If the sprite cannot fit its territory, keep its centre inside the tank.
+    const centre = clamp((left + right) / 2, tankLeft, tankRight);
+    return left <= right ? { left, right } : { left: centre, right: centre };
+  };
+  const contain = () => {
+    if (!opts.resident) return;
+    const { left, right } = horizontalBounds();
+    const top = halfHeight + inset;
+    const bottom = k.height() - halfHeight - inset;
+    if (px < left) { px = left; vx = Math.abs(vx) * 0.3; heading = 1; }
+    if (px > right) { px = right; vx = -Math.abs(vx) * 0.3; heading = -1; }
+    if (py < top) { py = top; vy = Math.abs(vy) * 0.3; }
+    if (py > bottom) { py = bottom; vy = -Math.abs(vy) * 0.3; }
+  };
 
   // Fully-offscreen threshold: half the sprite plus a small pad past the edge.
   const pad = renderedLen / 2 + 2 * RES;
@@ -957,6 +1005,18 @@ export function spawnFish(
   let vy = 0;
   let heading = Math.sign(vx); // intended horizontal travel direction
   let facingRight = vx > 0;
+  const updateFacing = () => {
+    if (!opts.swimAnimations) {
+      fish.flipX = facingRight;
+      return;
+    }
+    fish.flipX = false;
+    const next = facingRight ? opts.swimAnimations.right : opts.swimAnimations.left;
+    if (next !== swimAnimation) {
+      swimAnimation = next;
+      fish.play(next, { loop: true });
+    }
+  };
   // True sub-pixel position kept in floats; fish.pos is snapped to whole pixels
   // for rendering so the sprite doesn't crawl/shimmer as it drifts slowly.
   let px = fish.pos.x;
@@ -975,7 +1035,7 @@ export function spawnFish(
   let actSub = "";
   let actTimer = 0;
   let siftPuffTimer = 0; // jittered cadence for the puffs trailed while surfing the sand
-  let actCooldown = k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
+  let actCooldown = opts.calm ? k.rand(8, 14) : k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
   let chaseTarget: GameObj | null = null;
   // Flee state: where the pursuer last was, how long that sighting stays fresh,
   // and the current 0..1 urgency that scales the escape thrust.
@@ -993,6 +1053,9 @@ export function spawnFish(
   // it's doing and eases into a flee — the graded urgency (and the point-blank
   // dart) live in the flee action itself.
   fish.menace = (fromX: number, fromY: number) => {
+    // Gentle residents still separate from neighbours, but don't enter a panic
+    // dart that makes their markings unreadable or drives them into the glass.
+    if (opts.calm) return;
     threatX = fromX;
     threatY = fromY;
     threatFor = 0.4;
@@ -1008,6 +1071,13 @@ export function spawnFish(
   // Pick a feasible action (light weighting; no config table) and arm its first
   // sub-phase. Bottom species lean toward sifting/resting; chase needs a neighbour.
   const pickAction = () => {
+    if (opts.calm) {
+      action = "hover";
+      depth = py;
+      phase = "coast";
+      actTimer = k.rand(5, 8);
+      return;
+    }
     const choices: FishAction[] = ["dart", "hover"];
     if (canSift) choices.push("sift");
     if (canGulp) choices.push("gulp");
@@ -1015,7 +1085,7 @@ export function spawnFish(
 
     let target: GameObj | null = null;
     let best = CHASE_RANGE;
-    for (const o of k.get("fish")) {
+    for (const o of k.get("collidable-fish")) {
       if (o === fish) continue;
       // Only chase a slower species — a pursuit the chaser can actually win.
       if ((o as unknown as { kindSpeed: number }).kindSpeed >= sp) continue;
@@ -1053,7 +1123,7 @@ export function spawnFish(
   const endAction = () => {
     action = "none";
     chaseTarget = null;
-    actCooldown = k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
+    actCooldown = opts.calm ? k.rand(8, 14) : k.rand(ACTION_EVERY[0], ACTION_EVERY[1]);
     depth = inBand();
     phase = "burst";
     timer = k.rand(0.4, 0.9);
@@ -1180,13 +1250,16 @@ export function spawnFish(
     }
   };
 
-  fish.flipX = facingRight;
+  updateFacing();
+  contain();
+  fish.pos = k.vec2(Math.round(px), Math.round(py));
 
   // Separation: while another fish is within sensor range, accelerate away from
   // it, harder the closer it is. They veer around each other rather than overlap;
   // the existing drag settles the push. onCollideUpdate fires per overlapping
   // neighbor each frame, and this closure shares vx/vy with the motion loop.
-  fish.onCollideUpdate("fish", (other) =>
+  if (!opts.ignoreCollisions) (fish as FishActor & AreaComp).onCollideUpdate((other) => {
+    if (!other.is("fish")) return;
     profile("fish collide", () => {
       const dt = k.dt();
       const dir = facingRight ? 1 : -1;
@@ -1217,8 +1290,20 @@ export function spawnFish(
           py += ny * push;
         }
       }
-    }),
-  );
+      // Collision callbacks can run after onUpdate: contain and publish here
+      // too, so even a crowded tank cannot push a resident out for one frame.
+      if (opts.resident) {
+        contain();
+        fish.pos.x = Math.round(px);
+        fish.pos.y = Math.round(py);
+        fish.z = groundZ(py);
+        fish.headX = px + dir * bodyOff;
+        fish.headY = py;
+        fish.tailX = px - dir * bodyOff;
+        fish.tailY = py;
+      }
+    });
+  });
 
   // A fish that ends up fully offscreen (a dart can outrun the wall steering) is
   // gone for good — despawn it and let the caller introduce a replacement. The
@@ -1228,14 +1313,14 @@ export function spawnFish(
 
   fish.onUpdate(() =>
     profile("fish", () => {
-      const dt = k.dt();
+      const dt = opts.resident ? Math.min(k.dt(), 1 / 30) : k.dt();
       const w = k.width();
 
       if (threatFor > 0) threatFor -= dt;
 
       if (!hasEntered) {
         if (px >= 0 && px <= w) hasEntered = true;
-      } else if (px < -pad || px > w + pad) {
+      } else if (!opts.resident && (px < -pad || px > w + pad)) {
         fish.destroy();
         opts.onGone?.();
         return;
@@ -1261,16 +1346,25 @@ export function spawnFish(
           } else {
             phase = "burst";
             timer = k.rand(0.4, 0.9);
-            if (k.rand() < 0.12) heading *= -1; // occasional wander turn
-            if (k.rand() < 0.5) depth = inBand();
+            if (k.rand(0, 1) < 0.12) heading *= -1; // occasional wander turn
+            if (k.rand(0, 1) < 0.5) depth = inBand();
           }
         }
       }
 
       // Steer away from the walls; the burst then carries the turn through.
-      const margin = 50 * RES;
-      if (px < margin) heading = 1;
-      else if (px > w - margin) heading = -1;
+      if (opts.resident) {
+        const { left, right } = horizontalBounds();
+        // Scale the turn-in distance to the available swimming room so the
+        // left/right steering regions never overlap in a narrow territory.
+        const margin = Math.min(50 * RES, (right - left) / 4);
+        if (px < left + margin) heading = 1;
+        else if (px > right - margin) heading = -1;
+      } else {
+        const margin = 50 * RES;
+        if (px < margin) heading = 1;
+        else if (px > w - margin) heading = -1;
+      }
 
       // Burst applies thrust; coast applies none. Drag acts in both phases, so a
       // coast is a decelerating glide. A fleeing fish's thrust grows with urgency.
@@ -1312,7 +1406,7 @@ export function spawnFish(
       // slow reversal rather than a snap.
       if (vx > 6 * RES) facingRight = true;
       else if (vx < -6 * RES) facingRight = false;
-      fish.flipX = facingRight;
+      updateFacing();
 
       // Pitch toward the travel direction, clamped so the fish never goes vertical.
       const slope = clamp(
@@ -1326,12 +1420,13 @@ export function spawnFish(
       // Snap the rendered transform: position to the pixel grid, pitch to fixed
       // tilt steps (the float state above stays smooth). A shallow slope snaps to
       // 0°, keeping slow horizontal swimmers perfectly crisp.
+      contain();
       fish.pos.x = Math.round(px);
       fish.pos.y = Math.round(py);
       // Depth-sort by its own y: a fish never descends below the sand crest, so
       // it slips behind whatever is rooted on the dune as it swims past.
       fish.z = groundZ(py);
-      fish.angle = Math.round(ang / TILT_STEP) * TILT_STEP;
+      fish.angle = opts.levelBody ? 0 : Math.round(ang / TILT_STEP) * TILT_STEP;
 
       // Publish body points for neighbours' separation checks.
       const dir = facingRight ? 1 : -1;

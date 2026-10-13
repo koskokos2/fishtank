@@ -15,6 +15,10 @@ Fish drift. Bubbles rise. Plants sway. The whole thing keeps going.
 - Pixel art, procedural reef, embedded atlases.
 - No menus. No settings. No engagement loop. Mercifully.
 
+Enable “Birthday fish (scheduled)” to show three permanent fish with scannable
+surprise links from 24 October 2026 at 08:00 Europe/London onward. When unchecked,
+they never appear. See [birthday designs, schedule, and verification](docs/birthday.md).
+
 ## Run it
 
 ```sh

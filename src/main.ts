@@ -73,6 +73,7 @@ import {
   installEngineProfiler,
 } from "./profiling";
 import { VW, VH } from "./res";
+import { installBirthdayFish, loadBirthdayFish } from "./birthdayFish";
 
 const DEFAULT_ENTITY_COUNTS = {
   fish: 10,
@@ -137,6 +138,8 @@ const k = kaplay({
   // second 60 Hz tick (33.3 ms) for a clean 30.
   maxFPS: uncapped ? undefined : capFPS,
 });
+// Named export supports the isolated integration-test entry; no browser global.
+export { k as aquarium };
 installEngineProfiler(k);
 loadWaterLighting(k);
 
@@ -277,6 +280,7 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
     });
   });
+  loadBirthdayFish(k);
   // The jellyfish and nautilus anatomical layers are separate game objects that each
   // set their own frame, so one atlas load per creature serves every layer. (The octopus
   // pose sheet is loaded above with the benthic band so it shares that page.)
@@ -292,6 +296,7 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   setupTank(k, ENTITY_COUNTS);
 
   k.onLoad(() => {
+    installBirthdayFish(k);
     if (!off("fish"))
       for (let i = 0; i < ENTITY_COUNTS.fish; i++) spawnRandomFish(false);
     // A few cephalopods drift among the fish as larger accent creatures.

@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "birthday:qr": "bun tools/gen-birthday-qr.ts",
+    "birthday:atlas": "bun run birthday:qr && bun tools/gen-birthday-atlas.ts",
+    "test:birthday": "playwright test",
     "dev": "bun index.html",
     "build": "bun build index.html --outdir dist --minify",
     "serve": "bun run build && bun serve.ts",
@@ -24,7 +27,13 @@
     "webview-bun": "latest"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "@playwright/test": "^1.64.0",
+    "@types/pngjs": "^6.0.5",
+    "@types/qrcode": "^1.5.6",
+    "bun-types": "latest",
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4"
   },
   "trustedDependencies": ["webview-bun"]
 }

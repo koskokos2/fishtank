@@ -1,4 +1,5 @@
 import type { KAPLAYCtx } from "kaplay";
+import { BIRTHDAY_START_LABEL } from "./birthdayDate";
 
 // Scene-ablation toggles for performance profiling. Normal operation is
 // unaffected (empty query = everything on). Open the page with e.g.
@@ -13,6 +14,8 @@ const params =
 const OFF = new Set((params.get("off") ?? "").split(",").filter(Boolean));
 export const off = (name: string) => OFF.has(name) || OFF.has("all");
 export const uncapped = params.has("uncap");
+// Opt-in schedule; unchecked always hides birthday fish.
+export const birthdayFishEnabled = params.get("birthday") === "1";
 // ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
 // devices (halves sustained load and heat) without needing a separate build.
 export const capFPS = Number(params.get("cap")) || 62;
@@ -708,6 +711,25 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       }
     };
     previewClose.addEventListener("click", closePreview);
+
+    const birthdayLabel = document.createElement("label");
+    birthdayLabel.style.cssText =
+      "display:flex;gap:6px;align-items:center;cursor:pointer;" +
+      "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
+    birthdayLabel.title =
+      `Show from ${BIRTHDAY_START_LABEL} onward. Unchecked: never show birthday fish.`;
+    const birthdayCb = document.createElement("input");
+    birthdayCb.type = "checkbox";
+    birthdayCb.checked = birthdayFishEnabled;
+    birthdayCb.style.accentColor = "#7f7";
+    birthdayCb.addEventListener("change", () => {
+      const p = new URLSearchParams(location.search);
+      if (birthdayCb.checked) p.set("birthday", "1");
+      else p.delete("birthday");
+      location.search = p.toString();
+    });
+    birthdayLabel.append(birthdayCb, "Birthday fish (scheduled)");
+    box.append(birthdayLabel);
 
     // Scene-element checkboxes: each maps to an ?off= gate, which only runs at
     // spawn time — applying a change rewrites the query and reloads. Every

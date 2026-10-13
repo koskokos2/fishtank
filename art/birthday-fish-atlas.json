@@ -1,0 +1,123 @@
+{
+  "source": "birthday-medallion-source.png",
+  "columns": 4,
+  "rows": 6,
+  "frameWidth": 360,
+  "frameHeight": 288,
+  "modulePixels": 2,
+  "quietZoneModules": 4,
+  "framesPerDirection": 4,
+  "sprites": [
+    {
+      "name": "birthday-gold",
+      "left": 0,
+      "right": 4,
+      "qr": {
+        "x": 118,
+        "y": 116,
+        "size": 66,
+        "modulePixels": 2,
+        "ink": [
+          78,
+          42,
+          20
+        ],
+        "enamel": [
+          230,
+          191,
+          115
+        ]
+      },
+      "pivot": {
+        "x": 180,
+        "y": 144
+      },
+      "sourceBounds": {
+        "left": 25,
+        "top": 26,
+        "right": 779,
+        "bottom": 626
+      },
+      "normalizedBounds": {
+        "x": 14,
+        "y": 12,
+        "width": 332,
+        "height": 264
+      }
+    },
+    {
+      "name": "birthday-cake",
+      "left": 8,
+      "right": 12,
+      "qr": {
+        "x": 126,
+        "y": 122,
+        "size": 66,
+        "modulePixels": 2,
+        "ink": [
+          79,
+          34,
+          69
+        ],
+        "enamel": [
+          231,
+          182,
+          196
+        ]
+      },
+      "pivot": {
+        "x": 180,
+        "y": 144
+      },
+      "sourceBounds": {
+        "left": 94,
+        "top": 650,
+        "right": 721,
+        "bottom": 1279
+      },
+      "normalizedBounds": {
+        "x": 48,
+        "y": 12,
+        "width": 263,
+        "height": 264
+      }
+    },
+    {
+      "name": "birthday-confetti",
+      "left": 16,
+      "right": 20,
+      "qr": {
+        "x": 121,
+        "y": 112,
+        "size": 66,
+        "modulePixels": 2,
+        "ink": [
+          19,
+          66,
+          64
+        ],
+        "enamel": [
+          168,
+          217,
+          186
+        ]
+      },
+      "pivot": {
+        "x": 180,
+        "y": 144
+      },
+      "sourceBounds": {
+        "left": 20,
+        "top": 1316,
+        "right": 792,
+        "bottom": 1918
+      },
+      "normalizedBounds": {
+        "x": 12,
+        "y": 13,
+        "width": 336,
+        "height": 262
+      }
+    }
+  ]
+}

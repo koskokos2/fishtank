@@ -1,0 +1,14 @@
+{
+  "source": "birthday-medallion-source.png",
+  "sourceColumns": 1,
+  "sourceRows": 3,
+  "sourceRowBounds": [0, 640, 1295, 1945],
+  "frameWidth": 360,
+  "frameHeight": 288,
+  "modulePixels": 2,
+  "sprites": [
+    { "name": "birthday-gold", "row": 0, "qr": { "x": 118, "y": 116 }, "ink": [78, 42, 20], "enamel": [230, 191, 115], "tailStart": 225 },
+    { "name": "birthday-cake", "row": 1, "qr": { "x": 126, "y": 122 }, "ink": [79, 34, 69], "enamel": [231, 182, 196], "tailStart": 247 },
+    { "name": "birthday-confetti", "row": 2, "qr": { "x": 121, "y": 112 }, "ink": [19, 66, 64], "enamel": [168, 217, 186], "tailStart": 233 }
+  ]
+}

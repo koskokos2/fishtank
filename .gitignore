@@ -1,6 +1,8 @@
 # Project
 .DS_Store
 node_modules/
+test-results/
+playwright-report/
 .venv/
 dist/
 fishtank

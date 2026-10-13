@@ -1,0 +1,11 @@
+Use case: stylized-concept. Asset type: transparent pixel-art fish sprite atlas for an existing aquarium game.
+The reference image is a STYLE REFERENCE only: reproduce its finely shaded, realistic tiny fish sprite appearance, not vector icons or cartoon stickers.
+Create ONE atlas with THREE sprites in a single vertical column of equal square cells, one complete left-facing fish centered per cell, ample transparent gap around all fins and between cells. Every fish has a deep, broad rounded body, readable side profile, large central flank area, natural fish eyes and anatomy, delicate detailed fins and scales. No perspective angle.
+TOP: gold and warm orange fancy goldfish, graceful ribbon-like tail, small believable jeweled birthday crown above its head, highlights and darker shaded scales.
+MIDDLE: rosy pink and lavender discus fish, creamy frosting-like scale markings and three tiny candle-inspired dorsal fin tips, graceful purple fins.
+BOTTOM: turquoise and violet deep-bodied tropical fish, scattered yellow and pink confetti scale accents, small striped party hat on its head and a flowing streamer-like tail.
+Style: intricate hand-placed pixel art matching the provided game reference, shaded fish anatomy, crisp pixel edges and rich but controlled color ramps. Natural detailed sprites, NOT thick outlined flat illustrations. All three face LEFT, tails to RIGHT, level posture.
+Important: NO QR codes, NO white square, NO text, NO labels, NO shadows outside silhouettes, NO scenery. Leave central flank as normal unadorned scales because real QR codes will be composited programmatically later. Entire background genuine transparent alpha. Single atlas, equal cell widths/heights, no frames or grid lines.
+
+Generated with the built-in image_gen tool. Reference: art/fish-extra-atlas-128.png.
+Source: art/birthday-fish-source.png. The deterministic atlas generator adds QR codes.
