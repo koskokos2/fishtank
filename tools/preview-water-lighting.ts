@@ -12,7 +12,11 @@ const output = resolve(Bun.argv[2] ?? "test-results/water-lighting");
 mkdirSync(output, { recursive: true });
 const server = serveDist(resolve("dist"), 0);
 const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome" });
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, timezoneId: "UTC" });
+// Keep the established shader regression frames independent of the wall clock.
+await page.addInitScript(() => {
+  if (localStorage.getItem("realTimeSun") === null) localStorage.setItem("realTimeSun", "false");
+});
 const errors: string[] = [];
 page.on("pageerror", error => errors.push(error.message));
 page.on("console", message => {
@@ -33,11 +37,11 @@ async function capture(name: string, time: number, res = 3, gate = "") {
   return image;
 }
 
-function difference(a: PNG, b: PNG, top = 0, bottom = 1) {
+function difference(a: PNG, b: PNG, top = 0, bottom = 1, right = 1) {
   let sum = 0;
   let count = 0;
   for (let y = Math.floor(a.height * top); y < Math.floor(a.height * bottom); y++) {
-    for (let x = 0; x < a.width; x++) {
+    for (let x = 0; x < Math.floor(a.width * right); x++) {
       const i = (y * a.width + x) * 4;
       for (let c = 0; c < 3; c++) {
         sum += Math.abs(a.data[i + c] - b.data[i + c]);
@@ -130,8 +134,57 @@ try {
   await page.getByRole("checkbox", { name: "caustics", exact: true }).check();
   await page.waitForURL(url => !(url.searchParams.get("off") ?? "").split(",").includes("caustics"));
   await page.locator('canvas[data-ready="true"]').waitFor();
+  // The clock, preview slider and backdrop must all update without rebuilding.
+  await page.getByRole("button", { name: "Hide performance details", exact: true }).click();
+  await page.clock.setFixedTime("2026-10-13T03:59:59Z");
+  await page.getByRole("checkbox", { name: "real-time sun", exact: true }).check();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const backdrop = page.getByRole("checkbox", { name: "backdrop", exact: true });
+  const settle = () => page.waitForTimeout(1100);
+  await settle();
+  check(!await backdrop.isChecked(), "Backdrop must be off before 04:00");
+  const night = PNG.sync.read(await page.locator("canvas").screenshot({ path: `${output}/night.png` }));
+  await page.clock.setFixedTime("2026-10-13T04:00:00Z");
+  await settle();
+  check(await backdrop.isChecked(), "Backdrop must return at 04:00 without reload");
+  await page.locator("canvas").screenshot({ path: `${output}/dawn.png` });
+  const timeSlider = page.getByRole("slider", { name: "Temporary sun time", exact: true });
+  async function previewMinute(minutes: number, name: string) {
+    await timeSlider.fill(String(minutes));
+    await settle();
+    return PNG.sync.read(await page.locator("canvas").screenshot({ path: `${output}/${name}.png` }));
+  }
+  const morning = await previewMinute(6 * 60, "morning");
+  const midday = await previewMinute(11 * 60, "midday");
+  const afternoon = await previewMinute(16 * 60, "afternoon");
+  check(difference(morning, afternoon, 0, 0.3) > 1, "Sun position must change the rays");
+  check(difference(midday, night, 0, 0.3) > 10, "Night must reveal the dark background");
+  await previewMinute(18 * 60, "preview-night");
+  check(!await backdrop.isChecked(), "Preview must switch to night at 18:00");
+  await page.getByRole("button", { name: "Use real time", exact: true }).click();
+  await settle();
+  check(await timeSlider.inputValue() === "240" && await backdrop.isChecked(), "Reset must restore the real clock");
+  await page.clock.setFixedTime("2026-10-13T18:00:00Z");
+  await settle();
+  check(!await backdrop.isChecked(), "Real dusk must hide the backdrop without reload");
+  await page.getByRole("checkbox", { name: "real-time sun", exact: true }).uncheck();
+  await settle();
+  check(await backdrop.isChecked(), "Disabling the clock must restore manual daytime");
+  await backdrop.uncheck();
+  await settle();
+  const manualNight = PNG.sync.read(await page.locator("canvas").screenshot());
+  // Canvas screenshots include the overlaid toolbar; compare only the tank.
+  check(difference(night, manualNight, 0, 1, 0.8) === 0, "Scheduled night must match the existing backdrop-off style");
+  await backdrop.check();
+  check(await page.evaluate(() => performance.timeOrigin) === origin, "Lighting controls must never reload the scene");
+  await page.getByRole("checkbox", { name: "real-time sun", exact: true }).check();
+  await previewMinute(11 * 60, "preview-before-reload");
+  await page.reload();
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  check(await page.getByRole("checkbox", { name: "real-time sun", exact: true }).isChecked(), "Real-time mode must persist");
+  check(await timeSlider.inputValue() === "1080" && !await backdrop.isChecked(), "Temporary time must reset on reload");
   check(errors.length === 0, errors.join("\n"));
-  console.log(`Water lighting verified: deterministic frames, motion, grouped rays, loop, gates, sidebar, RES=1/2/3/6.\nPreviews: ${output}`);
+  console.log(`Water lighting verified: deterministic frames, motion, grouped rays, loop, gates, sidebar, RES=1/2/3/6, local sun clock, live dawn/dusk, preview and persistence.\nPreviews: ${output}`);
 } finally {
   await browser.close();
   server.stop(true);

@@ -5,6 +5,7 @@ import type {
   Color,
 } from "kaplay";
 import { RES } from "./res";
+import { currentSun, realTimeSun } from "./sunClock";
 import { groundZ, sandTopAt } from "./backdrop";
 import {
   WATER_LIGHT_SHADER,
@@ -33,13 +34,13 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
-  if (!off("backdrop")) {
+  {
     const fixedLightTime = new URLSearchParams(location.search).get("light-time");
     const waterLightUniform = {
       u_time: 0,
-      u_emitterX: WATER_LIGHTING_TUNING.emitterX,
+      u_emitterX: WATER_LIGHTING_TUNING.emitterX as number,
     };
-    k.add([
+    const backdrop = k.add([
       profileDraw("backdrop"),
       k.sprite("backdrop"),
       profileDrawEnd(),
@@ -50,10 +51,14 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
         : [
             k.shader(WATER_LIGHT_SHADER, () => {
               waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
+              waterLightUniform.u_emitterX = realTimeSun ? currentSun().emitterX : WATER_LIGHTING_TUNING.emitterX;
               return waterLightUniform;
             }),
           ]),
     ]);
+    // Keep the sprite alive so dawn, dusk and manual toggles never rebuild the tank.
+    backdrop.hidden = off("backdrop");
+    backdrop.onUpdate(() => { backdrop.hidden = off("backdrop"); });
   }
   if (!off("sand"))
     k.add([

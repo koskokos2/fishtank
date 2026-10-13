@@ -1,5 +1,6 @@
 import type { KAPLAYCtx } from "kaplay";
 import { BIRTHDAY_START_LABEL } from "./birthdayDate";
+import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride } from "./sunClock";
 
 // Scene-ablation toggles for performance profiling. Normal operation is
 // unaffected (empty query = everything on). Open the page with e.g.
@@ -14,7 +15,8 @@ const params =
 const OFF = new Set((params.get("off") ?? "").split(",").filter(Boolean));
 // Normalize old links so the sidebar also reflects the unified lighting gate.
 if (OFF.has("water-light")) OFF.add("caustics");
-export const off = (name: string) => OFF.has(name) || OFF.has("all");
+export const off = (name: string) => OFF.has("all") ||
+  (name === "backdrop" && realTimeSun ? !currentSun().daylight : OFF.has(name));
 export const uncapped = params.has("uncap");
 // Opt-in schedule; unchecked always hides birthday fish.
 export const birthdayFishEnabled = params.get("birthday") === "1";
@@ -784,7 +786,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     const boxes = new Map<string, HTMLInputElement>();
     const apply = () => {
       const offNow = [...boxes.entries()]
-        .filter(([, cb]) => !cb.checked)
+        // A scheduled night must not become a permanent manual backdrop choice.
+        .filter(([name, cb]) => name === "backdrop" && realTimeSun ? OFF.has(name) : !cb.checked)
         .map(([name]) => name);
       const p = new URLSearchParams(location.search);
       if (offNow.length) p.set("off", offNow.join(","));
@@ -831,7 +834,19 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         cb.type = "checkbox";
         cb.checked = !off(name);
         cb.style.accentColor = "#7f7";
-        cb.addEventListener("change", apply);
+        if (name === "backdrop") cb.title = "Toggle the backdrop live and take manual control of the sun.";
+        cb.addEventListener("change", () => {
+          if (name !== "backdrop") { apply(); return; }
+          // Manual backdrop changes are live too, and leave automatic mode.
+          setRealTimeSun(false);
+          if (cb.checked) OFF.delete("backdrop");
+          else OFF.add("backdrop");
+          const p = new URLSearchParams(location.search);
+          if (OFF.size) p.set("off", [...OFF].join(","));
+          else p.delete("off");
+          history.replaceState(null, "", `${location.pathname}?${p}${location.hash}`);
+          syncSunControls();
+        });
         boxes.set(name, cb);
         label.append(cb, display);
         if (setPreviews.has(name)) {
@@ -893,11 +908,70 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     allCb.checked = TOGGLES.every((n) => !off(n));
     allCb.style.accentColor = "#7f7";
     allCb.addEventListener("change", () => {
+      setRealTimeSun(false);
       for (const name of TOGGLES) boxes.get(name)!.checked = allCb.checked;
       apply();
     });
     allBtn.append(allCb, "(all)");
     menu.append(allBtn);
+
+    const sunControls = document.createElement("div");
+    sunControls.style.cssText = "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
+    const sunLabel = document.createElement("label");
+    sunLabel.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer";
+    const sunToggle = document.createElement("input");
+    sunToggle.type = "checkbox";
+    sunToggle.style.accentColor = "#7f7";
+    sunLabel.append(sunToggle, "real-time sun");
+    sunLabel.title = "Local time: sunrise at 04:00, night at 18:00. Updates without reloading.";
+    const timeRow = document.createElement("label");
+    timeRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:5px";
+    const timeSlider = document.createElement("input");
+    timeSlider.type = "range";
+    timeSlider.min = "0";
+    timeSlider.max = "1439";
+    timeSlider.step = "1";
+    timeSlider.setAttribute("aria-label", "Temporary sun time");
+    timeSlider.style.cssText = "flex:1;min-width:60px;margin:0;accent-color:#7f7";
+    timeRow.append("preview time", timeSlider);
+    const timeStatus = document.createElement("output");
+    const resetTime = document.createElement("button");
+    resetTime.textContent = "Use real time";
+    resetTime.style.cssText = "background:none;color:#7f7;border:1px solid #7f74;font:inherit;cursor:pointer";
+    const timeFooter = document.createElement("div");
+    timeFooter.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:4px";
+    timeFooter.append(timeStatus, resetTime);
+    sunControls.append(sunLabel, timeRow, timeFooter);
+    box.append(sunControls);
+    function syncSunControls() {
+      const sun = currentSun();
+      sunToggle.checked = realTimeSun;
+      timeSlider.disabled = !realTimeSun;
+      timeSlider.value = String(Math.floor(sun.minutes));
+      resetTime.disabled = !realTimeSun || sunTimeOverride === null;
+      resetTime.style.opacity = resetTime.disabled ? ".4" : "1";
+      const hours = String(Math.floor(sun.minutes / 60)).padStart(2, "0");
+      const minutes = String(Math.floor(sun.minutes % 60)).padStart(2, "0");
+      timeStatus.textContent = realTimeSun
+        ? `${hours}:${minutes} · ${sunTimeOverride === null ? "live" : "preview"} · ${sun.daylight ? "day" : "night"}`
+        : off("backdrop") ? "Manual night" : "Fixed daytime rays";
+      boxes.get("backdrop")!.checked = !off("backdrop");
+      allCb.checked = TOGGLES.every(n => !off(n));
+    }
+    sunToggle.addEventListener("change", () => {
+      setRealTimeSun(sunToggle.checked);
+      syncSunControls();
+    });
+    timeSlider.addEventListener("input", () => {
+      setSunTimeOverride(Number(timeSlider.value));
+      syncSunControls();
+    });
+    resetTime.addEventListener("click", () => {
+      setSunTimeOverride(null);
+      syncSunControls();
+    });
+    syncSunControls();
+    window.setInterval(syncSunControls, 1000);
 
     addToggleGrid("fish sets", FISH_SET_TOGGLES);
     addToggleGrid("object sets", OBJECT_SET_TOGGLES);

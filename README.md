@@ -77,6 +77,14 @@ that parameter to resume its slow light motion. The backdrop uses a fixed seed.
 
 Ray sharpness is fixed at 70%.
 
+The toolbar's **real-time sun** mode is enabled by default and uses the device's
+local clock. Rays travel from just beyond the left edge at 04:00 to just beyond
+the right edge at 18:00. From 18:00 until 04:00, the backdrop switches off to show
+the existing dark night background; dawn restores it. These changes happen live.
+**Preview time** temporarily overrides the clock for the current page; **Use real
+time** returns to the clock. Only the mode is saved across reloads. Disable the
+mode for fixed daytime rays, or click **backdrop** to take manual control live.
+
 ```sh
 bun run preview:caustics
 # Or choose an output directory after building:
