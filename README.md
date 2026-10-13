@@ -105,3 +105,9 @@ the sidebar toggle, oversized bright bands at multiple animation times and depth
 and RES=1/2/3/6. Lighting renders in the backdrop pass; its
 cost appears under **backdrop** in the performance panel. Tune the broad-ray threshold,
 light intensity and source position in `src/waterLighting.ts`.
+
+The **witches** fish set adds twelve goth witches inspired by `grim_reaper_fish`,
+with pale faces, dark hats and hoods, and flowing veil fins. Toggle it live in
+**fish sets**; `off=fish-witches` excludes it from shared URLs. Rebuild the atlas
+with `bun run atlas:witches`, or inspect its swim frames with
+`bun tools/preview.ts SET=witches S=1 OUT=/tmp/witch-swim-preview.png`.

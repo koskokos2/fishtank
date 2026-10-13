@@ -35,6 +35,7 @@ import {
   HALLOWEEN_FISH_ATLAS_CELL,
   HALLOWEEN_FISH_ATLAS_LAYOUT,
 } from "./halloweenFishAtlas";
+import { WITCH_FISH_ATLAS, WITCH_FISH_ATLAS_CELL, WITCH_FISH_ATLAS_LAYOUT } from "./witchFishAtlas";
 import {
   cellBBox,
   copyRect,
@@ -69,7 +70,7 @@ export type FishKind = {
 // stored per-kind, so FISH_KINDS stays the single place species are declared.
 // Used by the settings panel to gate whole themes on/off, and (via
 // registerSetPreview below) to show each set's members as name + thumbnail.
-const FISH_SET_ATLASES: readonly {
+export const FISH_SET_ATLASES: readonly {
   name: string;
   src: string;
   cell: number;
@@ -117,6 +118,12 @@ const FISH_SET_ATLASES: readonly {
     src: HALLOWEEN_FISH_ATLAS,
     cell: HALLOWEEN_FISH_ATLAS_CELL,
     layout: HALLOWEEN_FISH_ATLAS_LAYOUT,
+  },
+  {
+    name: "witches",
+    src: WITCH_FISH_ATLAS,
+    cell: WITCH_FISH_ATLAS_CELL,
+    layout: WITCH_FISH_ATLAS_LAYOUT,
   },
 ];
 export const FISH_SETS: readonly string[] = FISH_SET_ATLASES.map((a) => a.name);
@@ -750,6 +757,19 @@ export const FISH_KINDS: FishKind[] = [
   { name: "werewolf_fish", level: { min: 0.35, max: 0.8 }, speed: 1.15, length: 28, motion: "standard" },
   { name: "spiderweb_lionfish", level: { min: 0.25, max: 0.7 }, speed: 0.7, length: 28, motion: "flowing" },
   { name: "grim_reaper_fish", level: { min: 0.45, max: 0.92 }, speed: 0.6, length: 26, motion: "flowing" },
+  // --- Goth witch coven: slow glides and flowing veil fins ---
+  { name: "midnight_coven_witch", level: { min: 0.25, max: 0.8 }, speed: 0.6, length: 26, motion: "flowing" },
+  { name: "mourning_veil_witch", level: { min: 0.15, max: 0.65 }, speed: 0.55, length: 24, motion: "flowing" },
+  { name: "thorn_witch", level: { min: 0.4, max: 0.85 }, speed: 0.75, length: 26, motion: "flowing" },
+  { name: "crescent_witch", level: { min: 0.08, max: 0.5 }, speed: 0.65, length: 22, motion: "flowing" },
+  { name: "plague_witch", level: { min: 0.45, max: 0.92 }, speed: 0.7, length: 26, motion: "flowing" },
+  { name: "raven_witch", level: { min: 0.18, max: 0.6 }, speed: 0.85, length: 24, motion: "flowing" },
+  { name: "bone_oracle_witch", level: { min: 0.32, max: 0.8 }, speed: 0.55, length: 28, motion: "flowing" },
+  { name: "widow_witch", level: { min: 0.3, max: 0.78 }, speed: 0.6, length: 25, motion: "flowing" },
+  { name: "swamp_hex_witch", level: { min: 0.6, max: 0.95 }, speed: 0.6, length: 26, motion: "flowing" },
+  { name: "frost_witch", level: { min: 0.12, max: 0.6 }, speed: 0.65, length: 24, motion: "flowing" },
+  { name: "ember_witch", level: { min: 0.38, max: 0.85 }, speed: 0.8, length: 24, motion: "flowing" },
+  { name: "elder_coven_witch", level: { min: 0.3, max: 0.88 }, speed: 0.5, length: 30, motion: "flowing" },
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -757,17 +777,6 @@ export const FISH_KINDS: FishKind[] = [
 // Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
 // decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const [img1, img2, img3, img4, img5, img6, img7, img8] = await Promise.all([
-    loadImage(FISH_ATLAS),
-    loadImage(FISH_EXTRA_ATLAS),
-    loadImage(FISH_BONUS_ATLAS),
-    loadImage(ALIEN_FISH_ATLAS),
-    loadImage(POP_CULTURE_FISH_ATLAS),
-    loadImage(ODYSSEY_FISH_ATLAS),
-    loadImage(GIGER_FISH_ATLAS),
-    loadImage(HALLOWEEN_FISH_ATLAS),
-  ]);
-
   const toPixels = (img: HTMLImageElement) => {
     const c = document.createElement("canvas");
     c.width = img.width;
@@ -782,41 +791,10 @@ export async function makeFishSheets(): Promise<string[]> {
     };
   };
 
-  const a1 = toPixels(img1);
-  const a2 = toPixels(img2);
-  const a3 = toPixels(img3);
-  const a4 = toPixels(img4);
-  const a5 = toPixels(img5);
-  const a6 = toPixels(img6);
-  const a7 = toPixels(img7);
-  const a8 = toPixels(img8);
-
-  const atlases = [
-    { pixels: a1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
-    { pixels: a2, cell: FISH_EXTRA_ATLAS_CELL, layout: FISH_EXTRA_ATLAS_LAYOUT },
-    { pixels: a3, cell: FISH_BONUS_ATLAS_CELL, layout: FISH_BONUS_ATLAS_LAYOUT },
-    { pixels: a4, cell: ALIEN_FISH_ATLAS_CELL, layout: ALIEN_FISH_ATLAS_LAYOUT },
-    {
-      pixels: a5,
-      cell: POP_CULTURE_FISH_ATLAS_CELL,
-      layout: POP_CULTURE_FISH_ATLAS_LAYOUT,
-    },
-    {
-      pixels: a6,
-      cell: ODYSSEY_FISH_ATLAS_CELL,
-      layout: ODYSSEY_FISH_ATLAS_LAYOUT,
-    },
-    {
-      pixels: a7,
-      cell: GIGER_FISH_ATLAS_CELL,
-      layout: GIGER_FISH_ATLAS_LAYOUT,
-    },
-    {
-      pixels: a8,
-      cell: HALLOWEEN_FISH_ATLAS_CELL,
-      layout: HALLOWEEN_FISH_ATLAS_LAYOUT,
-    },
-  ];
+  const atlases = await Promise.all(FISH_SET_ATLASES.map(async atlas => ({
+    ...atlas,
+    pixels: toPixels(await loadImage(atlas.src)),
+  })));
 
   return FISH_KINDS.map((kind) => {
     const atlas = atlases.find(({ layout }) => kind.name in layout);

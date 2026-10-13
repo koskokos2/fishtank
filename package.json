@@ -15,6 +15,7 @@
     "atlas:odyssey": "bun tools/gen-odyssey-fish-atlas.ts && bun tools/gen-odyssey-props-atlas.ts",
     "atlas:giger": "bun tools/gen-giger-fish-atlas.ts && bun tools/gen-giger-props-atlas.ts",
     "atlas:halloween": "bun tools/gen-halloween-fish-atlas.ts && bun tools/gen-halloween-props-atlas.ts",
+    "atlas:witches": "bun tools/gen-witch-fish-atlas.ts",
     "atlas:goth-plants": "bun tools/gen-goth-plant-atlas.ts",
     "atlas:goth-kelp": "bun tools/gen-goth-kelp-atlas.ts",
     "atlas:crawling-hands": "bun tools/gen-crawling-hand-atlas.ts",

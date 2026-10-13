@@ -789,6 +789,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ["fish-odyssey", "odyssey"],
       ["fish-giger", "giger"],
       ["fish-halloween", "halloween"],
+      ["fish-witches", "witches"],
     ];
     const OBJECT_SET_TOGGLES: (readonly [string, string])[] = [
       ["obj-sci-fi", "sci-fi"],

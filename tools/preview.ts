@@ -63,31 +63,6 @@ import {
   JELLYFISH_TENDRILS_START,
 } from "../src/jellyfishAtlas";
 import {
-  FISH_ATLAS,
-  FISH_ATLAS_CELL,
-  FISH_ATLAS_LAYOUT,
-} from "../src/fishAtlas";
-import {
-  FISH_EXTRA_ATLAS,
-  FISH_EXTRA_ATLAS_CELL,
-  FISH_EXTRA_ATLAS_LAYOUT,
-} from "../src/fishExtraAtlas";
-import {
-  FISH_BONUS_ATLAS,
-  FISH_BONUS_ATLAS_CELL,
-  FISH_BONUS_ATLAS_LAYOUT,
-} from "../src/fishBonusAtlas";
-import {
-  ALIEN_FISH_ATLAS,
-  ALIEN_FISH_ATLAS_CELL,
-  ALIEN_FISH_ATLAS_LAYOUT,
-} from "../src/alienFishAtlas";
-import {
-  POP_CULTURE_FISH_ATLAS,
-  POP_CULTURE_FISH_ATLAS_CELL,
-  POP_CULTURE_FISH_ATLAS_LAYOUT,
-} from "../src/popCultureFishAtlas";
-import {
   OCTOPUS_ATLAS,
   OCTOPUS_FRAMES,
   OCTOPUS_FRAME_W,
@@ -104,7 +79,7 @@ import {
   NAUTILUS_SIPHON_START,
   NAUTILUS_TENTACLES_START,
 } from "../src/nautilusAtlas";
-import { FISH_KINDS } from "../src/fish";
+import { FISH_KINDS, FISH_SET_ATLASES, fishKindSet } from "../src/fish";
 import {
   cellBBox,
   copyRect,
@@ -1244,39 +1219,14 @@ function blitScaled(
 // FISH_KINDS name.
 function renderFishGrid() {
   const pad = 8;
-  const atlas1 = decodePng(dataUrlToBuffer(FISH_ATLAS));
-  const atlas2 = decodePng(dataUrlToBuffer(FISH_EXTRA_ATLAS));
-  const atlas3 = decodePng(dataUrlToBuffer(FISH_BONUS_ATLAS));
-  const atlas4 = decodePng(dataUrlToBuffer(ALIEN_FISH_ATLAS));
-  const atlas5 = decodePng(dataUrlToBuffer(POP_CULTURE_FISH_ATLAS));
-
-  const atlases = [
-    { pixels: atlas1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
-    {
-      pixels: atlas2,
-      cell: FISH_EXTRA_ATLAS_CELL,
-      layout: FISH_EXTRA_ATLAS_LAYOUT,
-    },
-    {
-      pixels: atlas3,
-      cell: FISH_BONUS_ATLAS_CELL,
-      layout: FISH_BONUS_ATLAS_LAYOUT,
-    },
-    {
-      pixels: atlas4,
-      cell: ALIEN_FISH_ATLAS_CELL,
-      layout: ALIEN_FISH_ATLAS_LAYOUT,
-    },
-    {
-      pixels: atlas5,
-      cell: POP_CULTURE_FISH_ATLAS_CELL,
-      layout: POP_CULTURE_FISH_ATLAS_LAYOUT,
-    },
-  ];
-
-  const kinds = opt("SPECIES")
-    ? FISH_KINDS.filter((k) => k.name === opt("SPECIES"))
-    : FISH_KINDS;
+  const atlases = FISH_SET_ATLASES.map(atlas => ({
+    ...atlas, pixels: decodePng(dataUrlToBuffer(atlas.src)),
+  }));
+  const kinds = FISH_KINDS.filter(kind =>
+    (!opt("SPECIES") || kind.name === opt("SPECIES")) &&
+    (!opt("SET") || fishKindSet(kind.name) === opt("SET")),
+  );
+  if (!kinds.length) throw new Error("No fish match SPECIES / SET");
 
   const sheets = kinds.map((k) => {
     const atlas = atlases.find(({ layout }) => k.name in layout);
@@ -1334,8 +1284,9 @@ function renderFishGrid() {
     oy += s.h * S + pad;
   }
 
-  writeFileSync("preview.png", encodePng(out, cw, ch));
+  const output = opt("OUT") ?? "preview.png";
+  writeFileSync(output, encodePng(out, cw, ch));
   console.log(
-    `wrote preview.png (${cw}x${ch}) — ${kinds.length} fish, ${SWIM_FRAMES} swim frames each`,
+    `wrote ${output} (${cw}x${ch}) — ${kinds.length} fish, ${SWIM_FRAMES} swim frames each`,
   );
 }

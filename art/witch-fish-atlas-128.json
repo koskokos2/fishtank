@@ -1,0 +1,277 @@
+{
+  "image": "witch-fish-atlas-128.png",
+  "sourceImage": "witch-fish-atlas-transparent.png",
+  "generator": "tools/gen-witch-fish-atlas.ts",
+  "tileSize": 128,
+  "sourceWidth": 1086,
+  "sourceHeight": 1448,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    {
+      "name": "midnight_coven_witch",
+      "row": 0,
+      "col": 0,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 24,
+        "y": 79,
+        "w": 341,
+        "h": 297
+      },
+      "bounds": {
+        "x": 7,
+        "y": 14,
+        "w": 114,
+        "h": 100
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "mourning_veil_witch",
+      "row": 0,
+      "col": 1,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 382,
+        "y": 38,
+        "w": 360,
+        "h": 363
+      },
+      "bounds": {
+        "x": 4,
+        "y": 3,
+        "w": 120,
+        "h": 122
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "thorn_witch",
+      "row": 0,
+      "col": 2,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 735,
+        "y": 58,
+        "w": 335,
+        "h": 321
+      },
+      "bounds": {
+        "x": 8,
+        "y": 10,
+        "w": 112,
+        "h": 108
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "crescent_witch",
+      "row": 1,
+      "col": 0,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 24,
+        "y": 389,
+        "w": 358,
+        "h": 329
+      },
+      "bounds": {
+        "x": 4,
+        "y": 9,
+        "w": 120,
+        "h": 110
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "plague_witch",
+      "row": 1,
+      "col": 1,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 378,
+        "y": 405,
+        "w": 346,
+        "h": 320
+      },
+      "bounds": {
+        "x": 6,
+        "y": 10,
+        "w": 116,
+        "h": 108
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "raven_witch",
+      "row": 1,
+      "col": 2,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 746,
+        "y": 407,
+        "w": 326,
+        "h": 316
+      },
+      "bounds": {
+        "x": 9,
+        "y": 11,
+        "w": 110,
+        "h": 106
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "bone_oracle_witch",
+      "row": 2,
+      "col": 0,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 30,
+        "y": 727,
+        "w": 345,
+        "h": 349
+      },
+      "bounds": {
+        "x": 6,
+        "y": 5,
+        "w": 116,
+        "h": 117
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "widow_witch",
+      "row": 2,
+      "col": 1,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 388,
+        "y": 751,
+        "w": 350,
+        "h": 310
+      },
+      "bounds": {
+        "x": 5,
+        "y": 12,
+        "w": 118,
+        "h": 104
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "swamp_hex_witch",
+      "row": 2,
+      "col": 2,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 745,
+        "y": 742,
+        "w": 321,
+        "h": 331
+      },
+      "bounds": {
+        "x": 10,
+        "y": 8,
+        "w": 108,
+        "h": 111
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "frost_witch",
+      "row": 3,
+      "col": 0,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 24,
+        "y": 1065,
+        "w": 344,
+        "h": 349
+      },
+      "bounds": {
+        "x": 6,
+        "y": 5,
+        "w": 116,
+        "h": 117
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "ember_witch",
+      "row": 3,
+      "col": 1,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 388,
+        "y": 1080,
+        "w": 334,
+        "h": 334
+      },
+      "bounds": {
+        "x": 8,
+        "y": 8,
+        "w": 112,
+        "h": 112
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    },
+    {
+      "name": "elder_coven_witch",
+      "row": 3,
+      "col": 2,
+      "category": "witchFish",
+      "sourceBounds": {
+        "x": 737,
+        "y": 1069,
+        "w": 334,
+        "h": 351
+      },
+      "bounds": {
+        "x": 8,
+        "y": 5,
+        "w": 112,
+        "h": 118
+      },
+      "pivot": {
+        "x": 64,
+        "y": 64
+      }
+    }
+  ]
+}

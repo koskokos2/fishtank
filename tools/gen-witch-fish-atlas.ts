@@ -1,0 +1,102 @@
+// Normalize the generated coven into the same 128px cells as the other fish.
+// Connected silhouettes avoid clipping hats that cross nominal grid boundaries.
+import { readFileSync, writeFileSync } from "node:fs";
+import { decodePng, encodePng } from "./png";
+
+const SOURCE = "art/witch-fish-atlas-transparent.png";
+const OUTPUT = "art/witch-fish-atlas-128.png";
+const MANIFEST = "art/witch-fish-atlas-128.json";
+const MODULE = "src/witchFishAtlas.ts";
+const COLS = 3, ROWS = 4, TILE = 128, WORK = 384;
+const names = [
+  "midnight_coven_witch", "mourning_veil_witch", "thorn_witch",
+  "crescent_witch", "plague_witch", "raven_witch",
+  "bone_oracle_witch", "widow_witch", "swamp_hex_witch",
+  "frost_witch", "ember_witch", "elder_coven_witch",
+] as const;
+const source = decodePng(readFileSync(SOURCE));
+if (source.w !== 1086 || source.h !== 1448) throw new Error("Unexpected witch source dimensions");
+type Component = { pixels: number[]; x: number; y: number; w: number; h: number };
+const seen = new Uint8Array(source.w * source.h);
+const cells = new Map<number, Component>();
+for (let start = 0; start < seen.length; start++) {
+  if (seen[start] || source.rgba[start * 4 + 3] < 16) continue;
+  const pixels: number[] = [start];
+  seen[start] = 1;
+  let left = source.w, top = source.h, right = 0, bottom = 0;
+  for (let i = 0; i < pixels.length; i++) {
+    const pixel: number = pixels[i];
+    const x: number = pixel % source.w;
+    const y: number = Math.floor(pixel / source.w);
+    left = Math.min(left, x); right = Math.max(right, x);
+    top = Math.min(top, y); bottom = Math.max(bottom, y);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx: number = x + dx, ny: number = y + dy;
+      const next: number = ny * source.w + nx;
+      if (nx < 0 || nx >= source.w || ny < 0 || ny >= source.h || seen[next] || source.rgba[next * 4 + 3] < 16) continue;
+      seen[next] = 1;
+      pixels.push(next);
+    }
+  }
+  // Source has only single-pixel flecks outside the twelve connected fish.
+  if (pixels.length <= 3) continue;
+  if (pixels.length < 1000) throw new Error(`Unexpected detached part at ${left},${top}`);
+  const col = Math.floor(((left + right) / 2) / (source.w / COLS));
+  const row = Math.floor(((top + bottom) / 2) / (source.h / ROWS));
+  const index = row * COLS + col;
+  if (cells.has(index)) throw new Error(`Multiple fish in cell ${index}`);
+  cells.set(index, { pixels, x: left, y: top, w: right - left + 1, h: bottom - top + 1 });
+}
+if (cells.size !== names.length) throw new Error(`Expected twelve fish, found ${cells.size}`);
+
+const width = COLS * TILE, height = ROWS * TILE;
+const atlas = new Uint8Array(width * height * 4);
+const sprites = names.map((name, index) => {
+  const component = cells.get(index);
+  if (!component) throw new Error(`Missing ${name}`);
+  const { x, y, w, h } = component;
+  if (w > WORK - 12 || h > WORK - 12) throw new Error(`${name} lacks source padding`);
+  const work = new Uint8Array(WORK * WORK * 4);
+  const offsetX = Math.floor((WORK - w) / 2) - x;
+  const offsetY = Math.floor((WORK - h) / 2) - y;
+  for (const pixel of component.pixels) {
+    const target = ((Math.floor(pixel / source.w) + offsetY) * WORK + pixel % source.w + offsetX) * 4;
+    work.set(source.rgba.subarray(pixel * 4, pixel * 4 + 4), target);
+  }
+  const col = index % COLS, row = Math.floor(index / COLS);
+  let minX = TILE, minY = TILE, maxX = 0, maxY = 0;
+  // Alpha-weighted 3x area downsampling matches the Halloween source pipeline.
+  for (let ty = 0; ty < TILE; ty++) for (let tx = 0; tx < TILE; tx++) {
+    let alpha = 0, red = 0, green = 0, blue = 0;
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) {
+      const pixel = ((ty * 3 + dy) * WORK + tx * 3 + dx) * 4;
+      const a = work[pixel + 3] / 255;
+      alpha += a;
+      red += work[pixel] * a; green += work[pixel + 1] * a; blue += work[pixel + 2] * a;
+    }
+    const a = Math.round(alpha * 255 / 9);
+    if (!a) continue;
+    const target = ((row * TILE + ty) * width + col * TILE + tx) * 4;
+    atlas.set([Math.round(red / alpha), Math.round(green / alpha), Math.round(blue / alpha), a], target);
+    minX = Math.min(minX, tx); minY = Math.min(minY, ty);
+    maxX = Math.max(maxX, tx); maxY = Math.max(maxY, ty);
+  }
+  if (minX < 2 || minY < 2 || maxX > TILE - 3 || maxY > TILE - 3) throw new Error(`${name} touches the cell edge`);
+  return { name, row, col, category: "witchFish", sourceBounds: { x, y, w, h },
+    bounds: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 }, pivot: { x: 64, y: 64 } };
+});
+
+const png = encodePng(atlas, width, height);
+writeFileSync(OUTPUT, png);
+writeFileSync(MANIFEST, JSON.stringify({ image: OUTPUT.split("/").pop(), sourceImage: SOURCE.split("/").pop(),
+  generator: "tools/gen-witch-fish-atlas.ts", tileSize: TILE, sourceWidth: source.w, sourceHeight: source.h,
+  columns: COLS, rows: ROWS, layout: "runtime-grid", sprites }, null, 2) + "\n");
+writeFileSync(MODULE, `// GENERATED by tools/gen-witch-fish-atlas.ts — do not edit by hand.\n` +
+  `// Goth witch fish: 3x4 grid of left-facing 128px cells.\n` +
+  `export const WITCH_FISH_ATLAS = "data:image/png;base64,${png.toString("base64")}";\n` +
+  `export const WITCH_FISH_ATLAS_CELL = ${TILE};\n` +
+  `export const WITCH_FISH_ATLAS_COLS = ${COLS};\n` +
+  `export const WITCH_FISH_ATLAS_ROWS = ${ROWS};\n` +
+  `export const WITCH_FISH_ATLAS_LAYOUT: Record<string, { row: number; col: number }> = {\n` +
+  sprites.map(s => `  ${s.name}: { row: ${s.row}, col: ${s.col} },`).join("\n") + `\n};\n`);
+console.log(`Wrote ${OUTPUT}, ${MANIFEST} and ${MODULE}; validated ${sprites.length} padded fish.`);

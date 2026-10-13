@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { FISH_KINDS, FISH_SETS, fishKindSet } from "../src/fish";
 
 const layer = (page: Page, name: string) => page.evaluate(name => window.birthdayTest.settingsLayer(name), name);
 const checkbox = (page: Page, name: string) => page.getByRole("checkbox", { name, exact: true });
@@ -186,4 +187,31 @@ test("hidden skin changes load when enabled; rapid changes keep the latest selec
   expect((await page.evaluate(() => window.birthdayTest.plantDrawing())).skins).toEqual(["luminous-kelp", "plant-atlas-v2"]);
   expect((await layer(page, "crabs")).every(o => o.sprite === "hermit-crab")).toBe(true);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+});
+
+test("witch fish set has twelve previews and switches live with shareable settings", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const excluded = FISH_SETS.filter(name => name !== "witches").map(name => `fish-${name}`).join(",");
+  await open(page, `off=${excluded}`);
+  await checkbox(page, "pause").check();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const kelp = await layer(page, "kelp");
+  const witchSprites = new Set(FISH_KINDS.flatMap((kind, i) => fishKindSet(kind.name) === "witches" ? [`fish-${i}`] : []));
+  expect(witchSprites.size).toBe(12);
+  const fish = await layer(page, "fish");
+  expect(fish).toHaveLength(3);
+  expect(fish.every(object => witchSprites.has(object.sprite!))).toBe(true);
+  await checkbox(page, "witches ⓘ").uncheck();
+  expect(await layer(page, "fish")).toHaveLength(0);
+  expect(new URL(page.url()).searchParams.get("off")?.split(",")).toContain("fish-witches");
+  await checkbox(page, "witches ⓘ").check();
+  expect(await layer(page, "fish")).toHaveLength(3);
+  expect(await layer(page, "kelp")).toEqual(kelp);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  await page.getByTitle("Preview witches").click();
+  for (const kind of FISH_KINDS.filter(kind => fishKindSet(kind.name) === "witches")) {
+    await expect(page.getByText(kind.name, { exact: true })).toBeVisible();
+  }
+  expect(errors).toEqual([]);
 });
