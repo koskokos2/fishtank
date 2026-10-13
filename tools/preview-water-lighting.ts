@@ -101,7 +101,7 @@ try {
   check(difference(still, off, 0, 0.1) > 1, "Ray entrances must be visible");
   check(difference(still, off, 0.12, 0.35) > 0.5, "Rays must be visible below the surface");
   check(difference(still, off, 0.7) === 0, "Light must not reach the floor");
-  check(difference(still, off, 0, 0.001) === 0, "Top edge must have no surface texture");
+  check(difference(still, off, 0, 1 / still.height) > 1, "Rays must reach the very first pixel row");
   for (const frame of [still, moved, later]) checkRayGroups(frame, off);
   for (const time of [90, 240, 510]) {
     checkRayGroups(await capture(`rays-t${time}`, time), off);
@@ -110,6 +110,7 @@ try {
     const enabled = await capture(`rays-res${res}`, 0, res);
     const disabled = await capture(`rays-res${res}-off`, 0, res, ",caustics");
     check(difference(enabled, disabled, 0, 0.1) > 1, `Ray entrances missing at RES=${res}`);
+    check(difference(enabled, disabled, 0, 1 / enabled.height) > 1, `Top-edge ray gap at RES=${res}`);
     check(difference(enabled, disabled, 0.12, 0.35) > 0.5, `Rays missing at RES=${res}`);
     check(difference(enabled, disabled, 0.7) === 0, `Light reaches floor at RES=${res}`);
   }

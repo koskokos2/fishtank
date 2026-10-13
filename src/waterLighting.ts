@@ -103,12 +103,13 @@ vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
   float fine = smoothstep(0.63, 0.94, streaks) * 0.12;
   float reach = mix(0.53, 0.67, noise(vec2(entry.x * 1.7, 8.0)));
   float depthFade = (1.0 - smoothstep(0.17, reach, p.y)) * exp(-p.y * 1.1);
-  float entrance = smoothstep(0.002, 0.045, p.y);
+  // The light enters from beyond the viewport: start at full strength on the
+  // first row, then fade only with depth. No visible gap or rounded ray tips.
   float sourceGlow = exp(-pow((entryX - u_emitterX) / 0.25, 2.0));
   float veil = 0.82 + 0.18 * noise(vec2(entry.x * 5.0, p.y * 14.0 + sin(u_time * 0.05)));
   float grain = 0.90 + hash(pixel) * 0.10;
   vec3 light = vec3(0.48, 0.83, 0.70) * (shafts + fine) * sourceGlow
-    * entrance * depthFade * veil * grain
+    * depthFade * veil * grain
     * ${f(WATER_LIGHTING_TUNING.rayIntensity)};
 
   // Add illumination to the opaque water plate, with headroom for the mint
