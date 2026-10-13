@@ -16,6 +16,8 @@ export const off = (name: string) => OFF.has(name) || OFF.has("all");
 export const uncapped = params.has("uncap");
 // Opt-in schedule; unchecked always hides birthday fish.
 export const birthdayFishEnabled = params.get("birthday") === "1";
+// A skin for the existing plant field; the plants visibility gate still applies.
+export const gothPlantsEnabled = params.get("goth-plants") === "1";
 // ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
 // devices (halves sustained load and heat) without needing a separate build.
 export const capFPS = Number(params.get("cap")) || 62;
@@ -852,6 +854,23 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "",
       TOGGLES.map((n) => [n, n] as const),
     );
+    const gothPlantsLabel = document.createElement("label");
+    gothPlantsLabel.style.cssText =
+      "display:flex;gap:6px;align-items:center;cursor:pointer";
+    gothPlantsLabel.title =
+      "Replace the plants with gothic plants. The plants checkbox controls visibility.";
+    const gothPlantsCb = document.createElement("input");
+    gothPlantsCb.type = "checkbox";
+    gothPlantsCb.checked = gothPlantsEnabled;
+    gothPlantsCb.style.accentColor = "#7f7";
+    gothPlantsCb.addEventListener("change", () => {
+      const p = new URLSearchParams(location.search);
+      if (gothPlantsCb.checked) p.set("goth-plants", "1");
+      else p.delete("goth-plants");
+      location.search = p.toString();
+    });
+    gothPlantsLabel.append(gothPlantsCb, "goth plants");
+    boxes.get("plants")!.closest("label")!.after(gothPlantsLabel);
     const allBtn = document.createElement("label");
     allBtn.style.cssText =
       "display:flex;gap:6px;align-items:center;cursor:pointer";

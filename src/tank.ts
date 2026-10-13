@@ -15,7 +15,7 @@ import {
   WATER_LIGHTING_TUNING,
   sunEmitterX,
 } from "./waterLighting";
-import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantAtlas";
+import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantTheme";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
   off,

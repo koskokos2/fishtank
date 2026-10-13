@@ -13,6 +13,7 @@ import {
   PLANT_ATLAS_COLS,
   PLANT_ATLAS_LAYOUT,
 } from "../src/plantAtlas";
+import { getPlantTheme } from "../src/plantTheme";
 import {
   FOREGROUND_PLANTS,
   MID_PLANTS,
@@ -470,6 +471,11 @@ function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
 function renderPlantScene() {
   const buf = backdropWithProps();
   blitRotatingPropSample(buf);
+  const {
+    src: PLANT_ATLAS,
+    cell: PLANT_ATLAS_CELL,
+    layout: PLANT_ATLAS_LAYOUT,
+  } = getPlantTheme(opt("PLANT_STYLE") === "goth");
   const atlas = decodePng(dataUrlToBuffer(PLANT_ATLAS));
   const time = Number(opt("TIME") ?? 3.4);
   type Part = {
