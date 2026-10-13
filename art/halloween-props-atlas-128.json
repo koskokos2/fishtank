@@ -1,0 +1,85 @@
+{
+  "image": "halloween-props-atlas-128.png",
+  "sourceImage": "halloween-props-atlas-transparent.png",
+  "generator": "tools/gen-halloween-props-atlas.ts",
+  "tileSize": 128,
+  "sourceWidth": 1448,
+  "sourceHeight": 1086,
+  "columns": 4,
+  "rows": 3,
+  "layout": "runtime-grid",
+  "sprites": [
+    {
+      "name": "jack_o_lantern",
+      "row": 0,
+      "col": 0,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "crooked_gravestone",
+      "row": 0,
+      "col": 1,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "witch_cauldron",
+      "row": 0,
+      "col": 2,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "ghost_lantern",
+      "row": 0,
+      "col": 3,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "skull_and_bones",
+      "row": 1,
+      "col": 0,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "vampire_coffin",
+      "row": 1,
+      "col": 1,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "witch_hat_and_broom",
+      "row": 1,
+      "col": 2,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "melting_candles",
+      "row": 1,
+      "col": 3,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "haunted_house",
+      "row": 2,
+      "col": 0,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "moon_potion_bottle",
+      "row": 2,
+      "col": 1,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "cemetery_gate",
+      "row": 2,
+      "col": 2,
+      "category": "halloweenProp"
+    },
+    {
+      "name": "pumpkin_candy_bucket",
+      "row": 2,
+      "col": 3,
+      "category": "halloweenProp"
+    }
+  ]
+}

@@ -47,6 +47,7 @@ import {
 import { POP_CULTURE_PROPS_ATLAS } from "../src/popCulturePropsAtlas";
 import { ODYSSEY_PROPS_ATLAS } from "../src/odysseyPropsAtlas";
 import { GIGER_PROPS_ATLAS } from "../src/gigerPropsAtlas";
+import { HALLOWEEN_PROPS_ATLAS } from "../src/halloweenPropsAtlas";
 import { GRINDELWALD_PROPS_ATLAS } from "../src/grindelwaldPropsAtlas";
 import { RES } from "../src/res";
 import {
@@ -423,6 +424,7 @@ function blitRotatingPropSample(buf: ReturnType<typeof backdropPixels>) {
     "pop-culture-props": decodePng(dataUrlToBuffer(POP_CULTURE_PROPS_ATLAS)),
     "odyssey-props": decodePng(dataUrlToBuffer(ODYSSEY_PROPS_ATLAS)),
     "giger-props": decodePng(dataUrlToBuffer(GIGER_PROPS_ATLAS)),
+    "halloween-props": decodePng(dataUrlToBuffer(HALLOWEEN_PROPS_ATLAS)),
     "grindelwald-props": decodePng(dataUrlToBuffer(GRINDELWALD_PROPS_ATLAS)),
     "small-props": decodePng(dataUrlToBuffer(SMALL_PROPS_ATLAS)),
   };

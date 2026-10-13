@@ -61,6 +61,11 @@ import {
   GRINDELWALD_PROPS_ATLAS_ROWS,
 } from "./grindelwaldPropsAtlas";
 import { SMALL_PROPS_ATLAS } from "./smallPropsAtlas";
+import {
+  HALLOWEEN_PROPS_ATLAS,
+  HALLOWEEN_PROPS_ATLAS_COLS,
+  HALLOWEEN_PROPS_ATLAS_ROWS,
+} from "./halloweenPropsAtlas";
 import { CAUSTICS_FRAMES, CAUSTICS_SPRITE } from "./causticsSprite";
 import { setupTank } from "./tank";
 import { loadWaterLighting } from "./waterLighting";
@@ -254,6 +259,10 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
   await loadSpriteSeq("grindelwald-props", GRINDELWALD_PROPS_ATLAS, {
     sliceX: GRINDELWALD_PROPS_ATLAS_COLS,
     sliceY: GRINDELWALD_PROPS_ATLAS_ROWS,
+  });
+  await loadSpriteSeq("halloween-props", HALLOWEEN_PROPS_ATLAS, {
+    sliceX: HALLOWEEN_PROPS_ATLAS_COLS,
+    sliceY: HALLOWEEN_PROPS_ATLAS_ROWS,
   });
   // The octopus is benthic too (rests on the sand, drawn in the bottom band), so its
   // pose sheet joins this group to share the page and batch with the sea floor. Its cells

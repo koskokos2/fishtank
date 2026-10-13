@@ -15,6 +15,7 @@
     "preview:caustics": "bun tools/preview.ts MODE=caustics",
     "atlas:odyssey": "bun tools/gen-odyssey-fish-atlas.ts && bun tools/gen-odyssey-props-atlas.ts",
     "atlas:giger": "bun tools/gen-giger-fish-atlas.ts && bun tools/gen-giger-props-atlas.ts",
+    "atlas:halloween": "bun tools/gen-halloween-fish-atlas.ts && bun tools/gen-halloween-props-atlas.ts",
     "atlas:grindelwald": "bun tools/gen-grindelwald-props-atlas.ts",
     "atlas:regenerate": "bun tools/regenerate-atlas.ts",
     "preview:ruins-kit": "bun tools/preview.ts MODE=ruins-kit",

@@ -42,6 +42,12 @@ import {
   ODYSSEY_PROPS_ATLAS_LAYOUT,
 } from "./odysseyPropsAtlas";
 import { GIGER_PROP_SPECS } from "./gigerProps";
+import { HALLOWEEN_PROP_SPECS } from "./halloweenProps";
+import {
+  HALLOWEEN_PROPS_ATLAS,
+  HALLOWEEN_PROPS_ATLAS_CELL,
+  HALLOWEEN_PROPS_ATLAS_LAYOUT,
+} from "./halloweenPropsAtlas";
 import {
   GIGER_PROPS_ATLAS,
   GIGER_PROPS_ATLAS_CELL,
@@ -82,6 +88,7 @@ export type WhitelistedProp = {
     | "pop-culture-props"
     | "odyssey-props"
     | "giger-props"
+    | "halloween-props"
     | "grindelwald-props"
     | "small-props";
   frame: number;
@@ -258,6 +265,14 @@ export const PROP_WHITELIST: readonly WhitelistedProp[] = [
     GRINDELWALD_PROP_SPECS.map((spec) => spec.name),
     GRINDELWALD_PROPS_ATLAS_CELL,
     GRINDELWALD_PROPS_ATLAS_LAYOUT,
+  ),
+  ...familyProps(
+    "halloween",
+    "halloween-props",
+    HALLOWEEN_PROPS_ATLAS,
+    HALLOWEEN_PROP_SPECS.map((spec) => spec.name),
+    HALLOWEEN_PROPS_ATLAS_CELL,
+    HALLOWEEN_PROPS_ATLAS_LAYOUT,
   ),
   ...familyProps(
     "small",

@@ -1,0 +1,85 @@
+{
+  "image": "halloween-fish-atlas-128.png",
+  "sourceImage": "halloween-fish-atlas-transparent.png",
+  "generator": "tools/gen-halloween-fish-atlas.ts",
+  "tileSize": 128,
+  "sourceWidth": 1086,
+  "sourceHeight": 1448,
+  "columns": 3,
+  "rows": 4,
+  "layout": "runtime-grid",
+  "sprites": [
+    {
+      "name": "pumpkin_goldfish",
+      "row": 0,
+      "col": 0,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "ghost_betta",
+      "row": 0,
+      "col": 1,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "vampire_angelfish",
+      "row": 0,
+      "col": 2,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "witch_fish",
+      "row": 1,
+      "col": 0,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "skeleton_fish",
+      "row": 1,
+      "col": 1,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "frankenstein_carp",
+      "row": 1,
+      "col": 2,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "mummy_fish",
+      "row": 2,
+      "col": 0,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "bat_ray",
+      "row": 2,
+      "col": 1,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "candy_corn_puffer",
+      "row": 2,
+      "col": 2,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "werewolf_fish",
+      "row": 3,
+      "col": 0,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "spiderweb_lionfish",
+      "row": 3,
+      "col": 1,
+      "category": "halloweenFish"
+    },
+    {
+      "name": "grim_reaper_fish",
+      "row": 3,
+      "col": 2,
+      "category": "halloweenFish"
+    }
+  ]
+}

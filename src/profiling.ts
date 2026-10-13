@@ -762,6 +762,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ["fish-pop-culture", "pop-culture"],
       ["fish-odyssey", "odyssey"],
       ["fish-giger", "giger"],
+      ["fish-halloween", "halloween"],
     ];
     const OBJECT_SET_TOGGLES: (readonly [string, string])[] = [
       ["obj-sci-fi", "sci-fi"],
@@ -770,6 +771,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ["obj-pop-culture", "pop-culture"],
       ["obj-odyssey", "odyssey"],
       ["obj-giger", "giger"],
+      ["obj-halloween", "halloween"],
       ["obj-grindelwald", "grindelwald"],
       ["obj-small", "small"],
     ];

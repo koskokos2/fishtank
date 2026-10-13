@@ -31,6 +31,11 @@ import {
   GIGER_FISH_ATLAS_LAYOUT,
 } from "./gigerFishAtlas";
 import {
+  HALLOWEEN_FISH_ATLAS,
+  HALLOWEEN_FISH_ATLAS_CELL,
+  HALLOWEEN_FISH_ATLAS_LAYOUT,
+} from "./halloweenFishAtlas";
+import {
   cellBBox,
   copyRect,
   motionBeatScale,
@@ -107,6 +112,12 @@ const FISH_SET_ATLASES: readonly {
     cell: GIGER_FISH_ATLAS_CELL,
     layout: GIGER_FISH_ATLAS_LAYOUT,
   },
+  {
+    name: "halloween",
+    src: HALLOWEEN_FISH_ATLAS,
+    cell: HALLOWEEN_FISH_ATLAS_CELL,
+    layout: HALLOWEEN_FISH_ATLAS_LAYOUT,
+  },
 ];
 export const FISH_SETS: readonly string[] = FISH_SET_ATLASES.map((a) => a.name);
 export const fishKindSet = (name: string): string =>
@@ -125,7 +136,7 @@ for (const { name, src, cell, layout } of FISH_SET_ATLASES) {
   );
 }
 
-// Names must match one of the seven atlas layouts. Every fish faces left.
+// Names must match one of the atlas layouts. Every fish faces left.
 // `level` is the species' preferred vertical band as fractions of the swimmable
 // height (0 = surface, 1 = floor), taken from its real-life habitat.
 // `speed` is grounded in real swimming-performance data (body-lengths/sec tiers).
@@ -726,6 +737,19 @@ export const FISH_KINDS: FishKind[] = [
     length: 32,
     motion: "standard",
   }, // fast  — piston-bodied industrial pursuit fish
+  // --- Halloween atlas ---
+  { name: "pumpkin_goldfish", level: { min: 0.25, max: 0.7 }, speed: 0.7, length: 22, motion: "paddle" },
+  { name: "ghost_betta", level: { min: 0.12, max: 0.6 }, speed: 0.6, length: 20, motion: "flowing" },
+  { name: "vampire_angelfish", level: { min: 0.2, max: 0.65 }, speed: 0.85, length: 26, motion: "flowing" },
+  { name: "witch_fish", level: { min: 0.1, max: 0.55 }, speed: 0.8, length: 22, motion: "flowing" },
+  { name: "skeleton_fish", level: { min: 0.4, max: 0.85 }, speed: 1, length: 24, motion: "standard" },
+  { name: "frankenstein_carp", level: { min: 0.5, max: 0.9 }, speed: 0.65, length: 30, motion: "standard" },
+  { name: "mummy_fish", level: { min: 0.35, max: 0.8 }, speed: 0.65, length: 24, motion: "standard" },
+  { name: "bat_ray", level: { min: 0.3, max: 0.78 }, speed: 0.9, length: 30, motion: "flowing" },
+  { name: "candy_corn_puffer", level: { min: 0.2, max: 0.65 }, speed: 0.55, length: 18, motion: "paddle" },
+  { name: "werewolf_fish", level: { min: 0.35, max: 0.8 }, speed: 1.15, length: 28, motion: "standard" },
+  { name: "spiderweb_lionfish", level: { min: 0.25, max: 0.7 }, speed: 0.7, length: 28, motion: "flowing" },
+  { name: "grim_reaper_fish", level: { min: 0.45, max: 0.92 }, speed: 0.6, length: 26, motion: "flowing" },
 ];
 
 // Bake one swim sheet per fish: copy each atlas cell's tight crop at native
@@ -733,7 +757,7 @@ export const FISH_KINDS: FishKind[] = [
 // Returns a data URL per FISH_KINDS entry, in order. Async because atlas images
 // decode off-thread; await before registering sprites so the load queue is complete.
 export async function makeFishSheets(): Promise<string[]> {
-  const [img1, img2, img3, img4, img5, img6, img7] = await Promise.all([
+  const [img1, img2, img3, img4, img5, img6, img7, img8] = await Promise.all([
     loadImage(FISH_ATLAS),
     loadImage(FISH_EXTRA_ATLAS),
     loadImage(FISH_BONUS_ATLAS),
@@ -741,6 +765,7 @@ export async function makeFishSheets(): Promise<string[]> {
     loadImage(POP_CULTURE_FISH_ATLAS),
     loadImage(ODYSSEY_FISH_ATLAS),
     loadImage(GIGER_FISH_ATLAS),
+    loadImage(HALLOWEEN_FISH_ATLAS),
   ]);
 
   const toPixels = (img: HTMLImageElement) => {
@@ -764,6 +789,7 @@ export async function makeFishSheets(): Promise<string[]> {
   const a5 = toPixels(img5);
   const a6 = toPixels(img6);
   const a7 = toPixels(img7);
+  const a8 = toPixels(img8);
 
   const atlases = [
     { pixels: a1, cell: FISH_ATLAS_CELL, layout: FISH_ATLAS_LAYOUT },
@@ -784,6 +810,11 @@ export async function makeFishSheets(): Promise<string[]> {
       pixels: a7,
       cell: GIGER_FISH_ATLAS_CELL,
       layout: GIGER_FISH_ATLAS_LAYOUT,
+    },
+    {
+      pixels: a8,
+      cell: HALLOWEEN_FISH_ATLAS_CELL,
+      layout: HALLOWEEN_FISH_ATLAS_LAYOUT,
     },
   ];
 
