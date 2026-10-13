@@ -67,3 +67,24 @@ bun tools/preview.ts MODE=backdrop
 
 Bun is the package manager, dev server, bundler, and compiler because adding
 three more tools would be funny in the bad way.
+
+## Preview the water lighting
+
+The **caustics** checkbox controls the descending sunlight rays. The water
+surface texture has been removed. `?off=caustics` disables the rays; `off=water-light` remains a
+legacy alias. `?light-time=12` freezes just the lighting at 12 seconds; remove
+that parameter to resume its slow light motion. The backdrop uses a fixed seed.
+
+```sh
+bun run preview:caustics
+# Or choose an output directory after building:
+bun tools/preview-water-lighting.ts /tmp/water-preview
+```
+
+This uses installed Chrome (or `PLAYWRIGHT_CHANNEL`) to capture the real WebGL
+shader into `test-results/water-lighting/`. It checks repeatable stills, live
+animation, loop continuity, long-running phase stability, both visibility gates,
+the sidebar toggle, oversized bright bands at multiple animation times and depths,
+and RES=1/2/3/6. Lighting renders in the backdrop pass; its
+cost appears under **backdrop** in the performance panel. Tune the broad-ray threshold,
+light intensity and source position in `src/waterLighting.ts`.

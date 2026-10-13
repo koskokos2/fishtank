@@ -1,3 +1,5 @@
+> Historical proposal, superseded by the unified surface/ray shader in `src/waterLighting.ts`. See README for its current preview command.
+
 # Caustics v3 — match the reference dome cap
 
 Goal: the surface caustics should read as a compact spherical cap of fine

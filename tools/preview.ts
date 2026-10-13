@@ -112,13 +112,6 @@ import {
   type Buf,
   SWIM_FRAMES,
 } from "../src/fishbake";
-import {
-  CAUSTICS_FRAME_H,
-  CAUSTICS_FRAME_W,
-  CAUSTICS_FRAMES,
-  CAUSTICS_SPRITE,
-} from "../src/causticsSprite";
-
 // Knobs can be passed as trailing args (`bun tools/preview.ts S=30 ONE=1`) or as
 // env vars (`S=30 ONE=1 bun ...`). Args are preferred — a single permission rule
 // `Bash(bun tools/preview.ts:*)` then covers every variation.
@@ -135,15 +128,15 @@ const opt = (k: string) => argv[k] ?? process.env[k];
 // poses (the live pose-swapping state machine only shows in `bun run dev`);
 // MODE=jellyfish and MODE=nautilus composite their independent layers into
 // representative frames (their clocks/state are independent in the live tank);
-// MODE=caustics lays out all light-map frames and composites frame 0 over the
-// backdrop; MODE=ruins-kit validates and renders the modular ruins recipes.
+// MODE=ruins-kit validates and renders the modular ruins recipes.
+// Animated surface lighting uses tools/preview-water-lighting.ts (real WebGL).
 const MODE = opt("MODE") ?? "fish";
 const S = Number(
   opt("S") ?? (MODE === "backdrop" || MODE === "ruins-kit" ? 1 : 6),
 ); // upscale factor
 
 if (MODE === "backdrop") renderBackdrop();
-else if (MODE === "caustics") renderCaustics();
+else if (MODE === "caustics") throw new Error("Use bun run preview:caustics for the WebGL lighting preview.");
 else if (MODE === "octopus") renderOctopus();
 else if (MODE === "jellyfish") renderJellyfish();
 else if (MODE === "nautilus") renderNautilus();
@@ -329,73 +322,6 @@ function renderBackdrop() {
   const name = opt("OUT") ?? "backdrop.png";
   writeFileSync(name, encodePng(out, cw, ch));
   console.log(`wrote ${name} (${cw}x${ch})`);
-}
-
-function renderCaustics() {
-  const atlas = decodePng(dataUrlToBuffer(CAUSTICS_SPRITE));
-  const frames = Array.from({ length: CAUSTICS_FRAMES }, (_, index) =>
-    copyRect(
-      atlas.rgba,
-      atlas.w,
-      0,
-      index * CAUSTICS_FRAME_H,
-      CAUSTICS_FRAME_W,
-      CAUSTICS_FRAME_H,
-    ),
-  );
-  const thumbScale = 0.25;
-  const thumbW = Math.round(CAUSTICS_FRAME_W * thumbScale);
-  const thumbH = Math.round(CAUSTICS_FRAME_H * thumbScale);
-  const gap = 8;
-  const width = Math.max(BW, gap + CAUSTICS_FRAMES * (thumbW + gap));
-  const compositeY = gap + thumbH + gap;
-  const height = compositeY + CAUSTICS_FRAME_H + gap;
-  const out = new Uint8Array(width * height * 4);
-  for (let i = 0; i < width * height; i++) {
-    out[i * 4] = 5;
-    out[i * 4 + 1] = 18;
-    out[i * 4 + 2] = 31;
-    out[i * 4 + 3] = 255;
-  }
-
-  const over = (src: Buf, sx: number, sy: number, dx: number, dy: number) => {
-    const si = (sy * src.w + sx) * 4;
-    const di = (dy * width + dx) * 4;
-    const a = src.data[si + 3] / 255;
-    out[di] = Math.round(src.data[si] * a + out[di] * (1 - a));
-    out[di + 1] = Math.round(src.data[si + 1] * a + out[di + 1] * (1 - a));
-    out[di + 2] = Math.round(src.data[si + 2] * a + out[di + 2] * (1 - a));
-  };
-
-  frames.forEach((frame, index) => {
-    const ox = gap + index * (thumbW + gap);
-    for (let y = 0; y < thumbH; y++)
-      for (let x = 0; x < thumbW; x++)
-        over(
-          frame,
-          Math.min(frame.w - 1, Math.floor(x / thumbScale)),
-          Math.min(frame.h - 1, Math.floor(y / thumbScale)),
-          ox + x,
-          gap + y,
-        );
-  });
-
-  const backdrop = backdropPixels();
-  const compositeX = Math.floor((width - BW) / 2);
-  for (let y = 0; y < CAUSTICS_FRAME_H; y++)
-    for (let x = 0; x < BW; x++) {
-      const [r, g, b] = backdrop[y * BW + x];
-      const di = ((compositeY + y) * width + compositeX + x) * 4;
-      out[di] = r;
-      out[di + 1] = g;
-      out[di + 2] = b;
-      out[di + 3] = 255;
-      over(frames[0], x, y, compositeX + x, compositeY + y);
-    }
-
-  const name = opt("OUT") ?? "caustics.png";
-  writeFileSync(name, encodePng(out, width, height));
-  console.log(`wrote ${name} (${width}x${height}) — four frames + composite`);
 }
 
 function backdropWithProps() {

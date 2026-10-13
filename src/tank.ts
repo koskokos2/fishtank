@@ -3,17 +3,13 @@ import type {
   Quad,
   Vec2,
   Color,
-  GameObj,
-  SpriteComp,
-  PosComp,
-  OpacityComp,
 } from "kaplay";
 import { RES } from "./res";
 import { groundZ, sandTopAt } from "./backdrop";
 import {
   WATER_LIGHT_SHADER,
   WATER_LIGHTING_TUNING,
-  sunEmitterX,
+  waterLightingTime,
 } from "./waterLighting";
 import { PLANT_ATLAS_CELL, PLANT_ATLAS_LAYOUT } from "./plantTheme";
 import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
@@ -31,84 +27,33 @@ type TankEntityCounts = Readonly<{ plants: number }>;
 // The static scene is baked once into two sprites (see backdrop.ts): the
 // water back plate and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
-// shader-driven rays, sprite caustics, swaying plants, motes, and bubbles.
+// sunlight shafts, swaying plants, motes, and bubbles.
 // Depth is faked with z-ordering.
 export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts) {
   // The baked layers hold everything static; only the layers below animate.
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
   if (!off("backdrop")) {
-    const waterLightUniform = { u_time: 0, u_emitterX: sunEmitterX() };
+    const fixedLightTime = new URLSearchParams(location.search).get("light-time");
+    const waterLightUniform = {
+      u_time: 0,
+      u_emitterX: WATER_LIGHTING_TUNING.emitterX,
+    };
     k.add([
       profileDraw("backdrop"),
       k.sprite("backdrop"),
       profileDrawEnd(),
       k.pos(0, 0),
       k.z(-200),
-      ...(off("water-light")
+      ...(off("caustics") || off("water-light")
         ? []
         : [
             k.shader(WATER_LIGHT_SHADER, () => {
-              // Every shader animation coefficient is an integer hundredth, so
-              // 200π seconds is a seamless common period. Keeping the uniform
-              // bounded prevents long-running tabs from losing phase precision
-              // differently across WebGL backends.
-              waterLightUniform.u_time =
-                k.time() % WATER_LIGHTING_TUNING.animationLoopSeconds;
-              // Re-sampled every frame so the emitter drifts with the real
-              // clock across the day without a reload.
-              waterLightUniform.u_emitterX = sunEmitterX();
+              waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
               return waterLightUniform;
             }),
           ]),
     ]);
-  }
-  if (!off("backdrop") && !off("caustics")) {
-    // The generated atlas is authored at RES=3. Scaling by the current RES
-    // preserves its 640x128 design-space footprint for every runtime density;
-    // at the default density it remains native-resolution, scale 1 artwork.
-    const causticsScale = RES / 3;
-    type CausticsLayer = GameObj<SpriteComp | PosComp | OpacityComp>;
-    const layerA = k.add([
-      profileDraw("caustics"),
-      k.sprite("caustics"),
-      profileDrawEnd(),
-      k.pos(0, 0),
-      k.scale(causticsScale),
-      k.opacity(1),
-      k.z(-195),
-    ]) as CausticsLayer;
-    const layerB = k.add([
-      profileDraw("caustics"),
-      k.sprite("caustics"),
-      profileDrawEnd(),
-      k.pos(0, 0),
-      k.scale(causticsScale),
-      k.opacity(0),
-      k.z(-195),
-    ]) as CausticsLayer;
-    const pingPong = [0, 1, 2, 3, 2, 1] as const;
-    // Thirteen complete ping-pong cycles fit exactly inside the shader's loop,
-    // keeping the modulo boundary visually seamless. Each fade is ~8.05 s.
-    const transitionCount = pingPong.length * 13;
-    const transitionSeconds =
-      WATER_LIGHTING_TUNING.animationLoopSeconds / transitionCount;
-    k.onUpdate(() => {
-      const time = k.time() % WATER_LIGHTING_TUNING.animationLoopSeconds;
-      const progress = time / transitionSeconds;
-      const step = Math.floor(progress);
-      const mix = progress - step;
-      const smoothMix = mix * mix * (3 - 2 * mix);
-      layerA.frame = pingPong[step % pingPong.length];
-      layerB.frame = pingPong[(step + 1) % pingPong.length];
-      layerA.opacity = 1 - smoothMix;
-      layerB.opacity = smoothMix;
-
-      // The reference's surface pattern spans the whole ceiling. Keep the
-      // sprite screen-aligned; only the procedural aperture/rays follow the sun.
-      layerA.pos.x = layerB.pos.x = 0;
-      layerA.pos.y = layerB.pos.y = 0;
-    });
   }
   if (!off("sand"))
     k.add([

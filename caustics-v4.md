@@ -1,3 +1,5 @@
+> Historical proposal, superseded by the unified surface/ray shader in `src/waterLighting.ts`. See README for its current preview command.
+
 # Caustics v4 — generated light-map sprite for the surface cap
 
 Supersedes `caustics-v3.md`. v3's premise (concentric procedural arcs = sphere

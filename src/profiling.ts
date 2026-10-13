@@ -3,8 +3,8 @@ import { BIRTHDAY_START_LABEL } from "./birthdayDate";
 
 // Scene-ablation toggles for performance profiling. Normal operation is
 // unaffected (empty query = everything on). Open the page with e.g.
-// ?off=caustics,kelp to skip the surface light map or those layers,
-// ?off=water-light to skip the procedural ray/glow shader, ?off=all for the
+// ?off=caustics,kelp to skip surface lighting or those layers,
+// ?off=water-light is a legacy alias for all surface lighting, ?off=all for the
 // empty tank floor, and ?uncap to lift the maxFPS cap — then read the FPS console.
 // Headless tools import scene modules that import this one — no location there.
 const params =
@@ -12,6 +12,8 @@ const params =
     ? new URLSearchParams()
     : new URLSearchParams(location.search);
 const OFF = new Set((params.get("off") ?? "").split(",").filter(Boolean));
+// Normalize old links so the sidebar also reflects the unified lighting gate.
+if (OFF.has("water-light")) OFF.add("caustics");
 export const off = (name: string) => OFF.has(name) || OFF.has("all");
 export const uncapped = params.has("uncap");
 // Opt-in schedule; unchecked always hides birthday fish.

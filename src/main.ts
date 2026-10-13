@@ -66,7 +66,6 @@ import {
   HALLOWEEN_PROPS_ATLAS_COLS,
   HALLOWEEN_PROPS_ATLAS_ROWS,
 } from "./halloweenPropsAtlas";
-import { CAUSTICS_FRAMES, CAUSTICS_SPRITE } from "./causticsSprite";
 import { setupTank } from "./tank";
 import { loadWaterLighting } from "./waterLighting";
 import {
@@ -282,7 +281,6 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
 
   k.loadSprite("backdrop", backdrop.back);
   k.loadSprite("backdrop-sand", backdrop.sand);
-  k.loadSprite("caustics", CAUSTICS_SPRITE, { sliceY: CAUSTICS_FRAMES });
   fishSheets.forEach((sheet, i) => {
     k.loadSprite(`fish-${i}`, sheet, {
       sliceX: SWIM_FRAMES,
@@ -330,5 +328,6 @@ const spawnRandomFish = (enterFromEdge: boolean) => {
     // taper the left edge, while alternating rear/front layers make fish disappear
     // naturally into the uneven mature grove.
     if (!off("kelp")) spawnLuminousKelpGrove(k);
+    canvas.dataset.ready = "true";
   });
 })();
