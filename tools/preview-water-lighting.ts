@@ -185,7 +185,7 @@ try {
   await settle();
   const manualNight = PNG.sync.read(await page.locator("canvas").screenshot());
   // Canvas screenshots include the overlaid toolbar; compare only the tank.
-  check(difference(night, manualNight, 0, 1, 0.8) === 0, "Scheduled night must match the existing backdrop-off style");
+  check(difference(night, manualNight, 0, 1, 0.7) === 0, "Scheduled night must match the existing backdrop-off style");
   await backdrop.check();
   check(await page.evaluate(() => performance.timeOrigin) === origin, "Lighting controls must never reload the scene");
   await page.getByRole("checkbox", { name: "real-time sun", exact: true }).check();

@@ -75,7 +75,8 @@ surface texture has been removed. `?off=caustics` disables the rays; `off=water-
 legacy alias. `?light-time=12` freezes just the lighting at 12 seconds; remove
 that parameter to resume its slow light motion. The backdrop uses a fixed seed.
 
-Ray sharpness is fixed at 70%.
+Ray sharpness is fixed at 70%. Rays render over the distant city and behind the
+middle and foreground ruins, which occlude them.
 
 Three transparent sunken-city artworks sit over the original water gradient,
 behind kelp, sand and all creatures: a pale distant skyline, an asymmetric ruined
