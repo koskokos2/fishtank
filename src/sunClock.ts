@@ -21,7 +21,13 @@ export function setSunTimeOverride(minutes: number | null) {
 export function sunAtMinutes(minutes: number) {
   const daylight = minutes >= 4 * 60 && minutes < 18 * 60;
   const progress = Math.max(0, Math.min(1, (minutes - 4 * 60) / (14 * 60)));
-  return { minutes, daylight, emitterX: -0.12 + progress * 1.24 };
+  // Dawn-to-noon takes eight hours; noon-to-dusk takes six. Separate halves
+  // keep the peak at 12:00 even though the sun's travel midpoint is 11:00.
+  const rise = Math.max(0, Math.min(1, minutes <= 12 * 60
+    ? (minutes - 4 * 60) / (8 * 60)
+    : (18 * 60 - minutes) / (6 * 60)));
+  const brightness = rise * rise * (3 - 2 * rise);
+  return { minutes, daylight, emitterX: -0.12 + progress * 1.24, brightness };
 }
 
 let cachedSecond = -1;

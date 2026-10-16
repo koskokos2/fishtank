@@ -44,6 +44,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
       u_time: 0,
       u_emitterX: WATER_LIGHTING_TUNING.emitterX as number,
       u_raysEnabled: 1,
+      u_backdropBrightness: 1,
     };
     const backdrop = k.add([
       profileDraw("backdrop"),
@@ -55,6 +56,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
         waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
         waterLightUniform.u_emitterX = realTimeSun ? currentSun().emitterX : WATER_LIGHTING_TUNING.emitterX;
         waterLightUniform.u_raysEnabled = off("caustics") || off("water-light") ? 0 : 1;
+        waterLightUniform.u_backdropBrightness = realTimeSun ? currentSun().brightness : 1;
         return waterLightUniform;
       }),
     ]);

@@ -12,6 +12,7 @@
 
 import { type RGBA, lerp, clamp01 } from "./color";
 import { RES } from "./res";
+import { WATER_TOP, WATER_NEXT, WATER_BOTTOM } from "./backdropAppearance";
 
 const S = RES;
 export const BW = 640 * S;
@@ -135,15 +136,15 @@ function smoothRamp(stops: RGBA[], t: number): RGBA {
 // Water, top (aqua) -> bottom (deep warm navy). The ramp is weighted deep so the
 // mid swimming zone is dark enough for fish to pop.
 const WATER: RGBA[] = [
-  [96, 178, 190, 255],
-  [66, 150, 166, 255],
+  WATER_TOP,
+  WATER_NEXT,
   [44, 120, 144, 255],
   [30, 96, 124, 255],
   [22, 74, 104, 255],
   [16, 56, 84, 255],
   [12, 42, 68, 255],
   [9, 32, 54, 255],
-  [7, 24, 44, 255],
+  WATER_BOTTOM,
 ];
 const SAND: RGBA[] = [
   [120, 96, 56, 255], // shadow
