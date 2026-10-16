@@ -45,8 +45,7 @@ const S = RES;
 
 // =========================== OCTOPUS ART ===========================
 // The octopus sprite is a sheet baked by tools/gen-octopus-atlas.ts from the atlas's
-// twelve "assembled" poses (the component body/tentacle layers don't overlay cleanly, so
-// we use the artist's whole-octopus poses). Frames 0..OCTOPUS_IDLE_FRAMES-1 are the
+// twelve assembled poses in art/octopus-v2-source.png. Frames 0..OCTOPUS_IDLE_FRAMES-1 are the
 // idle_hover pose with its arms gently swaying (the in-place hover loop); the rest are the
 // single crawl/rest/swim poses, indexed by name via OCTOPUS_POSE. The crawl/swim machine
 // below selects the frame per state.
@@ -243,7 +242,7 @@ let jellySpawned = 0;
 const jellyBells: GameObj[] = [];
 const JELLY_PERSONAL = 130 * S;
 
-export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
+export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, options: { octopusSprite?: string } = {}) {
   const cfg = KINDS[kindName];
   const minY = 24 * S;
   const mX = 40 * S; // horizontal wall margin (keeps the body on-screen)
@@ -296,7 +295,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS) {
 
   const body = k.add([
     profileDraw("cephs"),
-    k.sprite(cfg.sprite),
+    k.sprite(kindName === "octopus" ? options.octopusSprite ?? cfg.sprite : cfg.sprite),
     profileDrawEnd(),
     k.pos(spawnX, spawnY),
     k.anchor("center"),

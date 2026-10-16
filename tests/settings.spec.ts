@@ -50,7 +50,8 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   await expect(theme).toHaveValue("halloween");
   expect(await layer(page, "jelly")).toHaveLength(0);
   expect(await layer(page, "snail")).toHaveLength(0);
-  expect(await layer(page, "octo")).toEqual(octopus);
+  await expect.poll(async () => (await layer(page, "octo")).map(o => o.sprite)).toEqual(
+    octopus.map(() => expect.stringMatching(/^octopus-(plague-doctor|possessed-doll|vampire-squid)$/)));
   expect(await layer(page, "naut")).toEqual(nautilus);
   await expect.poll(async () => (await layer(page, "crabs")).every(o => o.sprite === "crawling-hand")).toBe(true);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
@@ -545,4 +546,84 @@ test("existing hex links normalize to Base64url without reload or lost settings"
   await checkbox(page, "texture filtering").check();
   expect(sharedSettings(page)).toEqual({ ...s, smoothTextures: true });
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+});
+
+test("Halloween octopus skins switch live, avoid repeats, and survive shared URLs", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await open(page, "octo=3&naut=0&jelly=0&fish=0");
+  await checkbox(page, "pause").check();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const theme = page.getByRole("combobox", { name: "theme", exact: true });
+  const names = ["octopus-plague-doctor", "octopus-possessed-doll", "octopus-vampire-squid"];
+  const sprites = async () => (await layer(page, "octo")).map(o => o.sprite!);
+  const verify = async (count: number) => {
+    await expect.poll(async () => (await sprites()).length).toBe(count);
+    await expect.poll(async () => (await sprites()).every(s => names.includes(s))).toBe(true);
+    const values = await sprites();
+    expect(new Set(values).size).toBe(Math.min(count, 3));
+    const totals = names.map(name => values.filter(s => s === name).length);
+    expect(Math.max(...totals) - Math.min(...totals)).toBeLessThanOrEqual(1);
+  };
+  await theme.selectOption("halloween");
+  await verify(3);
+  const initial = await layer(page, "octo");
+  await checkbox(page, "bubbles").uncheck();
+  expect(await layer(page, "octo")).toEqual(initial);
+  const count = page.getByRole("spinbutton", { name: "octo", exact: true });
+  for (const value of [1, 2, 4, 7, 0, 3]) {
+    await count.fill(String(value));
+    await count.press("Tab");
+    await verify(value);
+  }
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  const url = page.url();
+  await theme.selectOption("none");
+  await expect.poll(sprites).toEqual(["octopus", "octopus", "octopus"]);
+  await theme.selectOption("halloween");
+  await verify(3);
+  await page.goto(url);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await verify(3);
+  await expect(theme).toHaveValue("halloween");
+  const state = () => page.evaluate(() => window.birthdayTest.octopusState());
+  const resting = await state();
+  const animated = new Set<number>();
+  await checkbox(page, "pause").uncheck();
+  // Exercise the original resting -> crawl/swim state machine for every skin.
+  await expect.poll(async () => {
+    for (const actor of await state()) {
+      expect(actor.frame).toBeGreaterThanOrEqual(0);
+      expect(actor.frame).toBeLessThan(19);
+      const before = resting.find(o => o.id === actor.id)!;
+      if (actor.frame !== before.frame && Math.hypot(actor.x - before.x, actor.y - before.y) > 1)
+        animated.add(actor.id);
+    }
+    return animated.size;
+  }, { timeout: 25000, intervals: [250, 500, 1000] }).toBe(3);
+  await checkbox(page, "pause").check();
+  await page.screenshot({ path: "test-results/halloween-octopus-tank.png" });
+  expect(errors).toEqual([]);
+});
+
+test("redrawn ordinary octopus retains animation and moves with the new atlas", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await open(page, "octo=3&naut=0&jelly=0");
+  const state = () => page.evaluate(() => window.birthdayTest.octopusState());
+  const initial = await state();
+  expect(initial).toHaveLength(3);
+  expect(initial.every(o => o.sprite === "octopus")).toBe(true);
+  const animated = new Set<number>();
+  await expect.poll(async () => {
+    for (const actor of await state()) {
+      expect(actor.frame).toBeGreaterThanOrEqual(0);
+      expect(actor.frame).toBeLessThan(19);
+      const before = initial.find(o => o.id === actor.id)!;
+      if (actor.frame !== before.frame && Math.hypot(actor.x - before.x, actor.y - before.y) > 1)
+        animated.add(actor.id);
+    }
+    return animated.size;
+  }, { timeout: 25000, intervals: [250, 500, 1000] }).toBe(3);
+  expect(errors).toEqual([]);
 });

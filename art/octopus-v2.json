@@ -1,0 +1,126 @@
+{
+  "image": "octopus-v2.png",
+  "sourceImage": "octopus-v2-source.png",
+  "generator": "tools/gen-octopus-atlas.ts",
+  "width": 1760,
+  "height": 156,
+  "frameWidth": 176,
+  "frameHeight": 78,
+  "columns": 10,
+  "rows": 2,
+  "frames": 19,
+  "idleFrames": 8,
+  "poses": {
+    "swimPulse": 8,
+    "glide": 9,
+    "curl": 10,
+    "rest": 11,
+    "crawlReach": 12,
+    "crawlPush": 13,
+    "settledRest": 14,
+    "activeSwimPulse": 15,
+    "activeGlide": 16,
+    "activeCrawlReach": 17,
+    "activeCurl": 18
+  },
+  "scale": 0.2947463526899357,
+  "referenceArea": 3433.6225490196125,
+  "sourceBounds": [
+    {
+      "pose": "idleHover",
+      "x": 46,
+      "y": 116,
+      "w": 328,
+      "h": 234,
+      "headX": 217.81227106227107
+    },
+    {
+      "pose": "swimPulse",
+      "x": 455,
+      "y": 127,
+      "w": 274,
+      "h": 208,
+      "headX": 571.2990243902439
+    },
+    {
+      "pose": "glide",
+      "x": 806,
+      "y": 147,
+      "w": 433,
+      "h": 191,
+      "headX": 993.9554526258429
+    },
+    {
+      "pose": "curl",
+      "x": 1274,
+      "y": 143,
+      "w": 217,
+      "h": 216,
+      "headX": 1392.0207615767317
+    },
+    {
+      "pose": "rest",
+      "x": 29,
+      "y": 487,
+      "w": 391,
+      "h": 148,
+      "headX": 204.146724331251
+    },
+    {
+      "pose": "crawlReach",
+      "x": 439,
+      "y": 461,
+      "w": 400,
+      "h": 174,
+      "headX": 640.6130771357479
+    },
+    {
+      "pose": "crawlPush",
+      "x": 850,
+      "y": 439,
+      "w": 366,
+      "h": 194,
+      "headX": 1000.1963140090984
+    },
+    {
+      "pose": "settledRest",
+      "x": 1246,
+      "y": 473,
+      "w": 267,
+      "h": 165,
+      "headX": 1388.0732217573222
+    },
+    {
+      "pose": "activeSwimPulse",
+      "x": 48,
+      "y": 690,
+      "w": 306,
+      "h": 235,
+      "headX": 202.0104676104676
+    },
+    {
+      "pose": "activeGlide",
+      "x": 405,
+      "y": 729,
+      "w": 442,
+      "h": 182,
+      "headX": 564.7762609902823
+    },
+    {
+      "pose": "activeCrawlReach",
+      "x": 852,
+      "y": 724,
+      "w": 410,
+      "h": 192,
+      "headX": 1047.9155044165504
+    },
+    {
+      "pose": "activeCurl",
+      "x": 1285,
+      "y": 714,
+      "w": 209,
+      "h": 226,
+      "headX": 1405.0362821035467
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "name": "fictional",
+  "status": "selected; artwork generation blocked",
+  "selectedIds": [
+    "arctic",
+    "blinky",
+    "magikarp",
+    "cheep",
+    "nemo",
+    "dory",
+    "flounder",
+    "cleo",
+    "klaus",
+    "ariel",
+    "spongebob",
+    "patrick"
+  ],
+  "reuse": [
+    {
+      "name": "arctic_peeper",
+      "from": "bonus"
+    },
+    {
+      "name": "blinky",
+      "from": "alien"
+    }
+  ],
+  "newSprites": [
+    "magikarp",
+    "cheep_cheep",
+    "nemo",
+    "dory",
+    "flounder",
+    "cleo",
+    "klaus",
+    "ariel",
+    "spongebob",
+    "patrick_star"
+  ],
+  "constraints": [
+    "Cheep Cheep uses the Super Mario World SNES design",
+    "Ariel uses the original animated design",
+    "All sprites face left and match existing pixel-art atlases"
+  ]
+}

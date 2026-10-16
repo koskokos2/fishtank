@@ -8,6 +8,7 @@ import { loadTextureFiltering } from "./textureFiltering";
 import { SWIM_FRAMES } from "./fishbake";
 import { spawnCephalopod } from "./cephalopod";
 import { OCTOPUS_ATLAS, OCTOPUS_COLS, OCTOPUS_ROWS } from "./octopusAtlas";
+import { HALLOWEEN_OCTOPUS_ATLASES, chooseOctopusSkins } from "./octopusSkins";
 import {
   JELLYFISH_ATLAS,
   JELLYFISH_ATLAS_COLS,
@@ -220,8 +221,17 @@ function installLiveControls() {
     });
     for (const [name, kind] of [["naut", "nautilus"], ["octo", "octopus"], ["jelly", "jellyfish"]] as const) {
       const count = off("cephs") || (halloweenTheme && name === "jelly") ? 0 : num(name, DEFAULT_ENTITY_COUNTS[name]);
-      reconcileGroup(name, String(count), ctx => {
-        for (let i = 0; i < count; i++) spawnCephalopod(ctx, kind);
+      const halloweenOctopus = kind === "octopus" && halloweenTheme;
+      // Start all three loads together; wait for the complete set before dealing
+      // skins. Asset callbacks reconcile current settings, not stale requests.
+      if (count && halloweenOctopus) {
+        const ready = HALLOWEEN_OCTOPUS_ATLASES.map(skin =>
+          skinReady(skin, { sliceX: OCTOPUS_COLS, sliceY: OCTOPUS_ROWS }));
+        if (ready.some(loaded => !loaded)) continue;
+      }
+      reconcileGroup(name, `${count}:${halloweenOctopus}`, ctx => {
+        const skins = halloweenOctopus ? chooseOctopusSkins(count, () => ctx.rand()) : [];
+        for (let i = 0; i < count; i++) spawnCephalopod(ctx, kind, { octopusSprite: skins[i] });
       });
     }
     const crabs = off("crabs") ? 0 : num("crabs", DEFAULT_ENTITY_COUNTS.crabs);

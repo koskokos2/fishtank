@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Fictional fish — choose the cast</title>
+<style>
+:root{color-scheme:light;--paper:#f6f4ef;--ink:#1b3540;--muted:#5a6b70;--line:#d5dedb;--accent:#146c62;--selected:#e7f2ec}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,sans-serif}main{max-width:1240px;margin:auto;padding:48px 32px 190px}header{padding-bottom:24px;border-bottom:2px solid var(--ink)}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}h1{font:normal clamp(34px,5vw,60px)/1.12 Georgia,serif;letter-spacing:-.035em;margin:12px 0 18px}header p{max-width:760px;margin:8px 0;color:var(--muted)}.intro{display:flex;align-items:end;gap:32px;justify-content:space-between}.stamp{flex-shrink:0;text-align:right;font-size:14px;color:var(--muted)}.stamp strong{display:block;font:40px Georgia,serif;color:var(--ink)}.toolbar{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:24px 0}.toolbar input[type=search]{flex:1;min-width:220px;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:white;font:inherit}.toolbar label{display:flex;gap:8px;align-items:center}input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);cursor:pointer}button,a{touch-action:manipulation}button{font:inherit;cursor:pointer}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;table-layout:fixed}thead{background:var(--paper)}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px 10px;border-bottom:1px solid var(--ink)}td{padding:20px 10px;border-bottom:1px solid var(--line);vertical-align:middle}th:nth-child(1){width:6%}th:nth-child(2){width:24%}th:nth-child(3){width:25%}th:nth-child(4){width:45%}tr.chosen{background:var(--selected)}.number{display:block;color:var(--muted);font-size:12px;margin-bottom:10px;font-variant-numeric:tabular-nums}.pick{display:flex;justify-content:center}.ref{border:1px solid #dce3df;border-radius:8px;background:#fff;width:100%;height:152px;padding:6px;display:block;overflow:hidden;position:relative}.ref img{width:100%;height:100%;object-fit:contain;display:block}.ref:hover{border-color:var(--accent)}.ref::after{content:'enlarge';position:absolute;right:5px;bottom:4px;padding:1px 5px;background:#ffffffeb;font-size:10px;color:var(--muted);border-radius:3px}.source{font-size:12px;display:inline-block;margin-top:7px}.name{font-size:20px;font-weight:650;line-height:1.2;margin:0 0 7px}.franchise{color:var(--muted);font-size:14px}.tag{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;border:1px solid var(--line);padding:2px 6px;border-radius:4px;margin-top:10px}.tag.locked{background:var(--accent);color:white;border:0}.visual{margin:0 0 7px;font-weight:500}.note{margin:0;font-size:14px;color:var(--muted)}#empty{padding:30px;text-align:center;color:var(--muted)}.dock{position:fixed;bottom:0;left:0;right:0;background:#173943;color:#fff;padding:18px max(24px,calc((100vw - 1176px)/2));box-shadow:0 -4px 25px #19384118;z-index:2}.dock-top{display:flex;gap:16px;align-items:center;justify-content:space-between}.count{font-size:21px;font-weight:600}.hint{font-size:13px;color:#c4d9dc;margin-left:12px}#choices{font-size:13px;color:#c4d9dc;margin-top:10px;max-height:58px;overflow:auto}.actions{display:flex;gap:10px}button.primary{background:#d4eddf;color:#173943;border:0;border-radius:5px;padding:10px 16px;font-weight:600}button.secondary{background:transparent;color:inherit;border:1px solid #759199;border-radius:5px;padding:8px 12px}button:disabled{opacity:.5;cursor:default}.footer-note{font-size:12px;color:var(--muted);padding-top:22px}dialog{padding:22px;border:0;border-radius:12px;width:min(900px,92vw);max-height:92vh;background:var(--paper);color:var(--ink)}dialog::backdrop{background:#09242bbd}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:15px}dialog h2{margin:0;font-size:24px}dialog img{display:block;width:100%;height:min(64vh,650px);object-fit:contain;background:white;margin:18px 0}dialog .secondary{color:var(--ink);border-color:var(--line)}textarea{display:block;width:100%;min-height:220px;font:15px/1.5 system-ui;padding:15px;margin:15px 0;border:1px solid var(--line)}:focus-visible{outline:3px solid #b47d20;outline-offset:4px}[hidden]{display:none!important}
+@media(max-width:720px){main{padding:28px 16px 220px}.intro{display:block}.stamp{display:none}.table-wrap{overflow:visible}table,tbody,tr,td{display:block}thead{display:none}tr{display:grid;grid-template-columns:38px 140px 1fr;gap:12px;padding:18px 0;border-bottom:1px solid var(--line)}td{padding:0;border:0}td:last-child{grid-column:2/4}.ref{height:130px}.name{font-size:18px}.dock-top{align-items:start;flex-wrap:wrap}.hint{display:block;margin:0}.dock{padding:14px 18px}.actions{width:100%}.primary{flex:1}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="eyebrow">Fishtank · casting sheet</div><div class="intro"><div><h1>Beyond fish.<br>Three spots to fill.</h1><p>Your nine picks are saved. Explore <strong>16 new underwater swimmers</strong>—turtles, octopuses, mermaids and more—for the final three spots.</p><p>Click a picture to inspect it. The notes explain the swimming pose each character would need. Mario references use original SNES sprites; untick the swimmers filter to see earlier fish candidates too.</p></div><div class="stamp"><strong>9 + 3 = 12</strong>one crossover atlas<br>working name: fictional fish</div></div></header>
+<div class="toolbar"><input id="search" type="search" placeholder="Find a character or franchise…" aria-label="Find a character or franchise"><label><input id="new-only" type="checkbox" checked> Underwater swimmers only</label><label><input id="only" type="checkbox"> Selected only</label><span id="shown" class="note"></span></div>
+<div class="table-wrap"><table aria-label="Fictional fish candidates"><thead><tr><th>Pick</th><th>Reference</th><th>Character / franchise</th><th>What would carry into the tank</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty" hidden>No matching characters.</p>
+<p class="footer-note">Reference images link to their original web sources and remain owned by their respective creators. They are visual references, not finished tank sprites. Selections are saved in this browser; use “copy selection” to send your picks back. This page does not change the tank.</p>
+</main>
+<aside class="dock" aria-label="Your selection"><div class="dock-top"><div><span id="count" class="count" aria-live="polite"></span><span id="hint" class="hint"></span></div><div class="actions"><button id="reset" class="secondary">restore nine picks</button><button id="copy" class="primary">copy selection</button></div></div><div id="choices"></div></aside>
+<dialog id="preview"><div class="dialog-head"><h2 id="preview-name"></h2><button id="close" class="secondary" aria-label="Close image preview">close ×</button></div><p id="preview-franchise" class="note"></p><img id="preview-img" alt=""><p id="preview-note"></p><a id="preview-source" target="_blank" rel="noopener noreferrer">View original source ↗</a></dialog>
+<dialog id="copy-dialog"><div class="dialog-head"><h2>Your fish selection</h2><button id="copy-close" class="secondary">close ×</button></div><p>Select and copy this list to send it back in chat.</p><textarea id="selection-text" readonly aria-label="Selection to copy"></textarea></dialog>
+<script id="candidate-data" type="application/json">[
+  {
+    "id": "arctic",
+    "name": "Arctic Peeper",
+    "franchise": "Subnautica: Below Zero",
+    "q": "Arctic Peeper Subnautica",
+    "image": "https://www.gamersdecide.com/sites/default/files/authors/u163532/arctic-peeper-5.jpg",
+    "source": "https://www.gamersdecide.com/articles/subnautica-below-zero-best-bioreactor-fuels",
+    "visual": "Large eye, cool colours and luminous fins.",
+    "note": "Existing sprite: move from freshwater 3.",
+    "medium": "Existing",
+    "locked": true,
+    "confirmed": true
+  },
+  {
+    "id": "blinky",
+    "name": "Blinky",
+    "franchise": "The Simpsons",
+    "q": "Blinky Simpsons fish",
+    "image": "https://fotografias-2.larazon.es/clipping/cmsimages01/2021/04/14/A898189F-9961-4DEB-92BC-B17F737618DB/69.jpg?crop=973%2C547%2Cx0%2Cy34&format=jpg&height=720&optimize=low&width=1280",
+    "source": "https://www.larazon.es/opinion/20210415/r5kqyt6tnzganduug3vd62beqa.html",
+    "visual": "Three eyes and an orange body; a very clear visual signature.",
+    "note": "Existing sprite: move from alien.",
+    "medium": "Existing",
+    "locked": true,
+    "confirmed": true
+  },
+  {
+    "id": "magikarp",
+    "name": "Magikarp",
+    "franchise": "Pokémon",
+    "q": "Magikarp official artwork",
+    "image": "https://projectpokemon.org/home/uploads/monthly_2017_08/large.Sugimori.png.a1aa244c7f428823f14450136852781b.png",
+    "source": "https://projectpokemon.org/home/gallery/image/65049-sugimori/",
+    "visual": "Whiskers, crown fin and bold orange scales.",
+    "note": "Strong side profile; easy to distinguish from ordinary carp.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": true
+  },
+  {
+    "id": "cheep",
+    "name": "Cheep Cheep",
+    "franchise": "Super Mario World · SNES",
+    "q": "Cheep Cheep Mario artwork",
+    "image": "https://mario.wiki.gallery/images/d/d9/SMWCheepCheep.png",
+    "source": "https://www.mariowiki.com/Gallery:Cheep_Cheep",
+    "visual": "Original 16-bit red Cheep Cheep: compact body, white belly and yellow fins.",
+    "note": "Use the SNES palette and sprite silhouette as the design reference, not the modern 3D model.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": true,
+    "pixel": true
+  },
+  {
+    "id": "nemo",
+    "name": "Nemo",
+    "franchise": "Finding Nemo",
+    "q": "Nemo Finding Nemo character",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/12461_12515_12521_thumb_fn_12491_12514_3f1bf1b7.jpeg",
+    "source": "https://kids.disney.co.jp/character/s/nemo",
+    "visual": "Orange clownfish with white bands and a smaller fin.",
+    "note": "Expressive eyes and fin asymmetry must distinguish him from existing clownfish.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": true
+  },
+  {
+    "id": "dory",
+    "name": "Dory",
+    "franchise": "Finding Nemo / Finding Dory",
+    "q": "Dory character Pixar",
+    "image": "https://www.laughingplace.com/uploads/2016/03/finding-dory-fdcs_Dory10_125.per16.125.jpg",
+    "source": "https://www.laughingplace.com/w/news/2016/03/30/finding-dory-announces-cast/",
+    "visual": "Blue body, dark markings and a bright yellow tail.",
+    "note": "Needs her expression to stand apart from the existing blue tang.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": true
+  },
+  {
+    "id": "flounder",
+    "name": "Flounder",
+    "franchise": "The Little Mermaid",
+    "q": "Flounder Little Mermaid animated character",
+    "image": "https://uploads.lebonbon.fr/source/2023/polochon_animeI.jpeg",
+    "source": "https://www.lebonbon.fr/nantes/cine-series/decus-look-sebastien-polochon-la-petite-sirene/",
+    "visual": "Yellow body, blue stripes and a rounded friendly face.",
+    "note": "Use the animated design; very readable colours.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": true
+  },
+  {
+    "id": "cleo",
+    "name": "Cleo",
+    "franchise": "Pinocchio",
+    "q": "Cleo goldfish Pinocchio Disney",
+    "image": "https://img01.rl0.ru/afisha/-x-q85i/s.afisha.ru/mediastorage/92/3f/923f95de42cd42a8988a8cdb22c2.jpg",
+    "source": "https://www.afisha.ru/movie/pinokkio-169409/",
+    "visual": "Golden body, long flowing fins and expressive eyelashes.",
+    "note": "A classic goldfish option; face details matter at small scale.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": true
+  },
+  {
+    "id": "klaus",
+    "name": "Klaus",
+    "franchise": "American Dad!",
+    "q": "Klaus Heisler fish",
+    "image": "https://assets.mycast.io/actor_images/actor-klaus-heisler-263613_large.jpg",
+    "source": "https://www.mycast.io/talent/klaus-heisler",
+    "visual": "Orange goldfish with a distinctive expressive face.",
+    "note": "Use the fish without its bowl; face matters more than body shape.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": true
+  },
+  {
+    "id": "squirtle",
+    "name": "Squirtle",
+    "franchise": "Pokémon",
+    "image": "https://projectpokemon.org/home/uploads/monthly_2017_08/large.Sugimori.png.a1298abd340f32b7096d33e4600f60d3.png",
+    "source": "https://projectpokemon.org/home/gallery/image/68210-sugimori/",
+    "visual": "Blue turtle, brown shell and curled tail.",
+    "note": "Strong fit: horizontal paddling pose, with the curled tail kept visible.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "crush",
+    "name": "Crush",
+    "franchise": "Finding Nemo",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/crush_fc_finding-nemo_t_1a0ac0e5.jpeg",
+    "source": "https://www.disney.co.jp/fc/pixar/finding-nemo/character/crush",
+    "visual": "Green sea turtle with patterned shell and relaxed expression.",
+    "note": "Strong fit: broad flippers and slow gliding give him a different movement style.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "hank",
+    "name": "Hank",
+    "franchise": "Finding Dory",
+    "image": "https://img.lum.dolimg.com/v1/images/hank_characters_372d5f1d.jpeg?height=473&mode=crop&region=0%2C0%2C1200%2C778&width=630",
+    "source": "https://www.pinterest.com/ideas/hank-from-finding-dory/896546464398/",
+    "visual": "Orange-red octopus with a large head and expressive eyes.",
+    "note": "Strong fit: seven trailing arms and gentle jet-like swimming; needs an octopus animation.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "blooper",
+    "name": "Blooper",
+    "franchise": "Super Mario All-Stars · SNES",
+    "image": "https://mario.wiki.gallery/images/1/1d/SMAS_SMB_Blooper.png",
+    "source": "https://www.mariowiki.com/Gallery:Blooper",
+    "pixel": true,
+    "visual": "Pink-and-white SNES squid with a pointed head, dark eye mask and short tentacles.",
+    "note": "Original SNES sprite reference. Short pulses and trailing tentacles suit the tank.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "lapras",
+    "name": "Lapras",
+    "franchise": "Pokémon",
+    "image": "https://zukan.pokemon.co.jp/zukan-api/up/images/index/03e89cb38924aefe699902879addeb7e.png",
+    "source": "https://zukan.pokemon.co.jp/detail/0131",
+    "visual": "Blue long-necked swimmer with a grey shell and four flippers.",
+    "note": "A miniature interpretation; keep the head and shell readable while it glides.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "ariel",
+    "name": "Ariel",
+    "franchise": "The Little Mermaid · animated",
+    "image": "https://media.vogue.co.jp/photos/6477344ee5d4b3e69eb51586/16%3A9/w_2384%2Ch_1341%2Cc_limit/MSDLIME_WD003.jpg",
+    "source": "https://www.vogue.co.jp/article/the-little-mermaid-animation-behind-the-scenes-facts",
+    "visual": "Red hair, purple top and green mermaid tail.",
+    "note": "Very recognizable colours; needs a horizontal swim pose and space for hair and tail.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "perry",
+    "name": "Perry the Platypus",
+    "franchise": "Phineas and Ferb",
+    "image": "https://www.pngmart.com/files/22/Perry-The-Platypus-PNG-Photos.png",
+    "source": "https://www.pngmart.com/image/478687",
+    "visual": "Teal body, orange bill and flat patterned tail.",
+    "note": "Use a streamlined paddling pose. Agent P’s hat could improve recognition at small scale.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "ecco",
+    "name": "Ecco",
+    "franchise": "Ecco the Dolphin",
+    "image": "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co4sl9.jpg",
+    "source": "https://backloggd.com/games/ecco-the-dolphin--1/",
+    "visual": "Sleek grey dolphin with a long snout and curved dorsal fin.",
+    "note": "Natural swimmer; preserve the head’s star markings so it reads as Ecco rather than a generic dolphin.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "squirt",
+    "name": "Squirt",
+    "franchise": "Finding Nemo",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/squirt_fc_finding-nemo_t_fef05f7f.jpeg?region=0%2C0%2C600%2C600",
+    "source": "https://www.disney.co.jp/fc/pixar/finding-nemo/character/crush",
+    "visual": "Small sea turtle with an oversized head and patterned shell.",
+    "note": "A compact alternative to Crush, with quicker flipper beats.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "bailey",
+    "name": "Bailey",
+    "franchise": "Finding Dory",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/12461_12515_12521_thumb_12505_12452_12522_12540_efcc1b10.jpeg?region=0%2C0%2C800%2C800",
+    "source": "https://kids.disney.co.jp/character/dory_bailey",
+    "visual": "White beluga with a rounded forehead and friendly face.",
+    "note": "A tank-sized interpretation; pale colours and rounded profile would stand out.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "luca",
+    "name": "Luca Paguro",
+    "franchise": "Luca",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/luca4_8ad643ad.jpeg",
+    "source": "https://news.disney.com/luca-first-look",
+    "visual": "Blue-green sea-monster form with fins and a long tail.",
+    "note": "Use the underwater form. Tail-driven swimming works, but limbs and face need more sprite space.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "starmie",
+    "name": "Starmie",
+    "franchise": "Pokémon",
+    "image": "https://zukan.pokemon.co.jp/zukan-api/up/images/index/774a4e2f78322771104d21572102731e.png",
+    "source": "https://zukan.pokemon.co.jp/detail/0121",
+    "visual": "Purple star shape with a gold ring and red central gem.",
+    "note": "A very different silhouette; gentle spinning suits it better than a fish’s tail wag.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "skipper",
+    "name": "Skipper",
+    "franchise": "Madagascar / The Penguins of Madagascar",
+    "image": "https://purepng.com/public/uploads/large/purepng.com-madagascar-penguinmadagascar-penguinsmadagascarpenguinscgiamericantelevision-seriesdreamworksanimationpenguins-skipper-1701528623081pbjaf.png",
+    "source": "https://purepng.com/photo/26866/render-madagascar-penguin",
+    "visual": "Black-and-white penguin with an orange bill and determined eyebrows.",
+    "note": "Use a horizontal diving pose and flipper strokes; eyebrows distinguish him from a generic penguin.",
+    "medium": "Film / TV",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "spongebob",
+    "name": "SpongeBob",
+    "franchise": "SpongeBob SquarePants",
+    "image": "https://spongebobwiki.s3.us-east-va.io.cloud.ovh.us/thumb/5/5d/SpongeBob.svg/1200px-SpongeBob.svg.png",
+    "source": "https://spongebobwiki.org/wiki/SpongeBob_SquarePants_%28character%29",
+    "visual": "Yellow square sponge, brown shorts and red tie.",
+    "note": "Comedic option: a horizontal paddling pose. Angular silhouette will be conspicuous among the fish.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "patrick",
+    "name": "Patrick Star",
+    "franchise": "SpongeBob SquarePants",
+    "image": "https://spongebobwiki.s3.us-east-va.io.cloud.ovh.us/c/cf/Patrick.png",
+    "source": "https://spongebobwiki.org/wiki/Patrick_Star",
+    "visual": "Pink starfish wearing green shorts with purple flowers.",
+    "note": "Comedic option: broad arm strokes and a slow glide; shorts carry much of the identity.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "squidward",
+    "name": "Squidward",
+    "franchise": "SpongeBob SquarePants",
+    "image": "https://cdn.shopify.com/s/files/1/2393/5817/files/SB_ES_Squid_002_EA_REV-S.jpg?v=1692953746",
+    "source": "https://www.vanillaunderground.com/blogs/news/meet-the-characters-of-spongebob-squarepants",
+    "visual": "Pale turquoise head, long nose and brown shirt.",
+    "note": "More of an adaptation: tentacles trailing behind in a swimming pose; long nose must remain readable.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false,
+    "swimmer": true
+  },
+  {
+    "id": "pudge",
+    "name": "Pudge",
+    "franchise": "Lilo & Stitch",
+    "q": "Pudge Lilo Stitch fish",
+    "image": "https://i.pinimg.com/736x/2b/c0/7d/2bc07decb9164dfdd83c0435ba4a07d9.jpg",
+    "source": "https://www.pinterest.com/pin/pudge--9992430394183218/",
+    "visual": "Round orange body, blue spots and a little peanut-butter sandwich.",
+    "note": "The sandwich is an optional identifying prop; the fish itself has a clean swimming silhouette.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "bubbles",
+    "name": "Bubbles",
+    "franchise": "Finding Nemo",
+    "q": "Bubbles Finding Nemo yellow tang",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/bubbles_fc_finding-nemo_s_8d23d52f.jpeg?region=0%2C0%2C1024%2C768",
+    "source": "https://www.disney.co.jp/fc/pixar/finding-nemo/character/bubbles",
+    "visual": "Bright yellow tang with large, wide-set eyes.",
+    "note": "A familiar, simple fish shape; distinguish it from the existing yellow tang through its face.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "bloat",
+    "name": "Bloat",
+    "franchise": "Finding Nemo",
+    "q": "Bloat Finding Nemo pufferfish",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/bloat_fc_finding-nemo_t_d967971e.jpeg?region=0%2C0%2C600%2C600",
+    "source": "https://www.disney.co.jp/fc/pixar/finding-nemo/character/bruce",
+    "visual": "Rounded pufferfish with a pale belly and small spines.",
+    "note": "Adds a compact, chunky silhouette; reference shows the character rather than a generic puffer.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "deb",
+    "name": "Deb",
+    "franchise": "Finding Nemo",
+    "q": "Deb Finding Nemo fish",
+    "image": "https://img.lum.dolimg.com/v1/images/eu_finding_nemo_chi_deb_n_80f08cd5.jpeg",
+    "source": "https://www.narodnatribuna.info/lists/pictures/finding-nemo-characters-deb/",
+    "visual": "Broad blue-and-white stripes and expressive eyes.",
+    "note": "Different silhouette from Nemo and Dory, though it adds another Finding Nemo character.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "gurgle",
+    "name": "Gurgle",
+    "franchise": "Finding Nemo",
+    "q": "Gurgle Finding Nemo fish",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/gurgle_fc_finding-nemo_t_9a685800.jpeg?region=0%2C0%2C600%2C600",
+    "source": "https://www.disney.co.jp/fc/pixar/finding-nemo/character/gurgle",
+    "visual": "Purple front, yellow tail and large expressive eyes.",
+    "note": "Strong colour contrast; must remain distinct from the existing royal gramma.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "mrray",
+    "name": "Mr. Ray",
+    "franchise": "Finding Nemo",
+    "q": "Mr Ray Finding Nemo character",
+    "image": "https://clipart-library.com/2023/39-391694_transparent-manta-ray-clipart-hd-png-download.png",
+    "source": "https://clipart-library.com/clipart/manta-ray-cliparts-8.htm",
+    "visual": "Wide, spotted fins and a long slender tail.",
+    "note": "Adds a gliding ray shape instead of another oval fish.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "destiny",
+    "name": "Destiny",
+    "franchise": "Finding Dory",
+    "q": "Destiny Finding Dory whale shark character",
+    "image": "https://lumiere-a.akamaihd.net/v1/images/ebo_12487_12473_12486_12451_12491_12540_sp_a7ee87fb.jpeg?region=0%2C0%2C1024%2C768&width=960",
+    "source": "https://www.disney.co.jp/movie/dory/character/character05",
+    "visual": "Large spotted blue body and a wide friendly mouth.",
+    "note": "Would be scaled down into a tank-sized whale shark.",
+    "medium": "Film",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "puff",
+    "name": "Mrs. Puff",
+    "franchise": "SpongeBob SquarePants",
+    "q": "Mrs Puff SpongeBob character",
+    "image": "https://spongebobwiki.s3.us-east-va.io.cloud.ovh.us/3/32/Mrs_Puff.png",
+    "source": "https://spongebobwiki.org/wiki/Mrs._Puff",
+    "visual": "Round spotted pufferfish, sailor cap and blue collar.",
+    "note": "Keep the cap and collar; adapt the upright pose into a swimmer.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "milo",
+    "name": "Milo",
+    "franchise": "Fish Hooks",
+    "q": "Milo Fish Hooks Disney character",
+    "image": "https://www.nicepng.com/png/full/182-1822282_characters-form-fish-hooks-and-milo-are-owned.png",
+    "source": "https://www.nicepng.com/maxp/u2w7q8r5w7w7r5y3/",
+    "visual": "Pale green striped body, blue hair-like fin and orange lips.",
+    "note": "Very expressive cartoon face; adapt the upright pose to swimming.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "bea",
+    "name": "Bea Goldfishberg",
+    "franchise": "Fish Hooks",
+    "q": "Bea Goldfishberg Fish Hooks character",
+    "image": "https://i.pinimg.com/originals/e3/5a/12/e35a123fef84c0012ddeec336d1ace2d.jpg",
+    "source": "https://www.pinterest.com/pin/fish-hooks--474566879459074262/",
+    "visual": "Golden striped body, long red hair and a star hair clip.",
+    "note": "The red hair would make the silhouette distinctive at tank scale.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "oscarhooks",
+    "name": "Oscar",
+    "franchise": "Fish Hooks",
+    "q": "Oscar Fish Hooks character",
+    "image": "https://i.pinimg.com/originals/b1/65/2d/b1652dc5a8c10421968a221b6c78d39e.jpg",
+    "source": "https://www.pinterest.com/pin/oscar-fish-tales-in-2025--246572148345548938/",
+    "visual": "Green striped body and a large curly hair silhouette.",
+    "note": "This is Oscar from Fish Hooks, not the rejected Oscar from Shark Tale.",
+    "medium": "TV",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "blipper",
+    "name": "Blipper",
+    "franchise": "Kirby",
+    "q": "Blipper Kirby fish goggles",
+    "image": "https://cdn.wikirby.com/8/89/KSS_Blipper.png",
+    "source": "https://wikirby.com/wiki/Blipper",
+    "pixel": true,
+    "visual": "Red fish wearing blue goggles; Kirby Super Star sprite.",
+    "note": "A simple 16-bit design whose goggles provide a strong identity.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "chopper",
+    "name": "Chopper",
+    "franchise": "Sonic the Hedgehog",
+    "q": "Chopper Sonic fish badnik sprite",
+    "image": "https://info.sonicretro.org/images/a/a6/Chopper.png",
+    "source": "https://info.sonicretro.org/Chopper",
+    "visual": "Red robotic fish with metal fins and a toothed mouth.",
+    "note": "A mechanical alternative to organic fish; use the classic Sonic design.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "ripvan",
+    "name": "Rip Van Fish",
+    "franchise": "Super Mario World",
+    "q": "Rip Van Fish Super Mario World sprite",
+    "image": "https://mario.wiki.gallery/images/2/2c/RipVanFish-SMW.png",
+    "source": "https://www.mariowiki.com/Rip_Van_Fish",
+    "pixel": true,
+    "visual": "Sleepy blue fish with orange lips and fins.",
+    "note": "Original Super Mario World SNES sprite; retain the sleepy expression.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "porcu",
+    "name": "Porcu-Puffer",
+    "franchise": "Super Mario World",
+    "q": "Porcu Puffer Super Mario World SNES sprite",
+    "image": "https://mario.wiki.gallery/images/2/2d/Porcu-Puffer.PNG",
+    "source": "https://www.mariowiki.com/Gallery:Porcupuffer",
+    "pixel": true,
+    "visual": "Blue puffer body, white spikes and pink-red lips.",
+    "note": "Original Super Mario World SNES sprite and colours; no modern 3D redesign.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "fishbone",
+    "name": "Fish Bone",
+    "franchise": "Super Mario World",
+    "q": "Fish Bone Super Mario World SNES sprite",
+    "image": "https://mario.wiki.gallery/images/c/cd/Fish_Bone_SMW_sprite.png",
+    "source": "https://www.mariowiki.com/Fish_Bone",
+    "pixel": true,
+    "visual": "White skeletal fish with a large eye and pointed teeth.",
+    "note": "Original Super Mario World SNES sprite; a compact spooky option.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "blurpp",
+    "name": "Blurp",
+    "franchise": "Super Mario World",
+    "q": "Blurpp Super Mario World sprite",
+    "image": "https://mario.wiki.gallery/images/9/9a/SMW_Blurp.png",
+    "source": "https://www.mariowiki.com/Blurp",
+    "pixel": true,
+    "visual": "Green fish with white belly and a rounded, blunt head.",
+    "note": "Original Super Mario World SNES sprite; close relative visually to Cheep Cheep.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "bitesize",
+    "name": "Bitesize",
+    "franchise": "Donkey Kong Country",
+    "q": "Bitesize Donkey Kong Country sprite",
+    "image": "https://mario.wiki.gallery/images/a/a0/Bitesize.png",
+    "source": "https://www.mariowiki.com/Bitesize",
+    "pixel": true,
+    "visual": "Small green fish with a large eye and pink-red tail.",
+    "note": "Original Donkey Kong Country SNES sprite; a lively, compact shape.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "prego",
+    "name": "Prego",
+    "franchise": "Insaniquarium",
+    "q": "Prego Insaniquarium fish",
+    "image": "https://gamefabrique.com/screenshots2/pc/insaniquarium-deluxe-13.big.jpg",
+    "source": "https://gamefabrique.com/games/insaniquarium-deluxe/",
+    "visual": "Round golden-orange fish with red fins and a blue scarf.",
+    "note": "Original game screenshot; the scarf and broad body carry the identity.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  },
+  {
+    "id": "seaman",
+    "name": "Seaman",
+    "franchise": "Seaman · Dreamcast",
+    "q": "Seaman Dreamcast fish character",
+    "image": "https://cenapop.uol.com.br/media/_versions/dc_seaman_widelg.jpg",
+    "source": "https://cenapop.uol.com.br/noticias/dicas/seaman-dreamcast.html",
+    "visual": "Fish body with a human face and a forehead stalk.",
+    "note": "A deliberately uncanny candidate from the Dreamcast virtual-pet game.",
+    "medium": "Games",
+    "locked": false,
+    "confirmed": false
+  }
+]
+</script>
+<script>
+const data=JSON.parse(document.getElementById('candidate-data').textContent);
+const key='fishtank-fictional-fish-shortlist-v2';
+const initial=data.filter(c=>c.confirmed).map(c=>c.id);
+const fixed=data.filter(c=>c.locked).map(c=>c.id);
+let saved=initial;try{saved=JSON.parse(localStorage.getItem(key)||JSON.stringify(initial))}catch{}
+const selected=new Set([...fixed,...(Array.isArray(saved)?saved:[]).filter(id=>data.some(c=>c.id===id)&&!fixed.includes(id)).slice(0,10)]);
+const $=id=>document.getElementById(id);const rows=$('rows');const checks=new Map();
+function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text)node.textContent=text;return node}
+for(const [i,c] of data.entries()){
+ const tr=el('tr');tr.dataset.id=c.id;
+ const pick=el('td');pick.append(el('span','number',String(i+1).padStart(2,'0')));
+ const input=el('input');input.type='checkbox';input.setAttribute('aria-label',`Select ${c.name}`);input.addEventListener('change',()=>{input.checked?selected.add(c.id):selected.delete(c.id);save();sync()});pick.append(input);checks.set(c.id,input);
+ const photo=el('td');const button=el('button','ref');button.setAttribute('aria-label',`Enlarge ${c.name}`);const img=el('img');img.src=c.image;img.style.imageRendering=c.pixel?'pixelated':'auto';img.alt=c.name+' reference';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>{img.alt=c.name+' — image unavailable; open source below'});button.append(img);button.addEventListener('click',()=>{ $('preview-name').textContent=c.name;$('preview-franchise').textContent=c.franchise;$('preview-img').src=c.image;$('preview-img').style.imageRendering=c.pixel?'pixelated':'auto';$('preview-img').alt=c.name;$('preview-note').textContent=c.note;$('preview-source').href=c.source;$('preview').showModal() });
+ const source=el('a','source','image source ↗');source.href=c.source;source.target='_blank';source.rel='noopener noreferrer';photo.append(button,source);
+ const character=el('td');character.append(el('h2','name',c.name),el('div','franchise',c.franchise),el('span','tag'+(c.locked?' locked':''),c.locked?'your pick · existing sprite':c.confirmed?'your pick':c.swimmer?'new swimmer · '+c.medium:c.medium));
+ const notes=el('td');notes.append(el('p','visual',c.visual),el('p','note',c.note));tr.append(pick,photo,character,notes);rows.append(tr);
+}
+function save(){try{localStorage.setItem(key,JSON.stringify([...selected]))}catch{}}
+function sync(){let shown=0;const q=$('search').value.toLowerCase().trim();for(const c of data){const checked=selected.has(c.id);checks.get(c.id).checked=checked;checks.get(c.id).disabled=c.locked||(!checked&&selected.size>=12);const row=rows.querySelector(`[data-id="${c.id}"]`);row.classList.toggle('chosen',checked);row.hidden=(!(`${c.name} ${c.franchise} ${c.medium}`).toLowerCase().includes(q))||($('only').checked&&!checked)||($('new-only').checked&&!c.swimmer);if(!row.hidden)shown++} $('count').textContent=`${selected.size} / 12 selected`;$('hint').textContent=selected.size===12?'Your cast is complete.':`Choose ${12-selected.size} more`;$('choices').textContent=data.filter(c=>selected.has(c.id)).map(c=>c.name).join(' · ');$('shown').textContent=`${shown} of ${data.length} shown`;$('empty').hidden=shown>0;$('reset').disabled=selected.size===initial.length&&initial.every(id=>selected.has(id))}
+$('search').addEventListener('input',sync);$('only').addEventListener('change',()=>{if($('only').checked)$('new-only').checked=false;sync()});$('new-only').addEventListener('change',()=>{if($('new-only').checked)$('only').checked=false;sync()});$('reset').addEventListener('click',()=>{selected.clear();initial.forEach(id=>selected.add(id));save();sync()});
+$('copy').addEventListener('click',async()=>{const text=`Fictional fish set — ${selected.size}/12 selected\n\n`+data.filter(c=>selected.has(c.id)).map(c=>`${c.name} — ${c.franchise}${c.locked?' (move existing sprite)':''}`).join('\n');try{await navigator.clipboard.writeText(text);$('copy').textContent='copied ✓';setTimeout(()=>$('copy').textContent='copy selection',2000)}catch{$('selection-text').value=text;$('copy-dialog').showModal();$('selection-text').select()}});
+$('close').addEventListener('click',()=>$('preview').close());$('copy-close').addEventListener('click',()=>$('copy-dialog').close());for(const d of document.querySelectorAll('dialog'))d.addEventListener('click',e=>{if(e.target===d&&e.offsetX<0)d.close()});sync();
+</script>
+</body></html>

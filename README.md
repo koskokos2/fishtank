@@ -122,6 +122,31 @@ all fish/prop sets and ordinary skins. Presets are stored through their existing
 settings; customizing them makes the dropdown show **no theme** without resetting
 other choices.
 
+Halloween also replaces octopuses with **Plague doctor**, **Possessed doll** and
+**Vampire squid** skins, and hides jellyfish and sea snails until the theme is
+switched off. The octopus count stays unchanged: one or two use random distinct
+skins, three show all three, and higher counts repeat in shuffled groups of three.
+Unrelated controls leave those assignments intact. Switching themes is live;
+the three textures load once on first use and remain cached.
+
+Each skin has the original 19-frame layout (eight idle sway frames plus eleven
+named poses), so crawling, resting, swimming, turning and collision logic is shared
+with the ordinary octopus. Rebuild these atlases with
+`bun run atlas:halloween-octopus`; source sheets, packed PNGs and frame metadata
+are in `art/halloween-octopus-*`, with the generation prompts in
+`art/halloween-octopus-prompts.json`. The built-in image generator created the
+source artwork; the atlas tool extracts complete silhouettes and packs them into
+cells sized to each silhouette without clipping extended arms. Visible pixel area
+is matched to the original octopus, so longer tentacles do not shrink the whole skin.
+
+The ordinary purple octopus uses the same detailed rendering style as the
+Halloween skins. Its twelve authored poses are in `art/octopus-v2-source.png`,
+with the built-in imagegen prompt in `art/octopus-v2-prompt.txt`. Rebuild with
+`bun run atlas:octopus`. Both generators share `tools/octopus-atlas-packer.ts`
+and match visible size against the frozen `art/octopus-legacy-packed.png`;
+regenerating one skin cannot progressively change the size of the others.
+The original source artwork remains available in `art/octopus-atlas-128.png`.
+
 All settings are shared through a single `?settings=<base64url>` parameter. The standard
 version-2 snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. It includes layers,
 fish/prop sets, skins, filtering, populations, sunlight and preview time, pause,

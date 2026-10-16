@@ -112,6 +112,10 @@ const api = {
   settingsLayer: (name: string) => k.get(`settings-${name}`).map(object => ({
     id: object.id, hidden: object.hidden, sprite: object.sprite as string | undefined,
   })),
+  octopusState: () => k.get("settings-octo").filter(object => object.has("sprite")).map(object => ({
+    id: object.id, sprite: object.sprite as string, frame: object.frame as number,
+    x: object.pos.x, y: object.pos.y,
+  })),
   paused: () => k.debug.paused,
   state,
   reinstall: () => installBirthdayFish(k),

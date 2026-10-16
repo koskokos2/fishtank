@@ -1,0 +1,126 @@
+{
+  "image": "halloween-octopus-possessed-doll.png",
+  "sourceImage": "halloween-octopus-possessed-doll-source.png",
+  "generator": "tools/gen-halloween-octopus-atlases.ts",
+  "width": 1680,
+  "height": 184,
+  "frameWidth": 168,
+  "frameHeight": 92,
+  "columns": 10,
+  "rows": 2,
+  "frames": 19,
+  "idleFrames": 8,
+  "poses": {
+    "swimPulse": 8,
+    "glide": 9,
+    "curl": 10,
+    "rest": 11,
+    "crawlReach": 12,
+    "crawlPush": 13,
+    "settledRest": 14,
+    "activeSwimPulse": 15,
+    "activeGlide": 16,
+    "activeCrawlReach": 17,
+    "activeCurl": 18
+  },
+  "scale": 0.2569246842627726,
+  "referenceArea": 3433.6225490196125,
+  "sourceBounds": [
+    {
+      "pose": "idleHover",
+      "x": 32,
+      "y": 32,
+      "w": 381,
+      "h": 322,
+      "headX": 212.1773127753304
+    },
+    {
+      "pose": "swimPulse",
+      "x": 471,
+      "y": 73,
+      "w": 258,
+      "h": 266,
+      "headX": 572.9128281663387
+    },
+    {
+      "pose": "glide",
+      "x": 792,
+      "y": 75,
+      "w": 430,
+      "h": 253,
+      "headX": 912.7783078081848
+    },
+    {
+      "pose": "curl",
+      "x": 1257,
+      "y": 59,
+      "w": 241,
+      "h": 286,
+      "headX": 1360.4631781741346
+    },
+    {
+      "pose": "rest",
+      "x": 17,
+      "y": 446,
+      "w": 380,
+      "h": 209,
+      "headX": 187.5066768409004
+    },
+    {
+      "pose": "crawlReach",
+      "x": 411,
+      "y": 416,
+      "w": 407,
+      "h": 238,
+      "headX": 574.9534452091872
+    },
+    {
+      "pose": "crawlPush",
+      "x": 851,
+      "y": 390,
+      "w": 360,
+      "h": 266,
+      "headX": 958.2190702902864
+    },
+    {
+      "pose": "settledRest",
+      "x": 1260,
+      "y": 432,
+      "w": 255,
+      "h": 214,
+      "headX": 1365.3462225397393
+    },
+    {
+      "pose": "activeSwimPulse",
+      "x": 26,
+      "y": 689,
+      "w": 347,
+      "h": 283,
+      "headX": 176.8760181558167
+    },
+    {
+      "pose": "activeGlide",
+      "x": 414,
+      "y": 716,
+      "w": 418,
+      "h": 256,
+      "headX": 570.8473563218391
+    },
+    {
+      "pose": "activeCrawlReach",
+      "x": 811,
+      "y": 724,
+      "w": 439,
+      "h": 256,
+      "headX": 1006.8039070394072
+    },
+    {
+      "pose": "activeCurl",
+      "x": 1279,
+      "y": 721,
+      "w": 235,
+      "h": 246,
+      "headX": 1379.667738317757
+    }
+  ]
+}
