@@ -11,6 +11,14 @@ export const SETTING_GATES = [
 export type SettingGate = typeof SETTING_GATES[number];
 export const COUNT_KEYS = ["fish", "jelly", "octo", "naut", "crabs", "snail", "plants"] as const;
 export type CountKey = typeof COUNT_KEYS[number];
+export const COUNT_LIMITS: Record<CountKey, number> = {
+  fish: 99, jelly: 99, octo: 99, naut: 99, crabs: 99, snail: 99, plants: 999,
+};
+// Keep decoding the existing 10-bit wire format, then cap live populations.
+export function clampEntityCounts(settings: TankSettings): TankSettings {
+  for (const key of COUNT_KEYS) settings.counts[key] = Math.min(COUNT_LIMITS[key], settings.counts[key]);
+  return settings;
+}
 export const DEFAULT_ENTITY_COUNTS = { fish: 10, jelly: 5, octo: 1, naut: 1, crabs: 5, snail: 1, plants: 100 } as const;
 const FLAGS = ["birthday", "gothPlants", "gothKelp", "crawlingHands", "smoothTextures",
   "realTimeSun", "paused", "debug", "fps", "gpu", "halloweenBubbles"] as const;
@@ -119,7 +127,7 @@ export function legacySettings(p: URLSearchParams): TankSettings {
   s.disabled = SETTING_GATES.filter(gate => disabled.has("all") || disabled.has(gate));
   for (const key of COUNT_KEYS) if (p.has(key)) {
     const value = Number(p.get(key));
-    if (Number.isFinite(value) && value >= 0) s.counts[key] = Math.min(999, Math.floor(value));
+    if (Number.isFinite(value) && value >= 0) s.counts[key] = Math.min(COUNT_LIMITS[key], Math.floor(value));
   }
   const res = Number(p.get("res"));
   if (RESOLUTIONS.includes(res as TankSettings["resolution"])) s.resolution = res as TankSettings["resolution"];
@@ -149,6 +157,6 @@ export function settingsFromSearch(search: string): TankSettings {
   const p = new URLSearchParams(search);
   // An encoded link is authoritative, even if malformed. Never merge legacy
   // fields or device preferences into a shared snapshot.
-  return p.has("settings") ? decodeSettings(p.get("settings")!) ?? defaultSettings()
-    : legacySettings(p);
+  return clampEntityCounts(p.has("settings") ? decodeSettings(p.get("settings")!) ?? defaultSettings()
+    : legacySettings(p));
 }

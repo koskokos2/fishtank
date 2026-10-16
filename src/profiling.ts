@@ -4,7 +4,7 @@ import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOve
 
 import { settings, copySettings, saveSettings } from "./settings";
 import { applyTheme, selectedTheme } from "./themePresets";
-import { COUNT_KEYS, SETTING_GATES, type CountKey, type TankSettings } from "./settingsCodec";
+import { COUNT_LIMITS, COUNT_KEYS, SETTING_GATES, type CountKey, type TankSettings } from "./settingsCodec";
 
 const OFF = new Set<string>(settings.disabled);
 export const off = (name: string) =>
@@ -976,10 +976,13 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     // Buffer resolution and frame cap need a reload (both are fixed at init);
     // pause is live and splits update cost from draw cost — if fps rises while
     // paused, the update side was the load; if not, it's the draw side.
+    // Explicit rows keep intrinsic panel width based on the wider row, rather
+    // than the combined width of controls that merely wrap onto a second line.
+    const graphicsSection = document.createElement("div");
+    graphicsSection.style.cssText =
+      "display:grid;gap:12px;margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
     const row = document.createElement("div");
-    row.style.cssText =
-      "display:flex;gap:12px;align-items:center;margin-top:6px;" +
-      "border-top:1px solid #7f74;padding-top:6px";
+    row.style.cssText = "display:flex;gap:12px;align-items:center;flex-wrap:wrap";
     const makeSelect = (
       title: string,
       options: [string, string][],
@@ -1025,8 +1028,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     textureLabel.title = "smooths fish, octopuses, jellyfish, nautiluses, snails, crabs, hands, plants and kelp while preserving detail. Changes instantly.";
     // Keep the live checkboxes together on their own line.
     const graphicsToggles = document.createElement("div");
-    graphicsToggles.style.cssText = "display:flex;gap:12px;align-items:center;flex-basis:100%";
-    row.style.flexWrap = "wrap";
+    graphicsToggles.style.cssText = "display:flex;gap:12px;align-items:center";
     const resNow = String(settings.resolution);
     makeSelect(
       "resolution",
@@ -1069,9 +1071,16 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     pauseLabel.append(pauseCb, "pause");
     row.prepend(fpsRow);
     graphicsToggles.append(textureLabel, pauseLabel);
-    row.append(graphicsToggles);
+    graphicsSection.append(row, graphicsToggles);
 
     // Spawn-count inputs rebuild only the affected population and update the URL.
+    const countStyle = document.createElement("style");
+    countStyle.textContent = `
+      .tank-count-input { appearance: textfield; }
+      .tank-count-input::-webkit-inner-spin-button,
+      .tank-count-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    `;
+    document.head.append(countStyle);
     const countRow = document.createElement("div");
     countRow.style.cssText =
       "display:grid;grid-template-columns:repeat(2,max-content);gap:4px 16px;margin-top:6px;" +
@@ -1083,9 +1092,10 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     };
     for (const [name, fallback] of entityCountDefaults) {
       const displayName = countLabels[name as CountKey];
+      const maxCount = COUNT_LIMITS[name as CountKey];
       const countControl = document.createElement("div");
       countControl.style.cssText =
-        "display:grid;grid-template-columns:7em 4.5em 1.8em 1.8em;gap:6px;align-items:center";
+        "display:grid;grid-template-columns:7em max-content 1.8em 1.8em;gap:6px;align-items:center";
       const label = document.createElement("label");
       label.textContent = displayName;
       label.htmlFor = `count-${name}`;
@@ -1094,21 +1104,22 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       input.id = label.htmlFor;
       input.type = "number";
       input.min = "0";
-      input.max = "999";
+      input.max = String(maxCount);
+      input.className = "tank-count-input";
       input.step = "1";
       input.value = String(num(name, fallback));
       input.style.cssText =
-        "width:4em;background:#000;color:#7f7;border:1px solid #7f74;" +
+        "width:calc(3ch + 8px);box-sizing:border-box;background:#000;color:#7f7;border:1px solid #7f74;" +
         "border-radius:3px;font:inherit;padding:1px 3px";
       const value = () => {
-        const v = Math.min(999, Math.max(0, Math.floor(Number(input.value))));
+        const v = Math.min(maxCount, Math.max(0, Math.floor(Number(input.value))));
         return Number.isFinite(v) ? v : fallback;
       };
       const minus = document.createElement("button");
       const plus = document.createElement("button");
       const syncButtons = () => {
         minus.disabled = value() <= 0;
-        plus.disabled = value() >= 999;
+        plus.disabled = value() >= maxCount;
         minus.style.opacity = minus.disabled ? ".4" : "1";
         plus.style.opacity = plus.disabled ? ".4" : "1";
       };
@@ -1131,14 +1142,14 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         button.style.cssText =
           "background:#000;color:#7f7;border:1px solid #7f74;border-radius:3px;" +
           "font:inherit;padding:1px 0;cursor:pointer;line-height:1.2";
-        button.addEventListener("click", () => applyCount(Math.min(999, Math.max(0, value() + delta))));
+        button.addEventListener("click", () => applyCount(Math.min(maxCount, Math.max(0, value() + delta))));
       }
       syncButtons();
       countControl.append(label, input, minus, plus);
       countRow.append(countControl);
     }
 
-    box.append(sunControls, row, birthdayLabel);
+    box.append(sunControls, graphicsSection, birthdayLabel);
 
     const githubLink = document.createElement("a");
     githubLink.href = "https://github.com/koskokos2/fishtank";

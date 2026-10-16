@@ -1,4 +1,4 @@
-import { encodeSettings, settingsFromSearch, SETTING_GATES, type TankSettings } from "./settingsCodec";
+import { clampEntityCounts, encodeSettings, settingsFromSearch, SETTING_GATES, type TankSettings } from "./settingsCodec";
 
 // Keep the existing wire bits compatible, but make bubbles the single master
 // for both particle layers. Old links inherit their bubbles visibility choice.
@@ -16,6 +16,7 @@ function settingsURL(next: TankSettings) {
   return `${location.pathname}?settings=${encodeSettings(next)}${location.hash}`;
 }
 export function saveSettings(next: TankSettings, reload = false) {
+  clampEntityCounts(next);
   syncParticleVisibility(next);
   const url = settingsURL(next);
   if (reload) { location.assign(url); return; }

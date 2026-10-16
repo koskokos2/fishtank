@@ -115,3 +115,15 @@ describe("settings wire formats v1/v2", () => {
     expect(s.lightTime).toBeNull();
   });
 });
+
+test("population limits preserve old URLs while capping creatures at 99 and plants at 999", () => {
+  const old = defaultSettings();
+  for (const key of COUNT_KEYS) old.counts[key] = 999;
+  old.gothKelp = true;
+  old.sunTime = 720;
+  const expected = { ...old, counts: { fish: 99, jelly: 99, octo: 99, naut: 99, crabs: 99, snail: 99, plants: 999 } };
+  expect(settingsFromSearch(`?settings=${encodeSettings(old)}`)).toEqual(expected);
+  expect(settingsFromSearch(`?settings=${asHex(encodeSettings(old))}`)).toEqual(expected);
+  expect(settingsFromSearch("?" + COUNT_KEYS.map(key => `${key}=1000`).join("&")).counts).toEqual(expected.counts);
+  expect(settingsFromSearch("?fish=0&plants=0").counts).toMatchObject({ fish: 0, plants: 0 });
+});
