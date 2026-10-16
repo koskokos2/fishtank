@@ -20,7 +20,7 @@ import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
   off,
   gothPlantsEnabled,
-  halloweenBubblesEnabled,
+  halloweenBubblesActive,
   smoothTextures,
   profile,
   profileDraw,
@@ -115,7 +115,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
     commitPlantField(k, fronds);
   }
 
-  if ((!layer || layer === "motes") && !off("motes") && !halloweenBubblesEnabled) spawnMotes(k, 30);
+  if ((!layer || layer === "motes") && !off("motes") && !halloweenBubblesActive()) spawnMotes(k, 30);
   if (!layer || layer === "bubbles") {
     // Replacing the bubble group discards its previous controllers and pools.
     bubblePools.clear();
@@ -123,7 +123,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
     bubbleColor = null;
     halloweenSparks = null;
     if (!off("bubbles")) {
-      if (halloweenBubblesEnabled) halloweenSparks = createHalloweenSparks(k);
+      if (halloweenBubblesActive()) halloweenSparks = createHalloweenSparks(k);
       spawnPlantPearling(k, pearlingPlants);
       spawnSubstrateSeeps(k);
       spawnRuinLeaks(k);
@@ -702,6 +702,7 @@ function bubblePoolFor(k: KAPLAYCtx, z: number): BubblePool {
   const pool: BubblePool = { bubbles: [] };
   bubblePools.set(z, pool);
   k.add([
+    "regular-bubbles",
     k.z(z),
     {
       update() {
@@ -738,7 +739,7 @@ function bubblePoolFor(k: KAPLAYCtx, z: number): BubblePool {
 
 function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
   if (off("bubbles")) return;
-  if (halloweenBubblesEnabled) {
+  if (halloweenBubblesActive()) {
     halloweenSparks?.emit(x, y);
     return;
   }

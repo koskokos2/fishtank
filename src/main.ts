@@ -81,7 +81,7 @@ import {
   gothPlantsEnabled,
   gothKelpEnabled,
   crawlingHandsEnabled,
-  halloweenBubblesEnabled,
+  halloweenBubblesActive,
 } from "./profiling";
 import { VW, VH } from "./res";
 import { installBirthdayFish, loadBirthdayFish, syncBirthdaySparkles } from "./birthdayFish";
@@ -181,7 +181,9 @@ function installLiveControls() {
     return false;
   };
   let birthdayState: boolean | undefined;
+  let particleNight = halloweenBubblesActive();
   const reconcile = () => {
+    particleNight = halloweenBubblesActive();
     const plantCount = num("plants", DEFAULT_ENTITY_COUNTS.plants);
     const plants = getPlantTheme(gothPlantsEnabled);
     const kelp = getKelpTheme(gothKelpEnabled);
@@ -193,8 +195,8 @@ function installLiveControls() {
       // Pearling bubbles reference the plant field, so replace the two together.
       if (!plantsReady && (layer === "plants" || layer === "bubbles")) continue;
       const key = layer === "backdrop" ? "live" : layer === "props" ? propKey
-        : layer === "motes" ? String(off(layer) || halloweenBubblesEnabled)
-        : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}:${halloweenBubblesEnabled}` : String(off(layer));
+        : layer === "motes" ? String(off(layer) || particleNight)
+        : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}:${particleNight}` : String(off(layer));
       reconcileGroup(layer, key, ctx => {
         if (layer === "props") resetPropObstacles();
         setupTank(ctx, { plants: plantCount }, layer);
@@ -240,6 +242,11 @@ function installLiveControls() {
   };
   reconcile();
   onSettingsChange(reconcile);
+  // Wall-clock dawn/dusk does not fire a settings change. Only reconcile on a
+  // mode transition, including while paused; all unrelated groups keep identity.
+  window.setInterval(() => {
+    if (particleNight !== halloweenBubblesActive()) reconcile();
+  }, 250);
 }
 
 // The fish sheets and backdrop are baked after async image decode, so resolve them

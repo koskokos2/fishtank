@@ -3,6 +3,7 @@ import { BIRTHDAY_START_LABEL } from "./birthdayDate";
 import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride } from "./sunClock";
 
 import { settings, copySettings, saveSettings } from "./settings";
+import { applyTheme, selectedTheme } from "./themePresets";
 import { COUNT_KEYS, SETTING_GATES, type CountKey, type TankSettings } from "./settingsCodec";
 
 const OFF = new Set<string>(settings.disabled);
@@ -14,6 +15,9 @@ export let gothPlantsEnabled = settings.gothPlants;
 export let gothKelpEnabled = settings.gothKelp;
 export let crawlingHandsEnabled = settings.crawlingHands;
 export let halloweenBubblesEnabled = settings.halloweenBubbles;
+// The saved choice stays enabled during the day; only its effective skin changes.
+export const halloweenBubblesActive = () => halloweenBubblesEnabled && !off("bubbles")
+  && (off("backdrop") || off("caustics") || off("water-light"));
 export let smoothTextures = settings.smoothTextures;
 export const capFPS = settings.frameCap || 62;
 const settingsListeners = new Set<() => void>();
@@ -553,6 +557,21 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "color:#7f7a;font:15px monospace;cursor:pointer;padding:2px 4px";
     box.append(close);
 
+    const themeLabel = document.createElement("label");
+    themeLabel.style.cssText = "display:flex;align-items:center;gap:6px;padding-right:12px";
+    const themeSelect = document.createElement("select");
+    themeSelect.style.cssText = "background:#000;color:#7f7;border:1px solid #7f74;border-radius:3px;font:inherit;padding:1px 2px";
+    for (const [value, text] of [["none", "no theme"], ["halloween", "halloween"]]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      themeSelect.append(option);
+    }
+    themeSelect.value = selectedTheme(settings);
+    themeLabel.append("theme", themeSelect);
+    themeLabel.title = "choose a preset, then customize individual settings below";
+    box.append(themeLabel);
+
     const detailBox = document.createElement("div");
     detailBox.style.cssText =
       "position:fixed;left:8px;top:8px;z-index:9;background:#000c;color:#7f7;" +
@@ -576,8 +595,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     const fpsPanel = document.createElement("span");
     fpsPanel.textContent = "fps: …";
     const detailToggle = document.createElement("button");
-    detailToggle.title = "Show performance details";
-    detailToggle.setAttribute("aria-label", "Show performance details");
+    detailToggle.title = "show performance details";
+    detailToggle.setAttribute("aria-label", "show performance details");
     detailToggle.style.cssText =
       "display:grid;grid-template-columns:repeat(3,3px);align-items:end;gap:2px;" +
       "height:15px;background:#0008;border:1px solid #7f74;color:#7f7;" +
@@ -593,11 +612,11 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       if (visible && !detailPanel.textContent)
         detailPanel.textContent = "warming performance details...";
       detailToggle.title = visible
-        ? "Hide performance details"
-        : "Show performance details";
+        ? "hide performance details"
+        : "show performance details";
       detailToggle.setAttribute(
         "aria-label",
-        visible ? "Hide performance details" : "Show performance details",
+        visible ? "hide performance details" : "show performance details",
       );
       localStorage.setItem("debugDetailsPanelOpen", String(visible));
     };
@@ -620,7 +639,6 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       setBoxVisible(true);
     });
     fpsRow.append(fpsPanel, detailToggle);
-    box.append(fpsRow);
     setInterval(() => {
       const d = kaplayDebug;
       fpsPanel.textContent = `fps: ${d ? Math.round(d.fps()) : "?"}`;
@@ -729,7 +747,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "display:flex;gap:6px;align-items:center;cursor:pointer;" +
       "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
     birthdayLabel.title =
-      `Show from ${BIRTHDAY_START_LABEL} onward. Unchecked: never show birthday fish.`;
+      `show from ${BIRTHDAY_START_LABEL} onward. Unchecked: never show birthday fish.`;
     const birthdayCb = document.createElement("input");
     birthdayCb.type = "checkbox";
     birthdayCb.checked = birthdayFishEnabled;
@@ -739,26 +757,12 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       p.birthday = birthdayCb.checked;
       updateSettings(p);
     });
-    birthdayLabel.append(birthdayCb, "Birthday fish (scheduled)");
-    box.append(birthdayLabel);
+    birthdayLabel.append(birthdayCb, "birthday fish (scheduled)");
 
     // Scene-element checkboxes: each maps to a live disabled-layer flag. Every
     // checkbox across every grid below shares one `boxes` map and `apply`, so
     // toggling one section's gates never clobbers another's.
-    const TOGGLES = [
-      "backdrop",
-      "sand",
-      "props",
-      "plants",
-      "caustics",
-      "motes",
-      "bubbles",
-      "puffs",
-      "fish",
-      "cephs",
-      "crabs",
-      "kelp",
-    ];
+    const TOGGLES = ["backdrop", "plants", "bubbles", "kelp"];
     // Fish-atlas and prop-family themes: same flag mechanism as TOGGLES,
     // gate names prefixed so they can't collide with each other or TOGGLES
     // (both have a "pop-culture" entry). Kept in sync by hand with fishKindSet's
@@ -793,7 +797,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         .filter(([name, cb]) => name === "backdrop" && realTimeSun ? OFF.has(name) : !cb.checked)
         .map(([name]) => name);
       const p = copySettings();
-      p.disabled = SETTING_GATES.filter(gate => offNow.includes(gate));
+      // Gates without sidebar controls retain their shared-URL values.
+      p.disabled = SETTING_GATES.filter(gate => boxes.has(gate) ? offNow.includes(gate) : OFF.has(gate));
       updateSettings(p);
     };
     const addToggleGrid = (
@@ -815,7 +820,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         heading.append(label);
         const allBtn = document.createElement("button");
         allBtn.textContent = "×";
-        allBtn.title = `Toggle all ${title}`;
+        allBtn.title = `toggle all ${title}`;
         allBtn.style.cssText =
           "background:none;border:none;color:#7f7;cursor:pointer;" +
           "font:11px monospace;padding:0;line-height:1";
@@ -836,7 +841,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         cb.type = "checkbox";
         cb.checked = !off(name);
         cb.style.accentColor = "#7f7";
-        if (name === "backdrop") cb.title = "Toggle the backdrop live and take manual control of the sun.";
+        if (name === "backdrop") cb.title = "toggle daytime lighting and take manual control of the sun.";
+        if (name === "bubbles") cb.title = "show bubbles and drifting motes, or magical sparks during Halloween nights";
         cb.addEventListener("change", () => {
           if (name !== "backdrop") { apply(); return; }
           // Manual backdrop changes are live too, and leave automatic mode.
@@ -849,7 +855,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         if (setPreviews.has(name)) {
           const info = document.createElement("button");
           info.textContent = "ⓘ";
-          info.title = `Preview ${display}`;
+          info.title = `preview ${display}`;
           info.style.cssText =
             "background:none;border:none;color:#7f7a;cursor:pointer;" +
             "font:11px monospace;padding:0;line-height:1";
@@ -868,8 +874,10 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     };
     const menu = addToggleGrid(
       "",
-      TOGGLES.map((n) => [n, n] as const),
+      TOGGLES.map((n) => [n, n === "backdrop" ? "sun" : n] as const),
     );
+    menu.style.borderTop = "none";
+    const skinBoxes = new Map<"gothPlants" | "gothKelp" | "crawlingHands" | "halloweenBubbles", HTMLInputElement>();
     const addSkinToggle = (
       layer: "plants" | "kelp" | "crabs" | "bubbles",
       enabled: boolean,
@@ -881,11 +889,12 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         "display:flex;gap:6px;align-items:center;cursor:pointer";
       label.title =
         field === "halloweenBubbles"
-          ? "Magical sparks when sun rays are not visible. Hides drifting motes while enabled. The bubbles checkbox controls visibility."
-          : `Replace the ${layer} with ${display}. The ${layer} checkbox controls visibility.`;
+          ? "magical sparks at night; regular bubbles and motes during the day. The bubbles checkbox controls visibility."
+          : `replace the ${layer} with ${display}.` + (boxes.has(layer) ? ` The ${layer} checkbox controls visibility.` : "");
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = enabled;
+      skinBoxes.set(field, cb);
       cb.style.accentColor = "#7f7";
       cb.addEventListener("change", () => {
         const p = copySettings();
@@ -893,27 +902,14 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         updateSettings(p);
       });
       label.append(cb, display);
-      boxes.get(layer)!.closest("label")!.after(label);
+      const layerLabel = boxes.get(layer)?.closest("label");
+      if (layerLabel) layerLabel.after(label);
+      else menu.append(label);
     };
     addSkinToggle("plants", gothPlantsEnabled);
     addSkinToggle("kelp", gothKelpEnabled);
     addSkinToggle("crabs", crawlingHandsEnabled, "crawlingHands", "crawling hands");
     addSkinToggle("bubbles", halloweenBubblesEnabled, "halloweenBubbles", "halloween bubbles");
-    const allBtn = document.createElement("label");
-    allBtn.style.cssText =
-      "display:flex;gap:6px;align-items:center;cursor:pointer";
-    const allCb = document.createElement("input");
-    allCb.type = "checkbox";
-    allCb.checked = TOGGLES.every((n) => !off(n));
-    allCb.style.accentColor = "#7f7";
-    allCb.addEventListener("change", () => {
-      setRealTimeSun(false);
-      for (const name of TOGGLES) boxes.get(name)!.checked = allCb.checked;
-      apply();
-    });
-    allBtn.append(allCb, "(all)");
-    menu.append(allBtn);
-
     const sunControls = document.createElement("div");
     sunControls.style.cssText = "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
     const sunLabel = document.createElement("label");
@@ -922,7 +918,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     sunToggle.type = "checkbox";
     sunToggle.style.accentColor = "#7f7";
     sunLabel.append(sunToggle, "real-time sun");
-    sunLabel.title = "Local time: sunrise at 04:00, night at 18:00. Updates without reloading.";
+    sunLabel.title = "local time: sunrise at 04:00, night at 18:00. Updates without reloading.";
     const timeRow = document.createElement("label");
     timeRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:5px";
     const timeSlider = document.createElement("input");
@@ -930,18 +926,17 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     timeSlider.min = "0";
     timeSlider.max = "1439";
     timeSlider.step = "1";
-    timeSlider.setAttribute("aria-label", "Temporary sun time");
-    timeSlider.style.cssText = "flex:1;min-width:60px;margin:0;accent-color:#7f7";
+    timeSlider.setAttribute("aria-label", "temporary sun time");
+    timeSlider.style.cssText = "flex:0.5;min-width:60px;margin:0;accent-color:#7f7";
     timeRow.append("preview time", timeSlider);
     const timeStatus = document.createElement("output");
     const resetTime = document.createElement("button");
-    resetTime.textContent = "Use real time";
+    resetTime.textContent = "use real time";
     resetTime.style.cssText = "background:none;color:#7f7;border:1px solid #7f74;font:inherit;cursor:pointer";
     const timeFooter = document.createElement("div");
     timeFooter.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:4px";
     timeFooter.append(timeStatus, resetTime);
     sunControls.append(sunLabel, timeRow, timeFooter);
-    box.append(sunControls);
     function syncSunControls() {
       const sun = currentSun();
       sunToggle.checked = realTimeSun;
@@ -953,9 +948,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       const minutes = String(Math.floor(sun.minutes % 60)).padStart(2, "0");
       timeStatus.textContent = realTimeSun
         ? `${hours}:${minutes} · ${sunTimeOverride === null ? "live" : "preview"} · ${sun.daylight ? "day" : "night"}`
-        : off("backdrop") ? "Manual night" : "Fixed daytime rays";
+        : off("backdrop") ? "manual night" : "fixed daytime rays";
       boxes.get("backdrop")!.checked = !off("backdrop");
-      allCb.checked = TOGGLES.every(n => !off(n));
     }
     sunToggle.addEventListener("change", () => {
       setRealTimeSun(sunToggle.checked);
@@ -985,7 +979,6 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     row.style.cssText =
       "display:flex;gap:12px;align-items:center;margin-top:6px;" +
       "border-top:1px solid #7f74;padding-top:6px";
-    box.append(row);
     const makeSelect = (
       title: string,
       options: [string, string][],
@@ -1027,15 +1020,14 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       query.smoothTextures = textureToggle.checked;
       updateSettings(query, false);
     });
-    textureLabel.append(textureToggle, "Texture filtering");
-    row.append(textureLabel);
-    textureLabel.title = "Smooths fish, plants and kelp while preserving detail. Changes instantly.";
+    textureLabel.append(textureToggle, "texture filtering");
+    textureLabel.title = "smooths fish, plants and kelp while preserving detail. Changes instantly.";
     // Its own line keeps the graphics controls readable in the narrow sidebar.
     textureLabel.style.flexBasis = "100%";
     row.style.flexWrap = "wrap";
     const resNow = String(settings.resolution);
     makeSelect(
-      "res",
+      "resolution",
       [
         ["1", "640"],
         ["2", "1280"],
@@ -1049,7 +1041,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     );
     const capNow = settings.frameCap === 0 ? "off" : settings.frameCap === 32 ? "30" : "60";
     makeSelect(
-      "cap",
+      "fps cap",
       [
         ["30", "30"],
         ["60", "60"],
@@ -1073,47 +1065,90 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       updateSettings(p);
     });
     pauseLabel.append(pauseCb, "pause");
-    row.append(pauseLabel);
+    row.append(pauseLabel, fpsRow, textureLabel);
 
     // Spawn-count inputs rebuild only the affected population and update the URL.
     const countRow = document.createElement("div");
     countRow.style.cssText =
-      "display:flex;flex-direction:column;gap:2px;margin-top:6px;" +
+      "display:grid;grid-template-columns:repeat(2,max-content);gap:4px 16px;margin-top:6px;" +
       "border-top:1px solid #7f74;padding-top:6px";
     box.append(countRow);
     for (const [name, fallback] of entityCountDefaults) {
+      const countControl = document.createElement("div");
+      countControl.style.cssText =
+        "display:grid;grid-template-columns:4.5em 4.5em 1.8em 1.8em;gap:6px;align-items:center";
       const label = document.createElement("label");
-      label.style.cssText =
-        "display:grid;grid-template-columns:4.5em 4.5em;gap:6px;" +
-        "align-items:center;cursor:pointer";
+      label.textContent = name;
+      label.htmlFor = `count-${name}`;
+      label.style.cursor = "pointer";
       const input = document.createElement("input");
+      input.id = label.htmlFor;
       input.type = "number";
       input.min = "0";
       input.max = "999";
+      input.step = "1";
       input.value = String(num(name, fallback));
       input.style.cssText =
         "width:4em;background:#000;color:#7f7;border:1px solid #7f74;" +
         "border-radius:3px;font:inherit;padding:1px 3px";
-      input.addEventListener("change", () => {
-        const p = copySettings();
+      const value = () => {
         const v = Math.min(999, Math.max(0, Math.floor(Number(input.value))));
-        p.counts[name as CountKey] = Number.isFinite(v) ? v : fallback;
-        input.value = String(Number.isFinite(v) ? v : fallback);
+        return Number.isFinite(v) ? v : fallback;
+      };
+      const minus = document.createElement("button");
+      const plus = document.createElement("button");
+      const syncButtons = () => {
+        minus.disabled = value() <= 0;
+        plus.disabled = value() >= 999;
+        minus.style.opacity = minus.disabled ? ".4" : "1";
+        plus.style.opacity = plus.disabled ? ".4" : "1";
+      };
+      const applyCount = (next: number) => {
+        const p = copySettings();
+        p.counts[name as CountKey] = next;
+        input.value = String(next);
+        syncButtons();
         updateSettings(p);
-      });
-      label.append(name, input);
-      countRow.append(label);
+      };
+      input.addEventListener("change", () => applyCount(value()));
+      input.addEventListener("input", syncButtons);
+      for (const [button, delta, symbol, action] of [
+        [minus, -1, "−", "decrease"], [plus, 1, "+", "increase"],
+      ] as const) {
+        button.type = "button";
+        button.textContent = symbol;
+        button.setAttribute("aria-label", `${action} ${name} count`);
+        button.title = `${action} ${name} count`;
+        button.style.cssText =
+          "background:#000;color:#7f7;border:1px solid #7f74;border-radius:3px;" +
+          "font:inherit;padding:1px 0;cursor:pointer;line-height:1.2";
+        button.addEventListener("click", () => applyCount(Math.min(999, Math.max(0, value() + delta))));
+      }
+      syncButtons();
+      countControl.append(label, input, minus, plus);
+      countRow.append(countControl);
     }
+
+    box.append(sunControls, row, birthdayLabel);
 
     const githubLink = document.createElement("a");
     githubLink.href = "https://github.com/koskokos2/fishtank";
     githubLink.target = "_blank";
     githubLink.rel = "noreferrer";
-    githubLink.textContent = "GitHub: koskokos2/fishtank";
+    githubLink.textContent = "github: koskokos2/fishtank";
     githubLink.style.cssText =
       "display:block;margin-top:6px;border-top:1px solid #7f74;padding-top:6px;" +
       "color:#7f7;text-decoration:none";
     box.append(githubLink);
+
+    themeSelect.addEventListener("change", () => {
+      updateSettings(applyTheme(copySettings(), themeSelect.value === "halloween" ? "halloween" : "none"));
+    });
+    onSettingsChange(() => {
+      themeSelect.value = selectedTheme(settings);
+      for (const [gate, checkbox] of boxes) checkbox.checked = !off(gate);
+      for (const [field, checkbox] of skinBoxes) checkbox.checked = settings[field];
+    });
 
     const canvas = document.querySelector("canvas");
     const gl = canvas?.getContext("webgl") ?? null;

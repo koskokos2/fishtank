@@ -54,6 +54,11 @@ active, effective backdrop visibility is computed from local time; sunset never
 rewrites the snapshot. Encoded sunlight values override local storage preferences.
 A fresh/legacy URL without a sunlight choice may use the saved device preference.
 
+The sidebar has one **bubbles** control for bubbles and motes. At application load
+and save, the motes bit is synchronized to the bubbles bit; for older links with
+different values, bubbles wins. Both original wire positions remain valid, and
+the pure codec still decodes either bit independently before this normalization.
+
 Version 2 adds Halloween bubbles at bit 40. Version 1 retains its original reserved
 bits and decodes with Halloween bubbles disabled. Old links normalize to version 2;
 the payload length and all prior bit assignments stay unchanged.

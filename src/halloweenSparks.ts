@@ -1,7 +1,7 @@
 import type { KAPLAYCtx, Vec2 } from "kaplay";
 import { RES } from "./res";
 import { groundZ } from "./backdrop";
-import { off, profile, withDrawProfile } from "./profiling";
+import { halloweenBubblesActive, profile, withDrawProfile } from "./profiling";
 
 const S = RES;
 const DENSITY = 0.49;
@@ -28,7 +28,7 @@ export function createHalloweenSparks(k: KAPLAYCtx) {
   let bursts = 0;
   let active = false;
   // Match actual ray visibility, including manual backdrop/caustics toggles.
-  const night = () => off("backdrop") || off("caustics") || off("water-light");
+  const night = halloweenBubblesActive;
   const emit = (x: number, y: number) => {
     if (!night()) return;
     // Thin every source equally, including the initial field and fish gulps.

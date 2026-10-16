@@ -38,6 +38,7 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  regularBubblePools: () => k.get("regular-bubbles").length,
   halloweenSparks: () => k.get("halloween-sparks").map(object => ({
     id: object.id, ...object.sparkStats(),
   })),

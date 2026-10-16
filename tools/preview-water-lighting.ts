@@ -132,18 +132,18 @@ try {
   // Exercise the actual sidebar gate through its live URL-update path.
   await page.goto(`http://localhost:${server.port}/?debug&light-time=0&off=${hidden}`);
   await page.locator('canvas[data-ready="true"]').waitFor();
-  await page.getByRole("checkbox", { name: "caustics", exact: true }).uncheck();
-  await page.waitForURL(url => Boolean(decodeSettings(url.searchParams.get("settings") ?? "")?.disabled.includes("caustics")));
+  await page.getByRole("checkbox", { name: "sun", exact: true }).uncheck();
+  await page.waitForURL(url => Boolean(decodeSettings(url.searchParams.get("settings") ?? "")?.disabled.includes("backdrop")));
   await page.locator('canvas[data-ready="true"]').waitFor();
-  await page.getByRole("checkbox", { name: "caustics", exact: true }).check();
-  await page.waitForURL(url => !decodeSettings(url.searchParams.get("settings") ?? "")?.disabled.includes("caustics"));
+  await page.getByRole("checkbox", { name: "sun", exact: true }).check();
+  await page.waitForURL(url => !decodeSettings(url.searchParams.get("settings") ?? "")?.disabled.includes("backdrop"));
   await page.locator('canvas[data-ready="true"]').waitFor();
   // The clock, preview slider and backdrop must all update without rebuilding.
-  await page.getByRole("button", { name: "Hide performance details", exact: true }).click();
+  await page.getByRole("button", { name: "hide performance details", exact: true }).click();
   await page.clock.setFixedTime("2026-10-13T03:59:59Z");
   await page.getByRole("checkbox", { name: "real-time sun", exact: true }).check();
   const origin = await page.evaluate(() => performance.timeOrigin);
-  const backdrop = page.getByRole("checkbox", { name: "backdrop", exact: true });
+  const backdrop = page.getByRole("checkbox", { name: "sun", exact: true });
   const settle = async () => {
     await page.waitForTimeout(1100);
     await page.evaluate(() => new Promise<void>(resolve => {
@@ -157,7 +157,7 @@ try {
   await settle();
   check(await backdrop.isChecked(), "Backdrop must return at 04:00 without reload");
   await page.locator("canvas").screenshot({ path: `${output}/dawn.png` });
-  const timeSlider = page.getByRole("slider", { name: "Temporary sun time", exact: true });
+  const timeSlider = page.getByRole("slider", { name: "temporary sun time", exact: true });
   async function previewMinute(minutes: number, name: string) {
     await timeSlider.fill(String(minutes));
     await settle();
@@ -170,7 +170,7 @@ try {
   check(difference(midday, night, 0, 0.3) > 10, "Night must reveal the dark background");
   await previewMinute(18 * 60, "preview-night");
   check(!await backdrop.isChecked(), "Preview must switch to night at 18:00");
-  await page.getByRole("button", { name: "Use real time", exact: true }).click();
+  await page.getByRole("button", { name: "use real time", exact: true }).click();
   await settle();
   check(await timeSlider.inputValue() === "240" && await backdrop.isChecked(), "Reset must restore the real clock");
   await page.clock.setFixedTime("2026-10-13T18:00:00Z");
@@ -192,7 +192,7 @@ try {
   await page.locator('canvas[data-ready="true"]').waitFor();
   check(await page.getByRole("checkbox", { name: "real-time sun", exact: true }).isChecked(), "Real-time mode must persist");
   check(await timeSlider.inputValue() === "660" && await backdrop.isChecked(), "Shared preview time must survive reloading its URL");
-  await page.getByRole("button", { name: "Use real time", exact: true }).click();
+  await page.getByRole("button", { name: "use real time", exact: true }).click();
   check(await timeSlider.inputValue() === "1080" && !await backdrop.isChecked(), "Reset must restore the clock after loading a shared preview");
   check(errors.length === 0, errors.join("\n"));
   console.log(`Water lighting verified: deterministic frames, motion, grouped rays, loop, gates, sidebar, RES=1/2/3/6, local sun clock, live dawn/dusk, preview and persistence.\nPreviews: ${output}`);

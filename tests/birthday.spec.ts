@@ -139,7 +139,7 @@ test("settings enable the schedule, persist, and disable it even on October 24",
   await loaded(page);
   await count(page, 0);
   await page.getByRole("button", { name: "⚙", exact: true }).click();
-  const override = page.getByRole("checkbox", { name: "Birthday fish (scheduled)", exact: true });
+  const override = page.getByRole("checkbox", { name: "birthday fish (scheduled)", exact: true });
   await override.check();
   expect(decodeSettings(new URL(page.url()).searchParams.get("settings")!)?.birthday).toBe(true);
   await loaded(page);
