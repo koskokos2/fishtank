@@ -1,5 +1,4 @@
-// Local wall-clock lighting. Shared URL settings take precedence over this device.
-const STORAGE_KEY = "realTimeSun";
+// Local wall-clock lighting. The mode is persisted in shared URL settings.
 import { settings } from "./settings";
 export let realTimeSun = settings.realTimeSun;
 export let sunTimeOverride: number | null = settings.sunTime;
@@ -8,8 +7,6 @@ export function setRealTimeSun(enabled: boolean) {
   realTimeSun = enabled;
   sunTimeOverride = null;
   cachedSecond = -1;
-  try { localStorage.setItem(STORAGE_KEY, String(enabled)); }
-  catch { /* The setting still works for this session. */ }
 }
 
 export function setSunTimeOverride(minutes: number | null) {

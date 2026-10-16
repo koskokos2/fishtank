@@ -16,7 +16,7 @@ export let gothKelpEnabled = settings.gothKelp;
 export let crawlingHandsEnabled = settings.crawlingHands;
 export let halloweenBubblesEnabled = settings.halloweenBubbles;
 // The saved choice stays enabled during the day; only its effective skin changes.
-export const halloweenBubblesActive = () => halloweenBubblesEnabled && !off("bubbles")
+export const halloweenBubblesActive = () => halloweenBubblesEnabled
   && (off("backdrop") || off("caustics") || off("water-light"));
 export let smoothTextures = settings.smoothTextures;
 export const capFPS = settings.frameCap || 62;
@@ -769,12 +769,12 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     // FISH_SET_ATLASES (fish.ts) and the families built into PROP_WHITELIST
     // (propPlacement.ts) — profiling.ts stays a leaf module with no game imports.
     const FISH_SET_TOGGLES: (readonly [string, string])[] = [
-      ["fish-main", "main"],
-      ["fish-extra", "extra"],
-      ["fish-bonus", "bonus"],
+      ["fish-main", "freshwater 1"],
+      ["fish-extra", "freshwater 2"],
+      ["fish-bonus", "freshwater 3"],
       ["fish-alien", "alien"],
-      ["fish-pop-culture", "pop-culture"],
-      ["fish-odyssey", "odyssey"],
+      ["fish-pop-culture", "pop culture"],
+      ["fish-odyssey", "the odyssey"],
       ["fish-giger", "giger"],
       ["fish-halloween", "halloween"],
       ["fish-witches", "witches"],
@@ -782,13 +782,13 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     const OBJECT_SET_TOGGLES: (readonly [string, string])[] = [
       ["obj-sci-fi", "sci-fi"],
       ["obj-eldritch", "eldritch"],
-      ["obj-star-wars", "star-wars"],
-      ["obj-pop-culture", "pop-culture"],
-      ["obj-odyssey", "odyssey"],
+      ["obj-star-wars", "star wars"],
+      ["obj-pop-culture", "pop culture"],
+      ["obj-odyssey", "the odyssey"],
       ["obj-giger", "giger"],
       ["obj-halloween", "halloween"],
-      ["obj-grindelwald", "grindelwald"],
-      ["obj-small", "small"],
+      ["obj-grindelwald", "alpine"],
+      ["obj-small", "seabed finds"],
     ];
     const boxes = new Map<string, HTMLInputElement>();
     const apply = () => {
@@ -819,7 +819,11 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         label.textContent = title;
         heading.append(label);
         const allBtn = document.createElement("button");
-        allBtn.textContent = "×";
+        const syncAllButton = () => {
+          allBtn.textContent = entries.every(([name]) => off(name)) ? "+" : "×";
+        };
+        syncAllButton();
+        onSettingsChange(syncAllButton);
         allBtn.title = `toggle all ${title}`;
         allBtn.style.cssText =
           "background:none;border:none;color:#7f7;cursor:pointer;" +
@@ -906,10 +910,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       if (layerLabel) layerLabel.after(label);
       else menu.append(label);
     };
-    addSkinToggle("plants", gothPlantsEnabled);
-    addSkinToggle("kelp", gothKelpEnabled);
-    addSkinToggle("crabs", crawlingHandsEnabled, "crawlingHands", "crawling hands");
-    addSkinToggle("bubbles", halloweenBubblesEnabled, "halloweenBubbles", "halloween bubbles");
+    addSkinToggle("bubbles", halloweenBubblesEnabled, "halloweenBubbles", "night sparkles");
     const sunControls = document.createElement("div");
     sunControls.style.cssText = "margin-top:6px;border-top:1px solid #7f74;padding-top:6px";
     const sunLabel = document.createElement("label");
@@ -934,8 +935,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     resetTime.textContent = "use real time";
     resetTime.style.cssText = "background:none;color:#7f7;border:1px solid #7f74;font:inherit;cursor:pointer";
     const timeFooter = document.createElement("div");
-    timeFooter.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:4px";
-    timeFooter.append(timeStatus, resetTime);
+    timeFooter.style.cssText = "display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px";
+    timeFooter.append(resetTime, timeStatus);
     sunControls.append(sunLabel, timeRow, timeFooter);
     function syncSunControls() {
       const sun = currentSun();
@@ -1022,17 +1023,18 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     });
     textureLabel.append(textureToggle, "texture filtering");
     textureLabel.title = "smooths fish, plants and kelp while preserving detail. Changes instantly.";
-    // Its own line keeps the graphics controls readable in the narrow sidebar.
-    textureLabel.style.flexBasis = "100%";
+    // Keep the live checkboxes together on their own line.
+    const graphicsToggles = document.createElement("div");
+    graphicsToggles.style.cssText = "display:flex;gap:12px;align-items:center;flex-basis:100%";
     row.style.flexWrap = "wrap";
     const resNow = String(settings.resolution);
     makeSelect(
       "resolution",
       [
-        ["1", "640"],
-        ["2", "1280"],
-        ["3", "1920"],
-        ["6", "3840 (4K)"],
+        ["1", "360p"],
+        ["2", "720p"],
+        ["3", "1080p"],
+        ["6", "4K"],
       ],
       resNow,
       (v, p) => {
@@ -1065,7 +1067,9 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       updateSettings(p);
     });
     pauseLabel.append(pauseCb, "pause");
-    row.append(pauseLabel, fpsRow, textureLabel);
+    row.prepend(fpsRow);
+    graphicsToggles.append(textureLabel, pauseLabel);
+    row.append(graphicsToggles);
 
     // Spawn-count inputs rebuild only the affected population and update the URL.
     const countRow = document.createElement("div");

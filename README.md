@@ -104,17 +104,20 @@ uniforms to preserve batching.
 
 Resolution and frame cap still reload because they configure the renderer at startup.
 
-**Halloween bubbles** replaces bubbles with rising violet, amber and green sparks
+**night sparkles** replaces bubbles with rising violet, amber and green sparks
 and intermittent sparkler showers, only while sun rays are not visible (night or
-manually disabled backdrop/caustics). Daytime restores regular bubbles and drifting
-motes. The single **bubbles** checkbox controls both particle layers. It switches live, shares through the URL, and
-follows the **bubbles** visibility checkbox. A single controller reuses fixed pools
+manually disabled backdrop/caustics), independently of the **bubbles** checkbox.
+Daytime restores regular bubbles and drifting motes if **bubbles** is enabled;
+otherwise both stay hidden. Night sparkles switch live and share through the URL.
+A single controller reuses fixed pools
 of up to 31 rising lights and 192 short-lived embers.
 
 The **theme** dropdown defaults to **no theme**. **halloween** selects only the
 Halloween/witch fish sets and Halloween prop set, enables goth plants and kelp,
-crawling hands and Halloween bubbles, and enables their scene layers. Counts,
-graphics, birthday scheduling and sun settings stay unchanged. **no theme** restores
+crawling hands and night sparkles, and enables their scene layers. Goth plants,
+goth kelp and crawling hands are controlled through the theme, without individual
+sidebar controls. Counts,
+graphics, bubbles, birthday scheduling and sun settings stay unchanged. **no theme** restores
 all fish/prop sets and ordinary skins. Presets are stored through their existing
 settings; customizing them makes the dropdown show **no theme** without resetting
 other choices.

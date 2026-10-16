@@ -2,7 +2,7 @@ import { SETTING_GATES, type TankSettings } from "./settingsCodec";
 
 export type TankTheme = "none" | "halloween";
 const SKINS = ["gothPlants", "gothKelp", "crawlingHands", "halloweenBubbles"] as const;
-const LAYERS = new Set<string>(["fish", "props", "plants", "kelp", "crabs", "bubbles"]);
+const LAYERS = new Set<string>(["fish", "props", "plants", "kelp", "crabs"]);
 const HALLOWEEN_SETS = new Set<string>(["fish-halloween", "fish-witches", "obj-halloween"]);
 const isSet = (gate: string) => gate.startsWith("fish-") || gate.startsWith("obj-");
 

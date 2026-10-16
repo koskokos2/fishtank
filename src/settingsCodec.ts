@@ -112,7 +112,7 @@ export function decodeSettings(text: string): TankSettings | null {
 }
 
 // Read-only compatibility boundary for old links and desktop launch options.
-export function legacySettings(p: URLSearchParams, preferredSun = true): TankSettings {
+export function legacySettings(p: URLSearchParams): TankSettings {
   const s = defaultSettings();
   const disabled = new Set((p.get("off") ?? "").split(","));
   if (disabled.has("water-light")) disabled.add("caustics");
@@ -131,7 +131,7 @@ export function legacySettings(p: URLSearchParams, preferredSun = true): TankSet
   s.crawlingHands = p.get("crawling-hands") === "1";
   s.halloweenBubbles = p.get("halloween-bubbles") === "1";
   s.smoothTextures = p.get("texture-filter") !== "pixelated";
-  s.realTimeSun = disabled.has("all") ? false : p.has("sun") ? p.get("sun") !== "0" : preferredSun;
+  s.realTimeSun = disabled.has("all") ? false : p.has("sun") ? p.get("sun") !== "0" : s.realTimeSun;
   for (const key of ["debug", "fps", "gpu"] as const) s[key] = p.has(key);
   s.paused = p.has("pause");
   const time = p.get("sun-time") ?? "";
@@ -145,10 +145,10 @@ export function legacySettings(p: URLSearchParams, preferredSun = true): TankSet
   }
   return s;
 }
-export function settingsFromSearch(search: string, preferredSun = true): TankSettings {
+export function settingsFromSearch(search: string): TankSettings {
   const p = new URLSearchParams(search);
   // An encoded link is authoritative, even if malformed. Never merge legacy
   // fields or device preferences into a shared snapshot.
   return p.has("settings") ? decodeSettings(p.get("settings")!) ?? defaultSettings()
-    : legacySettings(p, preferredSun);
+    : legacySettings(p);
 }

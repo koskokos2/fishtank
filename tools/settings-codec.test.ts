@@ -98,12 +98,13 @@ describe("settings wire formats v1/v2", () => {
     expect(all.disabled).toEqual([...SETTING_GATES]);
     expect(all.realTimeSun).toBe(false);
   });
-  test("encoded values override legacy fields and device preferences, even when invalid", () => {
+  test("encoded values override legacy fields, even when invalid, and sun defaults on", () => {
     const s = defaultSettings();
-    expect(settingsFromSearch(`?settings=${encodeSettings(s)}&sun=0&fish=999`, false)).toEqual(s);
-    expect(settingsFromSearch("?settings=bad&sun=0&fish=999", false)).toEqual(s);
-    expect(settingsFromSearch("", false).realTimeSun).toBe(false);
-    expect(settingsFromSearch("?sun=1", false).realTimeSun).toBe(true);
+    expect(settingsFromSearch(`?settings=${encodeSettings(s)}&sun=0&fish=999`)).toEqual(s);
+    expect(settingsFromSearch("?settings=bad&sun=0&fish=999")).toEqual(s);
+    expect(settingsFromSearch("").realTimeSun).toBe(true);
+    expect(settingsFromSearch("?sun=0").realTimeSun).toBe(false);
+    expect(settingsFromSearch("?sun=1").realTimeSun).toBe(true);
   });
   test("legacy invalid numbers safely normalize", () => {
     const s = legacySettings(new URLSearchParams("fish=Infinity&plants=10000&jelly=-4&cap=NaN&res=9&sun-time=99:99&light-time=bad"));

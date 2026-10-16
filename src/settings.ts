@@ -8,11 +8,7 @@ function syncParticleVisibility(next: TankSettings): TankSettings {
   return next;
 }
 
-let preferredSun = true;
-try {
-  if (typeof localStorage !== "undefined") preferredSun = localStorage.getItem("realTimeSun") !== "false";
-} catch { /* Storage is optional. */ }
-export let settings = syncParticleVisibility(settingsFromSearch(typeof location === "undefined" ? "" : location.search, preferredSun));
+export let settings = syncParticleVisibility(settingsFromSearch(typeof location === "undefined" ? "" : location.search));
 export function copySettings(): TankSettings {
   return { ...settings, disabled: [...settings.disabled], counts: { ...settings.counts } };
 }

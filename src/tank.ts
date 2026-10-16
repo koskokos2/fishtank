@@ -122,7 +122,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
     bubbleContext = k;
     bubbleColor = null;
     halloweenSparks = null;
-    if (!off("bubbles")) {
+    if (!off("bubbles") || halloweenBubblesActive()) {
       if (halloweenBubblesActive()) halloweenSparks = createHalloweenSparks(k);
       spawnPlantPearling(k, pearlingPlants);
       spawnSubstrateSeeps(k);
@@ -738,11 +738,11 @@ function bubblePoolFor(k: KAPLAYCtx, z: number): BubblePool {
 }
 
 function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
-  if (off("bubbles")) return;
   if (halloweenBubblesActive()) {
     halloweenSparks?.emit(x, y);
     return;
   }
+  if (off("bubbles")) return;
   if (!bubbleColor) bubbleColor = k.rgb(...BUBBLE_COLOR);
   // Gulp bubbles belong to the bubble layer too, so switching/off clears them.
   const pool = bubblePoolFor(bubbleContext ?? k, o.z);

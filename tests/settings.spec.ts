@@ -23,7 +23,7 @@ async function open(page: Page, query = "") {
 test("theme presets switch live, sync controls, and round trip in shared settings", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await open(page, "plants=9&texture-filter=pixelated");
+  await open(page, "plants=9&texture-filter=pixelated&off=bubbles");
   await checkbox(page, "pause").check();
   const origin = await page.evaluate(() => performance.timeOrigin);
   const before = sharedSettings(page);
@@ -36,9 +36,12 @@ test("theme presets switch live, sync controls, and round trip in shared setting
     realTimeSun: before.realTimeSun, sunTime: before.sunTime, resolution: before.resolution, frameCap: before.frameCap });
   expect(SETTING_GATES.filter(gate => (gate.startsWith("fish-") || gate.startsWith("obj-")) && !halloween.disabled.includes(gate)))
     .toEqual(["fish-halloween", "fish-witches", "obj-halloween"]);
-  for (const label of ["goth plants", "goth kelp", "crawling hands", "halloween bubbles"]) {
-    await expect(checkbox(page, label)).toBeChecked();
+  for (const label of ["goth plants", "goth kelp", "crawling hands"]) {
+    await expect(checkbox(page, label)).toHaveCount(0);
   }
+  await expect(checkbox(page, "night sparkles")).toBeChecked();
+  await expect(checkbox(page, "bubbles")).not.toBeChecked();
+  await expect(theme).toHaveValue("halloween");
   await expect.poll(async () => (await layer(page, "crabs")).every(o => o.sprite === "crawling-hand")).toBe(true);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   await page.goto(page.url());
@@ -46,15 +49,21 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   await expect(theme).toHaveValue("halloween");
   expect(sharedSettings(page)).toEqual(halloween);
   // Customizing one field must not reset the remaining preset selections.
-  await checkbox(page, "crawling hands").uncheck();
+  await checkbox(page, "night sparkles").uncheck();
   await expect(theme).toHaveValue("none");
   expect(sharedSettings(page).gothPlants).toBe(true);
   await theme.selectOption("halloween");
   await theme.selectOption("none");
-  for (const label of ["goth plants", "goth kelp", "crawling hands", "halloween bubbles"]) {
-    await expect(checkbox(page, label)).not.toBeChecked();
-  }
+  await expect(checkbox(page, "night sparkles")).not.toBeChecked();
   expect(sharedSettings(page)).toEqual(before);
+  // Bubble visibility is independent of both preset application and detection.
+  await checkbox(page, "bubbles").check();
+  await theme.selectOption("halloween");
+  await expect(checkbox(page, "bubbles")).toBeChecked();
+  await checkbox(page, "bubbles").uncheck();
+  await expect(theme).toHaveValue("halloween");
+  await theme.selectOption("none");
+  await expect(checkbox(page, "bubbles")).not.toBeChecked();
   expect(errors).toEqual([]);
 });
 
@@ -65,7 +74,7 @@ test("Halloween bubbles switch live, burst within bounded pools, and restore fro
   const origin = await page.evaluate(() => performance.timeOrigin);
   const fish = await layer(page, "fish");
   const sparks = () => page.evaluate(() => window.birthdayTest.halloweenSparks());
-  await checkbox(page, "halloween bubbles").check();
+  await checkbox(page, "night sparkles").check();
   expect(sharedSettings(page).halloweenBubbles).toBe(true);
   expect(await layer(page, "motes")).toHaveLength(0);
   expect(sharedSettings(page).disabled).not.toContain("motes");
@@ -77,19 +86,23 @@ test("Halloween bubbles switch live, burst within bounded pools, and restore fro
   expect(stats.embers).toBeLessThanOrEqual(stats.maxEmbers);
   const shared = page.url();
   for (let i = 0; i < 3; i++) {
-    await checkbox(page, "halloween bubbles").uncheck();
+    await checkbox(page, "night sparkles").uncheck();
     expect(await sparks()).toHaveLength(0);
     expect((await layer(page, "motes")).length).toBeGreaterThan(0);
-    await checkbox(page, "halloween bubbles").check();
+    await checkbox(page, "night sparkles").check();
     expect(await sparks()).toHaveLength(1);
     expect(await layer(page, "motes")).toHaveLength(0);
   }
   await checkbox(page, "bubbles").uncheck();
+  expect(await sparks()).toHaveLength(1);
+  expect((await sparks())[0].lights).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.birthdayTest.regularBubblePools())).toBe(0);
+  const sparklesOnlyUrl = page.url();
+  await checkbox(page, "night sparkles").uncheck();
   expect(await sparks()).toHaveLength(0);
   expect(await layer(page, "bubbles")).toHaveLength(0);
-  await checkbox(page, "halloween bubbles").uncheck();
-  await checkbox(page, "halloween bubbles").check();
-  expect(await sparks()).toHaveLength(0);
+  await checkbox(page, "night sparkles").check();
+  expect(await sparks()).toHaveLength(1);
   await checkbox(page, "bubbles").check();
   expect(await sparks()).toHaveLength(1);
   // Swimming changes depth order; identity and population must stay intact.
@@ -98,8 +111,14 @@ test("Halloween bubbles switch live, burst within bounded pools, and restore fro
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   await page.goto(shared);
   await page.locator('canvas[data-ready="true"]').waitFor();
-  await expect(checkbox(page, "halloween bubbles")).toBeChecked();
+  await expect(checkbox(page, "night sparkles")).toBeChecked();
   expect(await sparks()).toHaveLength(1);
+  await page.goto(sparklesOnlyUrl);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await expect(checkbox(page, "bubbles")).not.toBeChecked();
+  await expect(checkbox(page, "night sparkles")).toBeChecked();
+  expect((await sparks())[0].lights).toBeGreaterThan(0);
+  expect(await layer(page, "motes")).toHaveLength(0);
   expect(errors).toEqual([]);
 });
 
@@ -137,7 +156,14 @@ test("Halloween sparks follow night and ray visibility without reloading", async
   await preview.fill("1080");
   await expect.poll(async () => (await state())?.active ?? false).toBe(true);
   await checkbox(page, "bubbles").uncheck();
-  expect(await page.evaluate(() => window.birthdayTest.halloweenSparks())).toHaveLength(0);
+  expect((await state()).lights).toBeGreaterThan(0);
+  await preview.fill("720");
+  expect(await state()).toBeUndefined();
+  expect(await layer(page, "motes")).toHaveLength(0);
+  expect(await layer(page, "bubbles")).toHaveLength(0);
+  await preview.fill("1080");
+  await expect.poll(async () => (await state())?.active ?? false).toBe(true);
+  expect((await state()).lights).toBeGreaterThan(0);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
 });
 
@@ -196,12 +222,16 @@ test("populations, sets and birthday fish update without reloading", async ({ pa
   expect(await layer(page, "fish")).toHaveLength(7);
   expect(sharedSettings(page).counts.fish).toBe(7);
   await page.getByTitle("toggle all fish sets").click();
+  await expect(page.getByTitle("toggle all fish sets")).toHaveText("+");
   expect(await layer(page, "fish")).toHaveLength(0);
-  await checkbox(page, "main ⓘ").check();
+  await checkbox(page, "freshwater 1 ⓘ").check();
+  await expect(page.getByTitle("toggle all fish sets")).toHaveText("×");
   expect(await layer(page, "fish")).toHaveLength(7);
   await page.getByTitle("toggle all object sets").click();
+  await expect(page.getByTitle("toggle all object sets")).toHaveText("+");
   expect(await layer(page, "props")).toHaveLength(0);
-  await checkbox(page, "small ⓘ").check();
+  await checkbox(page, "seabed finds ⓘ").check();
+  await expect(page.getByTitle("toggle all object sets")).toHaveText("×");
   expect((await layer(page, "props")).filter(o => o.sprite).every(o => o.sprite === "small-props")).toBe(true);
   expect((await layer(page, "props")).length).toBeGreaterThan(0);
   await checkbox(page, "birthday fish (scheduled)").check();
@@ -273,11 +303,13 @@ for (const startAlternate of [false, true]) {
     await open(page, startAlternate ? "goth-plants=1&goth-kelp=1&crawling-hands=1" : "");
     await checkbox(page, "pause").check();
     const origin = await page.evaluate(() => performance.timeOrigin);
-    const unchanged = await Promise.all(["fish", "snail", "props", "octo"].map(name => layer(page, name)));
-    for (const skin of skinSwitches) {
-      const before = await layer(page, skin.group);
-      await checkbox(page, skin.label).setChecked(!startAlternate);
-      await expect.poll(async () => (await layer(page, skin.group))[0]?.id).not.toBe(before[0].id);
+    const theme = page.getByRole("combobox", { name: "theme", exact: true });
+    if (startAlternate) await theme.selectOption("halloween");
+    const unchanged = await Promise.all(["snail", "octo"].map(name => layer(page, name)));
+    const before = await Promise.all(skinSwitches.map(skin => layer(page, skin.group)));
+    await theme.selectOption(startAlternate ? "none" : "halloween");
+    for (const [index, skin] of skinSwitches.entries()) {
+      await expect.poll(async () => (await layer(page, skin.group))[0]?.id).not.toBe(before[index][0].id);
       expect(sharedSettings(page)[skinField(skin.query)]).toBe(!startAlternate);
     }
     const drawing = await page.evaluate(() => window.birthdayTest.plantDrawing());
@@ -290,37 +322,28 @@ for (const startAlternate of [false, true]) {
     const cached = await page.evaluate(() => window.birthdayTest.skinAssets());
     expect(Object.values(cached).every(Boolean)).toBe(true);
     for (let i = 0; i < 3; i++) {
-      for (const skin of skinSwitches) {
-        await checkbox(page, skin.label).setChecked(startAlternate);
-        await checkbox(page, skin.label).setChecked(!startAlternate);
-      }
+      await theme.selectOption(startAlternate ? "halloween" : "none");
+      await theme.selectOption(startAlternate ? "none" : "halloween");
     }
     expect(await page.evaluate(() => window.birthdayTest.skinAssets())).toEqual(cached);
-    expect(await Promise.all(["fish", "snail", "props", "octo"].map(name => layer(page, name)))).toEqual(unchanged);
+    expect(await Promise.all(["snail", "octo"].map(name => layer(page, name)))).toEqual(unchanged);
     expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
     expect(errors).toEqual([]);
   });
 }
 
-test("hidden skin changes load when enabled; rapid changes keep the latest selection", async ({ page }) => {
-  await open(page, "off=plants,kelp&crabs=0");
+test("rapid theme changes keep the latest skins after async loads", async ({ page }) => {
+  await open(page);
   await checkbox(page, "pause").check();
   const origin = await page.evaluate(() => performance.timeOrigin);
+  // Begin loading alternate atlases, then change our mind in the same task.
+  await page.getByRole("combobox", { name: "theme", exact: true }).evaluate((select: HTMLSelectElement) => {
+    for (const value of ["halloween", "none"]) {
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
   for (const skin of skinSwitches) {
-    await checkbox(page, skin.label).check();
-    expect(await layer(page, skin.group)).toHaveLength(0);
-    expect((await page.evaluate(() => window.birthdayTest.skinAssets()))[skin.alternate]).toBeNull();
-    // Start decoding an alternate atlas, then change our mind in the same task.
-    await page.evaluate(({ group, label }) => {
-      const inputs = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
-      const find = (text: string) => inputs.find(input => input.parentElement?.textContent?.trim() === text)!;
-      if (group === "crabs") {
-        const count = document.querySelector<HTMLInputElement>("#count-crabs")!;
-        count.value = "5";
-        count.dispatchEvent(new Event("change", { bubbles: true }));
-      } else find(group).click();
-      find(label).click();
-    }, skin);
     await expect.poll(async () => (await page.evaluate(() => window.birthdayTest.skinAssets()))[skin.alternate]).toBeTruthy();
     expect(sharedSettings(page)[skinField(skin.query)]).toBe(false);
     expect((await layer(page, skin.group)).length).toBeGreaterThan(0);
@@ -446,16 +469,19 @@ test("smooth fish rotate continuously and pixelated fish retain stepped pitch", 
 });
 
 
-test("legacy links normalize without navigation; encoded settings win and preserve the hash", async ({ page }) => {
+test("fresh URLs ignore old sun preferences; legacy links normalize and encoded settings win", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("realTimeSun", "false");
     sessionStorage.setItem("settingsLoads", String(Number(sessionStorage.getItem("settingsLoads") ?? 0) + 1));
   });
+  await page.goto("/fixture");
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(sharedSettings(page).realTimeSun).toBe(true);
   await page.goto("/fixture?debug&sun=1&sun-time=08:00&fish=4&res=1&cap=32&light-time=0#goth");
   await page.locator('canvas[data-ready="true"]').waitFor();
   expect(sharedSettings(page)).toMatchObject({ debug: true, realTimeSun: true, sunTime: 480, counts: { fish: 4 }, resolution: 1, frameCap: 32, lightTime: 0 });
   expect(new URL(page.url()).hash).toBe("#goth");
-  expect(await page.evaluate(() => sessionStorage.getItem("settingsLoads"))).toBe("1");
+  expect(await page.evaluate(() => sessionStorage.getItem("settingsLoads"))).toBe("2");
   const s = { ...defaultSettings(), debug: true, resolution: 1 as const, realTimeSun: true, paused: true };
   await page.goto(`/fixture?settings=${encodeSettings(s)}&fish=999&sun=0`);
   await page.locator('canvas[data-ready="true"]').waitFor();
