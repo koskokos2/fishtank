@@ -11,6 +11,7 @@ const isSet = (gate: string) => gate.startsWith("fish-") || gate.startsWith("obj
 export function applyTheme(current: TankSettings, theme: TankTheme): TankSettings {
   const next = { ...current, counts: { ...current.counts }, disabled: [...current.disabled] };
   const halloween = theme === "halloween";
+  if (halloween) next.counts.octo = Math.max(3, next.counts.octo);
   for (const skin of SKINS) next[skin] = halloween;
   next.disabled = SETTING_GATES.filter(gate => {
     if (LAYERS.has(gate)) return false;

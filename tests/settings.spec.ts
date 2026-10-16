@@ -31,7 +31,6 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   const snailCount = (await layer(page, "snail")).length;
   expect(jellyCount).toBeGreaterThan(0);
   expect(snailCount).toBeGreaterThan(0);
-  const octopus = await layer(page, "octo");
   const nautilusCount = (await layer(page, "naut")).length;
   expect(nautilusCount).toBeGreaterThan(0);
   const theme = page.getByRole("combobox", { name: "theme", exact: true });
@@ -39,7 +38,7 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   await theme.selectOption("halloween");
   const halloween = sharedSettings(page);
   expect(halloween).toMatchObject({ gothPlants: true, gothKelp: true, crawlingHands: true,
-    halloweenBubbles: true, counts: before.counts, smoothTextures: false, paused: true,
+    halloweenBubbles: true, counts: { ...before.counts, octo: 3 }, smoothTextures: false, paused: true,
     realTimeSun: before.realTimeSun, sunTime: before.sunTime, resolution: before.resolution, frameCap: before.frameCap });
   expect(SETTING_GATES.filter(gate => (gate.startsWith("fish-") || gate.startsWith("obj-")) && !halloween.disabled.includes(gate)))
     .toEqual(["fish-halloween", "fish-witches", "obj-halloween"]);
@@ -52,7 +51,8 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   expect(await layer(page, "jelly")).toHaveLength(0);
   expect(await layer(page, "snail")).toHaveLength(0);
   await expect.poll(async () => (await layer(page, "octo")).map(o => o.sprite)).toEqual(
-    octopus.map(() => expect.stringMatching(/^octopus-(plague-doctor|possessed-doll|vampire-squid)$/)));
+    Array.from({ length: 3 }, () => expect.stringMatching(/^octopus-(plague-doctor|possessed-doll|vampire-squid)$/)));
+  await expect(page.getByRole("spinbutton", { name: "octopuses", exact: true })).toHaveValue("3");
   expect(await layer(page, "naut")).toHaveLength(0);
   await expect.poll(async () => (await layer(page, "crabs")).every(o => o.sprite === "crawling-hand")).toBe(true);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
@@ -70,7 +70,7 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   await theme.selectOption("halloween");
   await theme.selectOption("none");
   await expect(checkbox(page, "night sparkles")).not.toBeChecked();
-  expect(sharedSettings(page)).toEqual(before);
+  expect(sharedSettings(page)).toEqual({ ...before, counts: { ...before.counts, octo: 3 } });
   expect(await layer(page, "jelly")).toHaveLength(jellyCount);
   expect(await layer(page, "snail")).toHaveLength(snailCount);
   expect(await layer(page, "naut")).toHaveLength(nautilusCount);
@@ -554,7 +554,7 @@ test("existing hex links normalize to Base64url without reload or lost settings"
 test("Halloween octopus skins switch live, avoid repeats, and survive shared URLs", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await open(page, "octo=3&naut=0&jelly=0&fish=0");
+  await open(page, "octo=0&naut=0&jelly=0&fish=0");
   await checkbox(page, "pause").check();
   const origin = await page.evaluate(() => performance.timeOrigin);
   const theme = page.getByRole("combobox", { name: "theme", exact: true });
@@ -578,6 +578,12 @@ test("Halloween octopus skins switch live, avoid repeats, and survive shared URL
     await count.fill(String(value));
     await count.press("Tab");
     await verify(value);
+    if (value >= 3) {
+      await theme.selectOption("none");
+      await theme.selectOption("halloween");
+      await verify(value);
+      await expect(count).toHaveValue(String(value));
+    }
   }
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   const url = page.url();

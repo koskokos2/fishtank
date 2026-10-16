@@ -1150,6 +1150,10 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         button.addEventListener("click", () => applyCount(Math.min(maxCount, Math.max(0, value() + delta))));
       }
       syncButtons();
+      onSettingsChange(() => {
+        input.value = String(num(name, fallback));
+        syncButtons();
+      });
       countControl.append(label, input, minus, plus);
       countRow.append(countControl);
     }
