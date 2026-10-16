@@ -37,6 +37,7 @@ registerDebugStat(
 // riseMul and settleMul let a heavy landing and a tiny crawling scuff share the
 // same effect without looking equally forceful. grainBoost increases each crisp
 // particle by whole pixels when a very small creature needs a more readable trail.
+// surfaceAt anchors each grain to a sloping bed instead of a flat contact plane.
 // The whole burst lives in one game object holding plain grain structs — a burst
 // can be several hundred grains, and per-grain objects made every puff a spike of
 // adds/destroys and closures.
@@ -48,6 +49,7 @@ export function spawnSandPuff(
   riseMul = 1,
   settleMul = 1,
   grainBoost = 0,
+  surfaceAt?: (x: number) => number,
 ) {
   if (off("puffs")) return;
   if (!toneColors)
@@ -58,9 +60,12 @@ export function spawnSandPuff(
   const n = k.randi(minN, maxN);
   const grains: Grain[] = [];
   for (let i = 0; i < n; i++) {
-    const y = sandY - k.rand(0, 3) * S;
+    const grainX = x + k.rand(-16, 16) * S;
+    const y = surfaceAt
+      ? surfaceAt(grainX) + k.rand(0, 1) * S
+      : sandY - k.rand(0, 3) * S;
     grains.push({
-      pos: k.vec2(x + k.rand(-16, 16) * S, y),
+      pos: k.vec2(grainX, y),
       vx: k.rand(-14, 14) * S,
       vy: -k.rand(16, 34) * S * riseMul,
       gravity: (k.rand(34, 54) * S) / Math.max(0.01, settleMul),

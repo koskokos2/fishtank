@@ -87,7 +87,9 @@ links reproduce your selection even on another device. Disable the
 mode for fixed daytime rays, or click **backdrop** to take manual control live.
 
 Layer checkboxes, fish/object sets, population counts, birthday fish and pause
-update live and keep the address bar in sync. Only the affected group is rebuilt;
+update live and keep the address bar in sync. Creature counts are capped at 99,
+while plants allow up to 999; older shared URLs with higher creature counts are
+clamped without discarding their other settings. Only the affected group is rebuilt;
 other creatures keep swimming. Goth plants, goth kelp and crawling hands also
 switch live; alternate atlases load on first use and stay cached for later switches.
 The **Texture filtering** checkbox switches fish, octopus, jellyfish, nautilus,

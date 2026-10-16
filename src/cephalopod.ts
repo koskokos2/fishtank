@@ -722,10 +722,12 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
                 spawnSandPuff(
                   k,
                   px + facing * 8 * S,
-                  groundY(px) + OCTO_SIT,
+                  sandTopAt(px),
                   0.32,
-                  1,
+                  0.5,
                   2,
+                  0,
+                  sandTopAt,
                 );
                 crawlPuffTimer = k.rand(0.12, 0.28);
               }
@@ -858,7 +860,9 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
             landX = null;
             landingClear = true;
             // touchdown: kick up a puff of sand and press the body into it
-            spawnSandPuff(k, px, groundY(px) + OCTO_SIT, 2, 2, 2);
+            // Use the actual dune under each grain, not the body's uphill
+            // support plane. Keep the landing burst close to the tentacles.
+            spawnSandPuff(k, px, sandTopAt(px), 2, 1, 2, 0, sandTopAt);
             buryTimer = BURY_DUR;
             restLong = false;
             restTimer = k.rand(2, 5) * tempo; // rest a moment after touching down
