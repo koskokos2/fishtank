@@ -38,6 +38,9 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  waterAppearance: () => k.get("settings-backdrop").map(object => ({
+    shader: object.shader as string, z: object.z, hidden: object.hidden,
+  })),
   ruinsAppearance: () => k.get("settings-ruins").map(object => ({
     sprite: object.sprite as string, opacity: object.opacity as number,
     z: object.z, tint: [object.color.r, object.color.g, object.color.b],

@@ -3,9 +3,10 @@ import { VH, VW } from "./res";
 import { WATER_BOTTOM } from "./backdropAppearance";
 
 export const WATER_LIGHT_SHADER = "water-light";
+export const SUN_RAYS_SHADER = "sun-rays";
 
-// Sunlight shafts in normalized scene coordinates, rendered in the backdrop
-// pass. There is no surface texture or separate ceiling overlay.
+// Sunlight shafts in normalized scene coordinates, composited between the far
+// and middle city layers. There is no surface texture or ceiling overlay.
 export const WATER_LIGHTING_TUNING = {
   emitterX: 0.5,
   rayIntensity: 0.58,
@@ -26,10 +27,17 @@ export function waterLightingTime(elapsed: number, fixed: string | null = null) 
 
 const f = (value: number) => Number.isInteger(value) ? `${value}.0` : String(value);
 
-// This is intentionally a single backdrop pass: no light-map texture, animated
-// sprite crossfades, framebuffer reads, or per-frame allocations. Detail lives
-// on the same virtual pixel grid as the rest of the tank.
-const WATER_LIGHT_FRAG = `
+// The gradient and transparent rays have separate depth ordering. Both reuse
+// the same baked water sprite, with no extra texture or framebuffer allocation.
+const WATER_GRADIENT_FRAG = `
+  uniform float u_backdropBrightness;
+  vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
+    vec4 base = def_frag();
+    vec3 bottom = vec3(${WATER_BOTTOM.slice(0, 3).map(f).join(", ")}) / 255.0;
+    return vec4(mix(bottom, base.rgb, u_backdropBrightness), base.a);
+  }
+`;
+const SUN_RAYS_FRAG = `
 precision highp float;
 uniform float u_time;
 uniform float u_emitterX;
@@ -87,9 +95,9 @@ vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
   // Keep the nine-stop baked gradient. Dawn/dusk blend the whole water plate
   // toward its bottom navy; noon (or manual daytime) preserves it exactly.
   base.rgb = mix(bottom, base.rgb, u_backdropBrightness);
-  if (u_raysEnabled < 0.5) return base;
+  if (u_raysEnabled < 0.5) return vec4(0.0);
   // Nothing reaches the floor: save the procedural work over the lower scene.
-  if (p.y > 0.68) return base;
+  if (p.y > 0.68) return vec4(0.0);
 
   // Keep the continuous, uneven groups rather than assigning rays to lanes.
   float spread = 1.0 + p.y * 2.8;
@@ -122,13 +130,16 @@ vec4 frag(vec2 pos, vec2 uv, vec4 color, sampler2D tex) {
     * depthFade * veil * grain
     * ${f(WATER_LIGHTING_TUNING.rayIntensity)};
 
-  // Add illumination to the opaque water plate, with headroom for the mint
-  // highlights. All scene objects keep their original colours and silhouettes.
-  vec3 lit = base.rgb + light * (vec3(1.0) - base.rgb);
-  return vec4(lit, base.a);
+  // Premultiplied overlay: exactly preserves the previous lighting over bare
+  // water, while now also illuminating the far ruins beneath this pass. Where
+  // there is no light alpha is zero, so the water plate never covers the city.
+  float alpha = max(light.r, max(light.g, light.b));
+  vec3 rays = light * (vec3(1.0) - base.rgb) + base.rgb * alpha;
+  return vec4(rays, alpha);
 }
 `;
 
 export function loadWaterLighting(k: KAPLAYCtx) {
-  k.loadShader(WATER_LIGHT_SHADER, null, WATER_LIGHT_FRAG);
+  k.loadShader(WATER_LIGHT_SHADER, null, WATER_GRADIENT_FRAG);
+  k.loadShader(SUN_RAYS_SHADER, null, SUN_RAYS_FRAG);
 }

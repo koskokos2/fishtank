@@ -19,6 +19,7 @@ const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, ti
 await page.clock.setFixedTime("2026-10-13T12:00:00Z");
 // Keep the established shader regression frames independent of the wall clock.
 await page.addInitScript(() => {
+  localStorage.setItem("settingsHintSeen", "true");
   if (localStorage.getItem("realTimeSun") === null) localStorage.setItem("realTimeSun", "false");
 });
 const errors: string[] = [];
@@ -26,7 +27,8 @@ page.on("pageerror", error => errors.push(error.message));
 page.on("console", message => {
   if (message.type() === "error") errors.push(message.text());
 });
-const hidden = "fish,cephs,crabs,kelp,plants,props,motes,bubbles,puffs";
+// Isolate lighting; city occlusion is covered by tests/ruins.spec.ts.
+const hidden = "fish,cephs,crabs,kelp,plants,props,motes,bubbles,puffs,ruins";
 
 async function capture(name: string, time: number, res = 3, gate = "") {
   const params = new URLSearchParams({ "light-time": String(time), res: String(res), off: hidden + gate });

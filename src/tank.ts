@@ -13,6 +13,7 @@ import { currentSun, realTimeSun } from "./sunClock";
 import { groundZ, sandTopAt } from "./backdrop";
 import {
   WATER_LIGHT_SHADER,
+  SUN_RAYS_SHADER,
   WATER_LIGHTING_TUNING,
   waterLightingTime,
 } from "./waterLighting";
@@ -49,23 +50,33 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
       u_raysEnabled: 1,
       u_backdropBrightness: 1,
     };
-    const backdrop = k.add([
-      profileDraw("backdrop"),
-      k.sprite("backdrop"),
-      profileDrawEnd(),
-      k.pos(0, 0),
-      k.z(-200),
-      k.shader(WATER_LIGHT_SHADER, () => {
-        waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
-        waterLightUniform.u_emitterX = realTimeSun ? currentSun().emitterX : WATER_LIGHTING_TUNING.emitterX;
-        waterLightUniform.u_raysEnabled = off("caustics") || off("water-light") ? 0 : 1;
-        waterLightUniform.u_backdropBrightness = realTimeSun ? currentSun().brightness : 1;
-        return waterLightUniform;
-      }),
-    ]);
-    // Keep the sprite alive so dawn, dusk and manual toggles never rebuild the tank.
-    backdrop.hidden = off("backdrop");
-    backdrop.onUpdate(() => { backdrop.hidden = off("backdrop"); });
+    // Keep water behind the city; only transparent shafts cross the far ruins.
+    for (const [shader, z, tag] of [
+      [WATER_LIGHT_SHADER, -200, "water-gradient"],
+      [SUN_RAYS_SHADER, -191.5, "sun-rays"],
+    ] as const) {
+      const backdrop = k.add([
+        profileDraw("backdrop"),
+        {
+          draw() {
+            // Draw-time uniforms keep paused sun previews live.
+            waterLightUniform.u_time = waterLightingTime(k.time(), fixedLightTime);
+            waterLightUniform.u_emitterX = realTimeSun ? currentSun().emitterX : WATER_LIGHTING_TUNING.emitterX;
+            waterLightUniform.u_raysEnabled = off("caustics") || off("water-light") ? 0 : 1;
+            waterLightUniform.u_backdropBrightness = realTimeSun ? currentSun().brightness : 1;
+          },
+        },
+        k.sprite("backdrop"),
+        profileDrawEnd(),
+        k.pos(0, 0),
+        k.z(z),
+        k.shader(shader, waterLightUniform),
+        tag,
+      ]);
+      // Keep both passes alive so dawn, dusk and toggles never rebuild the tank.
+      backdrop.hidden = off("backdrop");
+      backdrop.onUpdate(() => { backdrop.hidden = off("backdrop"); });
+    }
   }
   if (!layer || layer === "ruins") {
     // Atmospheric distance blends toward water colour without exposing deeper ruins.

@@ -225,8 +225,9 @@ This uses installed Chrome (or `PLAYWRIGHT_CHANNEL`) to capture the real WebGL
 shader into `test-results/water-lighting/`. It checks repeatable stills, live
 animation, loop continuity, long-running phase stability, both visibility gates,
 the sidebar toggle, oversized bright bands at multiple animation times and depths,
-and RES=1/2/3/6. Lighting renders in the backdrop pass; its
-cost appears under **backdrop** in the performance panel. Tune the broad-ray threshold,
+and RES=1/2/3/6. Lighting uses a gradient pass behind the city and a transparent
+ray pass between the far and middle ruins; its cost appears under **backdrop**
+in the performance panel. Tune the broad-ray threshold,
 light intensity and source position in `src/waterLighting.ts`.
 
 The **witches** fish set adds twelve goth witches inspired by `grim_reaper_fish`,

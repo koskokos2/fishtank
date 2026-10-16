@@ -19,6 +19,11 @@ test("ruins persist through live day, night and theme changes", async ({ page })
   await expect.poll(async () => (await appearance())[0].tint).toEqual([255, 255, 255]);
   expect((await appearance()).map(object => object.opacity)).toEqual([.3, 1, 1]);
   expect((await appearance()).map(object => object.z)).toEqual([-192, -191, -190]);
+  const water = () => page.evaluate(() => window.birthdayTest.waterAppearance());
+  expect(await water()).toEqual([
+    { shader: "water-light", z: -200, hidden: false },
+    { shader: "sun-rays", z: -191.5, hidden: false },
+  ]);
   await page.screenshot({ path: "test-results/ruins-day.png" });
   await page.getByRole("button", { name: "settings", exact: true }).click();
   await expect(page.getByRole("slider", { name: /distant opacity|middle distance|foreground distance|haze|brightness/ })).toHaveCount(0);
@@ -26,6 +31,7 @@ test("ruins persist through live day, night and theme changes", async ({ page })
   await page.getByRole("checkbox", { name: "pause", exact: true }).check();
   await page.getByRole("slider", { name: "temporary sun time" }).fill("1320");
   expect((await page.evaluate(() => window.birthdayTest.settingsLayer("backdrop")))[0].hidden).toBe(true);
+  expect((await water()).every(layer => layer.hidden)).toBe(true);
   expect(await ruins()).toEqual(initial);
   await expect.poll(async () => (await appearance())[0].tint[0]).toBeLessThan(70);
   await page.screenshot({ path: "test-results/ruins-night.png" });
@@ -33,6 +39,7 @@ test("ruins persist through live day, night and theme changes", async ({ page })
   expect(await ruins()).toEqual(initial);
   await page.getByRole("slider", { name: "temporary sun time" }).fill("720");
   expect((await page.evaluate(() => window.birthdayTest.settingsLayer("backdrop")))[0].hidden).toBe(false);
+  expect((await water()).every(layer => !layer.hidden)).toBe(true);
   expect(await ruins()).toEqual(initial);
   await expect.poll(async () => (await appearance())[0].tint).toEqual([255, 255, 255]);
   expect(errors).toEqual([]);

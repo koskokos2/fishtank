@@ -185,8 +185,8 @@ for (let x = 0; x < BW; x++) sandTopLUT[x] = computeSandTop(x);
 // z from screen depth: whatever sits lower on screen is nearer the viewer, so
 // it must draw in front. Grounded objects pass their base (sand-contact line);
 // fish pass their own y — they never descend below the crest, so they slip
-// behind anything rooted on the dune. Water lighting is part of the backdrop
-// at -200, so even the farthest swimmer remains in front of it.
+// behind anything rooted on the dune. Water is at -200; rays at -191.5 sit
+// between far and middle ruins, behind even the farthest swimmer.
 export const groundZ = (baseY: number) => -90 + 80 * (baseY / BH);
 
 // The first few pixels below the waterline are slightly darker: loose silt and
