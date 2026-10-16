@@ -4,11 +4,12 @@ import { COUNT_KEYS, SETTING_GATES, defaultSettings, encodeSettings, decodeSetti
 const asHex = (text: string) => Buffer.from(text, "base64url").toString("hex");
 const asBase64url = (hex: string) => Buffer.from(hex, "hex").toString("base64url");
 
-describe("settings wire format v1", () => {
+describe("settings wire formats v1/v2", () => {
   test("frozen binary vector, Base64url output and legacy hex input", () => {
     const hex = "01000000000c000000020a1410400005044006ff07";
-    expect(encodeSettings(defaultSettings())).toBe("AQAAAAAMAAAAAgoUEEAABQRABv8H");
-    expect(asHex(encodeSettings(defaultSettings()))).toBe(hex);
+    expect(encodeSettings(defaultSettings())).toBe("AgAAAAAMAAAAAgoUEEAABQRABv8H");
+    expect(asHex(encodeSettings(defaultSettings()))).toBe("02" + hex.slice(2));
+    expect(decodeSettings("AQAAAAAMAAAAAgoUEEAABQRABv8H")).toEqual(defaultSettings());
     expect(decodeSettings(encodeSettings(defaultSettings()))).toEqual(defaultSettings());
     expect(decodeSettings(hex.toUpperCase())).toEqual(defaultSettings());
   });
@@ -18,7 +19,7 @@ describe("settings wire format v1", () => {
         const s = { ...defaultSettings(), resolution, frameCap, lightTime, sunTime,
           disabled: [...SETTING_GATES], birthday: true, gothPlants: true, gothKelp: true,
           crawlingHands: true, smoothTextures: false, realTimeSun: false, paused: true,
-          debug: true, fps: true, gpu: true };
+          debug: true, fps: true, gpu: true, halloweenBubbles: true };
         COUNT_KEYS.forEach((key, index) => { s.counts[key] = [0, 1, 255, 256, 511, 512, 999][index]; });
         const encoded = encodeSettings(s);
         const byteLength = 21 + (frameCap === 47.5 ? 8 : 0) + (lightTime !== null ? 8 : 0);
@@ -28,6 +29,14 @@ describe("settings wire format v1", () => {
         expect(decodeSettings(asHex(encoded))).toEqual(s);
       }
     }
+  });
+  test("v2 uses bit 40 for Halloween bubbles while v1 keeps it reserved", () => {
+    const s = { ...defaultSettings(), halloweenBubbles: true };
+    const hex = asHex(encodeSettings(s));
+    expect(hex.slice(12, 14)).toBe("01");
+    expect(decodeSettings(hex)).toEqual(s);
+    expect(decodeSettings("01" + hex.slice(2))).toBeNull();
+    expect(legacySettings(new URLSearchParams("halloween-bubbles=1")).halloweenBubbles).toBe(true);
   });
   test("each gate has its own permanent bit; input order does not change URLs", () => {
     for (const gate of SETTING_GATES) {
@@ -39,7 +48,7 @@ describe("settings wire format v1", () => {
   });
   test("rejects malformed, truncated, oversized and unknown-version data", () => {
     const hex = asHex(encodeSettings(defaultSettings()));
-    for (const bad of ["", "xyz", hex.slice(1), hex.slice(0, -2), hex + "00", "02" + hex.slice(2), "0".repeat(10000)]) {
+    for (const bad of ["", "xyz", hex.slice(1), hex.slice(0, -2), hex + "00", "03" + hex.slice(2), "0".repeat(10000)]) {
       expect(decodeSettings(bad)).toBeNull();
     }
   });
@@ -47,7 +56,7 @@ describe("settings wire format v1", () => {
     function changed(byte: number, value: number, hex = asHex(encodeSettings(defaultSettings()))) {
       return hex.slice(0, byte * 2) + value.toString(16).padStart(2, "0") + hex.slice(byte * 2 + 2);
     }
-    for (const bad of [changed(6, 1), changed(9, 128), changed(18, 192), changed(19, 255, changed(20, 255)), changed(10, 255, changed(11, 255))]) {
+    for (const bad of [changed(6, 2), changed(9, 128), changed(18, 192), changed(19, 255, changed(20, 255)), changed(10, 255, changed(11, 255))]) {
       expect(decodeSettings(bad)).toBeNull();
       expect(decodeSettings(asBase64url(bad))).toBeNull();
     }
@@ -63,7 +72,7 @@ describe("settings wire format v1", () => {
   });
   test("rejects malformed Base64url and noncanonical trailing bits", () => {
     const encoded = encodeSettings(defaultSettings());
-    const unknownVersion = asBase64url("02" + asHex(encoded).slice(2));
+    const unknownVersion = asBase64url("03" + asHex(encoded).slice(2));
     for (const bad of [encoded + "=", encoded.slice(1), "+" + encoded.slice(1),
       "/" + encoded.slice(1), " " + encoded.slice(1), unknownVersion, "A".repeat(10000)]) {
       expect(decodeSettings(bad)).toBeNull();

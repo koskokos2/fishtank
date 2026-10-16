@@ -1,4 +1,5 @@
 import { settings } from "./settings";
+import { createHalloweenSparks } from "./halloweenSparks";
 import { GRID_FILTER_SHADER, gridFilterUniform } from "./textureFiltering";
 import type {
   KAPLAYCtx,
@@ -19,6 +20,7 @@ import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
   off,
   gothPlantsEnabled,
+  halloweenBubblesEnabled,
   smoothTextures,
   profile,
   profileDraw,
@@ -113,12 +115,15 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
     commitPlantField(k, fronds);
   }
 
-  if ((!layer || layer === "motes") && !off("motes")) spawnMotes(k, 30);
+  if ((!layer || layer === "motes") && !off("motes") && !halloweenBubblesEnabled) spawnMotes(k, 30);
   if (!layer || layer === "bubbles") {
     // Replacing the bubble group discards its previous controllers and pools.
     bubblePools.clear();
+    bubbleContext = k;
     bubbleColor = null;
+    halloweenSparks = null;
     if (!off("bubbles")) {
+      if (halloweenBubblesEnabled) halloweenSparks = createHalloweenSparks(k);
       spawnPlantPearling(k, pearlingPlants);
       spawnSubstrateSeeps(k);
       spawnRuinLeaks(k);
@@ -688,6 +693,8 @@ type BubblePool = { bubbles: Bubble[] };
 const BUBBLE_COLOR = [210, 235, 255] as const;
 let bubbleColor: Color | null = null;
 const bubblePools = new Map<number, BubblePool>();
+let halloweenSparks: ReturnType<typeof createHalloweenSparks> | null = null;
+let bubbleContext: KAPLAYCtx | null = null;
 
 function bubblePoolFor(k: KAPLAYCtx, z: number): BubblePool {
   const existing = bubblePools.get(z);
@@ -730,8 +737,14 @@ function bubblePoolFor(k: KAPLAYCtx, z: number): BubblePool {
 }
 
 function emitBubble(k: KAPLAYCtx, x: number, y: number, o: BubbleOpts) {
+  if (off("bubbles")) return;
+  if (halloweenBubblesEnabled) {
+    halloweenSparks?.emit(x, y);
+    return;
+  }
   if (!bubbleColor) bubbleColor = k.rgb(...BUBBLE_COLOR);
-  const pool = bubblePoolFor(k, o.z);
+  // Gulp bubbles belong to the bubble layer too, so switching/off clears them.
+  const pool = bubblePoolFor(bubbleContext ?? k, o.z);
   let b = pool.bubbles.find((bb) => !bb.active);
   if (!b) {
     b = {

@@ -7,7 +7,7 @@ compression, or encryption. `src/settingsCodec.ts` owns the pure codec and legac
 migration; `src/settings.ts` owns browser state and URL persistence. Scene modules
 and controls read typed state rather than parsing the URL independently.
 
-## Version 1
+## Version 2 (current), with version 1 compatibility
 
 The standard payload is exactly 21 bytes (28 Base64url characters; formerly 42 hex characters). Byte and bit offsets
 are zero-based. Multi-byte numbers are little-endian. Within bit fields, the least
@@ -15,8 +15,8 @@ significant bit comes first.
 
 | Bytes | Contents |
 | --- | --- |
-| 0 | Version: `01` |
-| 1–8 | 64 flags: bits 0–29 are disabled gates; bits 30–39 are booleans; bits 40–63 reserved, zero |
+| 0 | Version: `02` (legacy `01` accepted) |
+| 1–8 | 64 flags: bits 0–29 are disabled gates; bits 30–40 are booleans; bits 41–63 reserved, zero |
 | 9 | Bits 0–1 resolution; bits 2–3 frame cap; bit 4 fixed lighting time present; bits 5–7 reserved, zero |
 | 10–18 | Seven consecutive 10-bit counts; final two bits reserved, zero |
 | 19–20 | Sun preview minutes, 0–1439, or 2047 for real time; other values invalid |
@@ -42,11 +42,11 @@ obj-sci-fi obj-eldritch obj-star-wars obj-pop-culture obj-odyssey obj-giger
 obj-halloween obj-grindelwald obj-small
 ```
 
-Boolean bits 30–39, in order:
+Boolean bits 30–40, in order:
 
 ```
 birthday gothPlants gothKelp crawlingHands smoothTextures realTimeSun
-paused debug fps gpu
+paused debug fps gpu halloweenBubbles
 ```
 
 The disabled backdrop bit records the manual choice. With real-time sunlight
@@ -54,12 +54,18 @@ active, effective backdrop visibility is computed from local time; sunset never
 rewrites the snapshot. Encoded sunlight values override local storage preferences.
 A fresh/legacy URL without a sunlight choice may use the saved device preference.
 
-Frozen default test vector (binary layout and version are unchanged):
+Version 2 adds Halloween bubbles at bit 40. Version 1 retains its original reserved
+bits and decodes with Halloween bubbles disabled. Old links normalize to version 2;
+the payload length and all prior bit assignments stay unchanged.
+
+Frozen version-1 default test vector (still accepted):
 
 ```
 Base64url: AQAAAAAMAAAAAgoUEEAABQRABv8H
 Legacy hex: 01000000000c000000020a1410400005044006ff07
 ```
+
+Version-2 default: `AgAAAAAMAAAAAgoUEEAABQRABv8H`.
 
 ## Compatibility and validation
 

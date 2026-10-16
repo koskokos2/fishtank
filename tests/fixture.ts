@@ -38,6 +38,9 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  halloweenSparks: () => k.get("halloween-sparks").map(object => ({
+    id: object.id, ...object.sparkStats(),
+  })),
   fishAngles: () => k.get("fish").filter(f => !f.is("birthday-fish")).map(f => ({ id: f.id, angle: f.angle as number })),
   fishFiltering: async () => {
     const draws: { width: number; height: number; leftPadding: number; topPadding: number; rightPadding: number; bottomPadding: number }[] = [];

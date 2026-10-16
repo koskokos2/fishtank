@@ -81,6 +81,7 @@ import {
   gothPlantsEnabled,
   gothKelpEnabled,
   crawlingHandsEnabled,
+  halloweenBubblesEnabled,
 } from "./profiling";
 import { VW, VH } from "./res";
 import { installBirthdayFish, loadBirthdayFish, syncBirthdaySparkles } from "./birthdayFish";
@@ -192,7 +193,8 @@ function installLiveControls() {
       // Pearling bubbles reference the plant field, so replace the two together.
       if (!plantsReady && (layer === "plants" || layer === "bubbles")) continue;
       const key = layer === "backdrop" ? "live" : layer === "props" ? propKey
-        : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}` : String(off(layer));
+        : layer === "motes" ? String(off(layer) || halloweenBubblesEnabled)
+        : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}:${halloweenBubblesEnabled}` : String(off(layer));
       reconcileGroup(layer, key, ctx => {
         if (layer === "props") resetPropObstacles();
         setupTank(ctx, { plants: plantCount }, layer);

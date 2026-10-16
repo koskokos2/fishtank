@@ -1,4 +1,4 @@
-// Wire format v1. These lists define permanent bit positions, independent of UI
+// Wire formats v1/v2. These lists define permanent bit positions, independent of UI
 // order. Never reorder/reuse entries: incompatible changes need a new version.
 export const SETTING_GATES = [
   "backdrop", "sand", "props", "plants", "caustics", "motes", "bubbles", "puffs",
@@ -13,7 +13,7 @@ export const COUNT_KEYS = ["fish", "jelly", "octo", "naut", "crabs", "snail", "p
 export type CountKey = typeof COUNT_KEYS[number];
 export const DEFAULT_ENTITY_COUNTS = { fish: 10, jelly: 5, octo: 1, naut: 1, crabs: 5, snail: 1, plants: 100 } as const;
 const FLAGS = ["birthday", "gothPlants", "gothKelp", "crawlingHands", "smoothTextures",
-  "realTimeSun", "paused", "debug", "fps", "gpu"] as const;
+  "realTimeSun", "paused", "debug", "fps", "gpu", "halloweenBubbles"] as const;
 const RESOLUTIONS = [1, 2, 3, 6] as const;
 const CAPS = [62, 32, 0] as const; // 0 = uncapped; code 3 = float64 extension
 export type TankSettings = Record<typeof FLAGS[number], boolean> & {
@@ -28,7 +28,7 @@ export function defaultSettings(): TankSettings {
   return { disabled: [], counts: { ...DEFAULT_ENTITY_COUNTS }, resolution: 3, frameCap: 62,
     birthday: false, gothPlants: false, gothKelp: false, crawlingHands: false,
     smoothTextures: true, realTimeSun: true, paused: false, debug: false, fps: false,
-    gpu: false, sunTime: null, lightTime: null };
+    gpu: false, halloweenBubbles: false, sunTime: null, lightTime: null };
 }
 function valid(s: TankSettings) {
   return RESOLUTIONS.includes(s.resolution) && Number.isFinite(s.frameCap) && s.frameCap >= 0
@@ -44,11 +44,11 @@ export function encodeSettings(s: TankSettings): string {
   const customCap = preset < 0;
   const bytes = new Uint8Array(21 + (customCap ? 8 : 0) + (s.lightTime !== null ? 8 : 0));
   const view = new DataView(bytes.buffer);
-  bytes[0] = 1;
+  bytes[0] = 2;
   const setBit = (bit: number) => { bytes[1 + (bit >> 3)] |= 1 << (bit & 7); };
   SETTING_GATES.forEach((gate, bit) => { if (s.disabled.includes(gate)) setBit(bit); });
   FLAGS.forEach((key, bit) => { if (s[key]) setBit(30 + bit); });
-  // Bytes 1..8: 64 flag bits (40 used). Byte 9: res/cap codes, light-time flag.
+  // Bytes 1..8: 64 flag bits (41 used). Byte 9: res/cap codes, light-time flag.
   bytes[9] = RESOLUTIONS.indexOf(s.resolution) | ((customCap ? 3 : preset) << 2)
     | (s.lightTime !== null ? 16 : 0);
   // Bytes 10..18: seven 10-bit unsigned counts, least significant bit first.
@@ -85,7 +85,8 @@ export function decodeSettings(text: string): TankSettings | null {
   const bytes = decodeText(text);
   if (!bytes) return null;
   const view = new DataView(bytes.buffer);
-  if (bytes[0] !== 1 || bytes.slice(6, 9).some(byte => byte !== 0)
+  if ((bytes[0] !== 1 && bytes[0] !== 2)
+    || (bytes[6] & (bytes[0] === 1 ? 255 : 254)) || bytes.slice(7, 9).some(byte => byte !== 0)
     || (bytes[9] & 224) || (bytes[18] & 192)) return null;
   const capCode = (bytes[9] >> 2) & 3;
   const hasLightTime = Boolean(bytes[9] & 16);
@@ -128,6 +129,7 @@ export function legacySettings(p: URLSearchParams, preferredSun = true): TankSet
   s.gothPlants = p.get("goth-plants") === "1";
   s.gothKelp = p.get("goth-kelp") === "1";
   s.crawlingHands = p.get("crawling-hands") === "1";
+  s.halloweenBubbles = p.get("halloween-bubbles") === "1";
   s.smoothTextures = p.get("texture-filter") !== "pixelated";
   s.realTimeSun = disabled.has("all") ? false : p.has("sun") ? p.get("sun") !== "0" : preferredSun;
   for (const key of ["debug", "fps", "gpu"] as const) s[key] = p.has(key);

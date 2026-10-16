@@ -13,6 +13,7 @@ export let birthdayFishEnabled = settings.birthday;
 export let gothPlantsEnabled = settings.gothPlants;
 export let gothKelpEnabled = settings.gothKelp;
 export let crawlingHandsEnabled = settings.crawlingHands;
+export let halloweenBubblesEnabled = settings.halloweenBubbles;
 export let smoothTextures = settings.smoothTextures;
 export const capFPS = settings.frameCap || 62;
 const settingsListeners = new Set<() => void>();
@@ -28,6 +29,7 @@ function updateSettings(next: TankSettings, reload = false) {
   gothPlantsEnabled = next.gothPlants;
   gothKelpEnabled = next.gothKelp;
   crawlingHandsEnabled = next.crawlingHands;
+  halloweenBubblesEnabled = next.halloweenBubbles;
   smoothTextures = next.smoothTextures;
   if (kaplayDebug) kaplayDebug.paused = next.paused;
   for (const listener of settingsListeners) listener();
@@ -869,16 +871,18 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       TOGGLES.map((n) => [n, n] as const),
     );
     const addSkinToggle = (
-      layer: "plants" | "kelp" | "crabs",
+      layer: "plants" | "kelp" | "crabs" | "bubbles",
       enabled: boolean,
-      field: "gothPlants" | "gothKelp" | "crawlingHands" = layer === "plants" ? "gothPlants" : "gothKelp",
+      field: "gothPlants" | "gothKelp" | "crawlingHands" | "halloweenBubbles" = layer === "plants" ? "gothPlants" : "gothKelp",
       display = `goth ${layer}`,
     ) => {
       const label = document.createElement("label");
       label.style.cssText =
         "display:flex;gap:6px;align-items:center;cursor:pointer";
       label.title =
-        `Replace the ${layer} with ${display}. The ${layer} checkbox controls visibility.`;
+        field === "halloweenBubbles"
+          ? "Magical sparks when sun rays are not visible. Hides drifting motes while enabled. The bubbles checkbox controls visibility."
+          : `Replace the ${layer} with ${display}. The ${layer} checkbox controls visibility.`;
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = enabled;
@@ -894,6 +898,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     addSkinToggle("plants", gothPlantsEnabled);
     addSkinToggle("kelp", gothKelpEnabled);
     addSkinToggle("crabs", crawlingHandsEnabled, "crawlingHands", "crawling hands");
+    addSkinToggle("bubbles", halloweenBubblesEnabled, "halloweenBubbles", "halloween bubbles");
     const allBtn = document.createElement("label");
     allBtn.style.cssText =
       "display:flex;gap:6px;align-items:center;cursor:pointer";

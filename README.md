@@ -104,8 +104,14 @@ uniforms to preserve batching.
 
 Resolution and frame cap still reload because they configure the renderer at startup.
 
+**Halloween bubbles** replaces bubbles with rising violet, amber and green sparks
+and intermittent sparkler showers, only while sun rays are not visible (night or
+manually disabled backdrop/caustics). It switches live, shares through the URL, and
+follows the **bubbles** visibility checkbox. A single controller reuses fixed pools
+of up to 31 rising lights and 192 short-lived embers.
+
 All settings are shared through a single `?settings=<base64url>` parameter. The standard
-version-1 snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. It includes layers,
+version-2 snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. It includes layers,
 fish/prop sets, skins, filtering, populations, sunlight and preview time, pause,
 resolution, frame cap and debug flags. Controls update it without reloading except
 for resolution and frame cap. Old query strings (including the examples above)

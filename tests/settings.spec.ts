@@ -20,6 +20,78 @@ async function open(page: Page, query = "") {
   sharedSettings(page);
 }
 
+test("Halloween bubbles switch live, burst within bounded pools, and restore from a shared URL", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await open(page, "off=backdrop");
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const fish = await layer(page, "fish");
+  const sparks = () => page.evaluate(() => window.birthdayTest.halloweenSparks());
+  await checkbox(page, "halloween bubbles").check();
+  expect(sharedSettings(page).halloweenBubbles).toBe(true);
+  expect(await layer(page, "motes")).toHaveLength(0);
+  expect(sharedSettings(page).disabled).not.toContain("motes");
+  expect(await sparks()).toHaveLength(1);
+  await expect.poll(async () => (await sparks())[0]?.bursts, { timeout: 12000 }).toBeGreaterThan(0);
+  const stats = (await sparks())[0];
+  expect(stats.lights).toBeGreaterThan(0);
+  expect(stats.lights).toBeLessThanOrEqual(stats.maxLights);
+  expect(stats.embers).toBeLessThanOrEqual(stats.maxEmbers);
+  const shared = page.url();
+  for (let i = 0; i < 3; i++) {
+    await checkbox(page, "halloween bubbles").uncheck();
+    expect(await sparks()).toHaveLength(0);
+    expect((await layer(page, "motes")).length).toBeGreaterThan(0);
+    await checkbox(page, "halloween bubbles").check();
+    expect(await sparks()).toHaveLength(1);
+    expect(await layer(page, "motes")).toHaveLength(0);
+  }
+  await checkbox(page, "bubbles").uncheck();
+  expect(await sparks()).toHaveLength(0);
+  expect(await layer(page, "bubbles")).toHaveLength(0);
+  await checkbox(page, "halloween bubbles").uncheck();
+  await checkbox(page, "halloween bubbles").check();
+  expect(await sparks()).toHaveLength(0);
+  await checkbox(page, "bubbles").check();
+  expect(await sparks()).toHaveLength(1);
+  // Swimming changes depth order; identity and population must stay intact.
+  expect(await layer(page, "fish")).toHaveLength(fish.length);
+  expect(await layer(page, "fish")).toEqual(expect.arrayContaining(fish));
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  await page.goto(shared);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await expect(checkbox(page, "halloween bubbles")).toBeChecked();
+  expect(await sparks()).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test("Halloween sparks follow night and ray visibility without reloading", async ({ page }) => {
+  await page.clock.setFixedTime("2026-10-16T12:00:00+01:00");
+  await page.goto("/fixture?debug&sun=1&halloween-bubbles=1&fish=0");
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const state = () => page.evaluate(() => window.birthdayTest.halloweenSparks()[0]);
+  expect(await state()).toMatchObject({ active: false, lights: 0, embers: 0 });
+  // No settings interaction: an actual wall-clock transition must wake it.
+  await page.clock.setFixedTime("2026-10-16T18:00:00+01:00");
+  await expect.poll(async () => (await state()).active).toBe(true);
+  expect((await state()).lights).toBeGreaterThan(0);
+  const preview = page.getByRole("slider", { name: "Temporary sun time" });
+  await preview.fill("240");
+  await expect.poll(async () => (await state()).active).toBe(false);
+  expect(await state()).toMatchObject({ lights: 0, embers: 0 });
+  await preview.fill("720");
+  await checkbox(page, "caustics").uncheck();
+  await expect.poll(async () => (await state()).active).toBe(true);
+  await checkbox(page, "caustics").check();
+  await expect.poll(async () => (await state()).active).toBe(false);
+  await preview.fill("1080");
+  await expect.poll(async () => (await state()).active).toBe(true);
+  await checkbox(page, "bubbles").uncheck();
+  expect(await page.evaluate(() => window.birthdayTest.halloweenSparks())).toHaveLength(0);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+});
+
 test("layers toggle live, re-enable from URL-off, and leave other populations intact", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
