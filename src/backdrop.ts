@@ -12,7 +12,8 @@
 
 import { type RGBA, lerp, clamp01 } from "./color";
 import { RES } from "./res";
-import { WATER_TOP, WATER_NEXT, WATER_BOTTOM } from "./backdropAppearance";
+import { WATER_STOPS } from "./backdropAppearance";
+import { makeSunkenCity } from "./sunkenCity";
 
 const S = RES;
 export const BW = 640 * S;
@@ -135,17 +136,6 @@ function smoothRamp(stops: RGBA[], t: number): RGBA {
 
 // Water, top (aqua) -> bottom (deep warm navy). The ramp is weighted deep so the
 // mid swimming zone is dark enough for fish to pop.
-const WATER: RGBA[] = [
-  WATER_TOP,
-  WATER_NEXT,
-  [44, 120, 144, 255],
-  [30, 96, 124, 255],
-  [22, 74, 104, 255],
-  [16, 56, 84, 255],
-  [12, 42, 68, 255],
-  [9, 32, 54, 255],
-  WATER_BOTTOM,
-];
 const SAND: RGBA[] = [
   [120, 96, 56, 255], // shadow
   [180, 148, 88, 255], // body
@@ -215,7 +205,7 @@ function paintWater(buf: Buf) {
       // zone is darker (more fish contrast); tiny wobble so stops aren't flat.
       let g = Math.pow(y / (BH - 1), 0.82);
       g += (fbm(x * 0.012, y * 0.02, 11) - 0.5) * 0.03;
-      setPx(buf, x, y, smoothRamp(WATER, clamp01(g)));
+      setPx(buf, x, y, smoothRamp(WATER_STOPS, clamp01(g)));
     }
   }
 }
@@ -262,13 +252,14 @@ export function backdropPixels(seed = 1): RGBA[] {
 
 const CLEAR: RGBA = [0, 0, 0, 0];
 
-// DOM bake -> data URLs for kaplay's loadSprite. The scene splits into two
+// DOM bake -> data URLs for kaplay's loadSprite. The scene has two
 // full-resolution layers: the opaque water back plate and a transparent
-// sand overlay (dunes only). Far plants render between the two so the dune crest
+// sand overlay (dunes only), plus three independent ruin plates. Far plants render
+// between the water/ruins and sand so the dune crest
 // occludes their roots. Props remain live so the rotating pool can replace them.
 export async function makeBackdrop(
   seed = 1,
-): Promise<{ back: string; sand: string }> {
+): Promise<{ back: string; sand: string; ruins: string; distantRuins: string; middleRuins: string }> {
   const backBuf: Buf = new Array(BW * BH);
   paintWater(backBuf);
 
@@ -276,7 +267,9 @@ export async function makeBackdrop(
   paintSand(sandBuf);
   const sand = bufToCanvas(sandBuf);
 
-  return { back: bufToCanvas(backBuf).toDataURL(), sand: sand.toDataURL() };
+  const ruins = await makeSunkenCity(BW, BH, sandTopAt);
+  return { back: bufToCanvas(backBuf).toDataURL(), sand: sand.toDataURL(),
+    ruins: ruins.near, distantRuins: ruins.far, middleRuins: ruins.middle };
 }
 
 function bufToCanvas(buf: Buf): HTMLCanvasElement {

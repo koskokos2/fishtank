@@ -3,6 +3,7 @@ import { DEFAULT_ENTITY_COUNTS } from "./settingsCodec";
 import { selectedTheme } from "./themePresets";
 import kaplay, { type KAPLAYCtx } from "kaplay";
 import { makeBackdrop } from "./backdrop";
+import { loadCityDistanceShader } from "./sunkenCityAppearance";
 import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
 import { loadTextureFiltering } from "./textureFiltering";
 import { SWIM_FRAMES } from "./fishbake";
@@ -136,6 +137,7 @@ const k = kaplay({
 export { k as aquarium };
 installEngineProfiler(k);
 loadWaterLighting(k);
+loadCityDistanceShader(k);
 loadTextureFiltering(k);
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
@@ -196,10 +198,10 @@ function installLiveControls() {
     const plantsReady = off("plants") || plantCount === 0 || skinReady(plants, { sliceX: plants.cols, sliceY: plants.rows });
     const plantKey = `${off("plants")}:${plantCount}:${plants.sprite}`;
     const propKey = `${off("props")}:${settings.disabled.filter(n => n.startsWith("obj-")).sort().join(",")}`;
-    for (const layer of ["backdrop", "sand", "props", "plants", "motes", "bubbles"]) {
+    for (const layer of ["backdrop", "ruins", "sand", "props", "plants", "motes", "bubbles"]) {
       // Pearling bubbles reference the plant field, so replace the two together.
       if (!plantsReady && (layer === "plants" || layer === "bubbles")) continue;
-      const key = layer === "backdrop" ? "live" : layer === "props" ? propKey
+      const key = layer === "backdrop" || layer === "ruins" ? "live" : layer === "props" ? propKey
         : layer === "motes" ? String(off(layer) || particleNight)
         : layer === "plants" ? plantKey : layer === "bubbles" ? `${off(layer)}:${plantKey}:${particleNight}` : String(off(layer));
       reconcileGroup(layer, key, ctx => {
@@ -209,6 +211,7 @@ function installLiveControls() {
     }
     // The toolbar still works while creature updates are paused.
     for (const backdrop of k.get("settings-backdrop")) backdrop.hidden = off("backdrop");
+    for (const ruins of k.get("settings-ruins")) ruins.hidden = off("ruins");
     const fishKinds = FISH_KINDS.map((_, i) => i).filter(i => !off(`fish-${fishKindSet(FISH_KINDS[i].name)}`));
     const fishCount = off("fish") ? 0 : num("fish", DEFAULT_ENTITY_COUNTS.fish);
     reconcileGroup("fish", `${fishCount}:${fishKinds.join(",")}`, ctx => {
@@ -356,26 +359,38 @@ function installLiveControls() {
     sliceX: SEA_SNAIL_FRAMES,
   });
 
-  k.loadSprite("backdrop", backdrop.back);
-  k.loadSprite("backdrop-sand", backdrop.sand);
-  fishSheets.forEach((sheet, i) => {
-    k.loadSprite(`fish-${i}`, sheet, {
+  const sceneAssets = [
+    k.loadSprite("backdrop", backdrop.back),
+    k.loadSprite("backdrop-sand", backdrop.sand),
+    k.loadSprite("backdrop-ruins", backdrop.ruins),
+    k.loadSprite("backdrop-distant-ruins", backdrop.distantRuins),
+    k.loadSprite("backdrop-middle-ruins", backdrop.middleRuins),
+    ...fishSheets.map((sheet, i) => k.loadSprite(`fish-${i}`, sheet, {
       sliceX: SWIM_FRAMES,
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },
-    });
-  });
+    })),
+  ];
   loadBirthdayFish(k);
   // The jellyfish and nautilus anatomical layers are separate game objects that each
   // set their own frame, so one atlas load per creature serves every layer. (The octopus
   // pose sheet is loaded above with the benthic band so it shares that page.)
-  k.loadSprite("jellyfish", JELLYFISH_ATLAS, {
+  sceneAssets.push(k.loadSprite("jellyfish", JELLYFISH_ATLAS, {
     sliceX: JELLYFISH_ATLAS_COLS,
     sliceY: JELLYFISH_ATLAS_ROWS,
-  });
-  k.loadSprite("nautilus", NAUTILUS_ATLAS, {
+  }));
+  sceneAssets.push(k.loadSprite("nautilus", NAUTILUS_ATLAS, {
     sliceX: NAUTILUS_ATLAS_COLS,
     sliceY: NAUTILUS_ATLAS_ROWS,
-  });
+  }));
+
+  // Async backdrop decoding can let the engine's initial load event finish
+  // before these later registrations. Wait for the actual assets as well:
+  // an already-fired global onLoad is not a barrier for this new batch.
+  const birthdayAsset = k.getSprite("birthday-atlas");
+  if (birthdayAsset) sceneAssets.push(birthdayAsset);
+  await Promise.all(sceneAssets.map(asset => new Promise<void>((resolve, reject) => {
+    asset.onLoad(() => resolve()).onError(reject);
+  })));
 
   k.onLoad(() => {
     installLiveControls();

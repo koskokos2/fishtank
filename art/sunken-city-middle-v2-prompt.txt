@@ -1,0 +1,5 @@
+Built-in imagegen edit of sunken-city-middle.png.
+Output: sunken-city-middle-v2.png.
+The first composition is preserved at its original path.
+
+undefined

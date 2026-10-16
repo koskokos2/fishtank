@@ -767,7 +767,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     // Scene-element checkboxes: each maps to a live disabled-layer flag. Every
     // checkbox across every grid below shares one `boxes` map and `apply`, so
     // toggling one section's gates never clobbers another's.
-    const TOGGLES = ["backdrop", "kelp", "bubbles", "plants"];
+    const TOGGLES = ["backdrop", "kelp", "bubbles", "plants", "ruins"];
     // Fish-atlas and prop-family themes: same flag mechanism as TOGGLES,
     // gate names prefixed so they can't collide with each other or TOGGLES
     // (both have a "pop-culture" entry). Kept in sync by hand with fishKindSet's
@@ -851,6 +851,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         cb.checked = !off(name);
         cb.style.accentColor = "#7f7";
         if (name === "backdrop") cb.title = "toggle daytime lighting and take manual control of the sun.";
+        if (name === "ruins") cb.title = "show the sunken city across all three background depths";
         if (name === "bubbles") cb.title = "show bubbles and drifting motes, or magical sparks during Halloween nights";
         cb.addEventListener("change", () => {
           if (name !== "backdrop") { apply(); return; }
@@ -883,7 +884,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     };
     const menu = addToggleGrid(
       "",
-      TOGGLES.map((n) => [n, n === "backdrop" ? "sun" : n === "kelp" ? "kelp forest" : n] as const),
+      TOGGLES.map((n) => [n, n === "backdrop" ? "sun" : n === "kelp" ? "kelp forest" : n === "ruins" ? "sunken city" : n] as const),
     );
     menu.style.borderTop = "none";
     const skinBoxes = new Map<"gothPlants" | "gothKelp" | "crawlingHands" | "halloweenBubbles", HTMLInputElement>();

@@ -77,6 +77,36 @@ that parameter to resume its slow light motion. The backdrop uses a fixed seed.
 
 Ray sharpness is fixed at 70%.
 
+Three transparent sunken-city artworks sit over the original water gradient,
+behind kelp, sand and all creatures: a pale distant skyline, an asymmetric ruined
+tidal observatory with a guardian relief, and deeply shaded carved ruins framing the edges.
+All three share the observatory's carved spiral-shell and celestial stonework. Each
+depth uses a restrained blue palette, retaining masonry and sculptural detail.
+The **sunken city** checkbox in the top section hides or restores all three
+depths live, independently of the sun, sand, creatures and theme. This choice is
+included in shared URLs; older links show the city by default.
+Distance is conveyed through smaller architecture, overlap and cooler colour;
+the far plate retains internal detail, with adjustable opacity for distance.
+Foundations are positioned against the real sand contour with a small buried
+margin, rather than the viewport bottom. The observatory is scaled to leave
+surface clearance, while the nearest ruins overlap the high left dune more.
+They are baked once into three independent textures (each capped at 1920×1080,
+smaller at lower render resolutions). The chosen appearance is fixed at **30%
+distant opacity**, **40% middle distance**, and **15% foreground distance**.
+Distance blends stone toward the surrounding nine-stop water gradient, following
+daylight. It reduces contrast without blurring edges or revealing structures behind
+it; artwork alpha is preserved. The temporary sliders have been removed; the
+**sunken city** visibility checkbox remains. Sun brightness updates while paused,
+without image generation or texture uploads; the city stays
+dimly visible at night. Sources are `art/sunken-city-far-v2.png`,
+`art/sunken-city-middle-v2.png`, and `art/sunken-city-near-v2.png`,
+with prompts in `art/sunken-city-prompts.txt` and the middle-layer revision in
+`art/sunken-city-middle-v2-prompt.txt`; the matching far/near prompts are in
+`art/sunken-city-style-v2-prompts.txt`. After changing source artwork, run
+`bun tools/embed-sunken-ruins.ts`; composition and palette live in `src/sunkenCity.ts`.
+The earlier single-silhouette source is retained in `art/sunken-ruins-source.png`.
+The earlier symmetrical middle composition is retained in `art/sunken-city-middle.png`.
+
 The toolbar's **real-time sun** mode is enabled by default and uses the device's
 local clock. Rays travel from just beyond the left edge at 04:00 to just beyond
 the right edge at 18:00. From 18:00 until 04:00, the backdrop switches off to show
@@ -151,8 +181,10 @@ and match visible size against the frozen `art/octopus-legacy-packed.png`;
 regenerating one skin cannot progressively change the size of the others.
 The original source artwork remains available in `art/octopus-atlas-128.png`.
 
-All settings are shared through a single `?settings=<base64url>` parameter. The standard
-version-2 snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. It includes layers,
+Saved tank settings are shared through a single `?settings=<base64url>` parameter. The standard
+snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. Version 3 uses
+previously reserved bit 41 to hide the sunken city; links that show it retain
+version 2, and versions 1/2 still decode with the city visible. The snapshot includes layers,
 fish/prop sets, skins, filtering, populations, sunlight and preview time, pause,
 resolution, frame cap and debug flags. Controls update it without reloading except
 for resolution and frame cap. Old query strings (including the examples above)

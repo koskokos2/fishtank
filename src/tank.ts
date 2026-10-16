@@ -1,4 +1,5 @@
 import { settings } from "./settings";
+import { CITY_DISTANCE_SHADER, CITY_APPEARANCE } from "./sunkenCityAppearance";
 import { createHalloweenSparks } from "./halloweenSparks";
 import { GRID_FILTER_SHADER, gridFilterUniform } from "./textureFiltering";
 import type {
@@ -7,7 +8,7 @@ import type {
   Vec2,
   Color,
 } from "kaplay";
-import { RES } from "./res";
+import { RES, VW, VH } from "./res";
 import { currentSun, realTimeSun } from "./sunClock";
 import { groundZ, sandTopAt } from "./backdrop";
 import {
@@ -31,8 +32,8 @@ import {
 const S = RES;
 type TankEntityCounts = Readonly<{ plants: number }>;
 
-// The static scene is baked once into two sprites (see backdrop.ts): the
-// water back plate and a transparent sand overlay (the dunes).
+// The static scene is baked once (see backdrop.ts): the water back plate,
+// layered monochrome distant ruins and a transparent sand overlay (the dunes).
 // setupTank places those at the back and adds the *animated* layers over them:
 // sunlight shafts, swaying plants, motes, and bubbles.
 // Depth is faked with z-ordering.
@@ -65,6 +66,43 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
     // Keep the sprite alive so dawn, dusk and manual toggles never rebuild the tank.
     backdrop.hidden = off("backdrop");
     backdrop.onUpdate(() => { backdrop.hidden = off("backdrop"); });
+  }
+  if (!layer || layer === "ruins") {
+    // Atmospheric distance blends toward water colour without exposing deeper ruins.
+    // Tint follows the sun without re-baking or advancing any animation.
+    // Use a draw component so even paused time previews adjust immediately.
+    for (const [depth, sprite, z] of [
+      ["distant", "backdrop-distant-ruins", -192],
+      ["middle", "backdrop-middle-ruins", -191],
+      ["foreground", "backdrop-ruins", -190],
+    ] as const) {
+      const tint = k.color(255, 255, 255);
+      const distanceUniform = {
+        u_distance: depth === "distant" ? 0
+          : CITY_APPEARANCE[depth === "middle" ? "middleDistance" : "foregroundDistance"] / 100,
+        u_daylight: 1,
+        u_waterVisible: 1,
+      };
+      k.add([
+        profileDraw("ruins"),
+        {
+          draw() {
+            const daylight = off("backdrop") ? 0 : realTimeSun ? currentSun().brightness : 1;
+            const level = Math.round(255 * (0.24 + daylight * 0.76));
+            distanceUniform.u_daylight = daylight;
+            distanceUniform.u_waterVisible = off("backdrop") ? 0 : 1;
+            tint.color.r = tint.color.g = tint.color.b = level;
+          },
+        },
+        tint,
+        k.opacity(depth === "distant" ? CITY_APPEARANCE.distantOpacity / 100 : 1),
+        ...(depth === "distant" ? [] : [k.shader(CITY_DISTANCE_SHADER, distanceUniform)]),
+        k.sprite(sprite, { width: VW, height: VH }),
+        profileDrawEnd(),
+        k.pos(0, 0),
+        k.z(z),
+      ]);
+    }
   }
   if ((!layer || layer === "sand") && !off("sand"))
     k.add([

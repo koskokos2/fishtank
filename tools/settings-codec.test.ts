@@ -4,14 +4,16 @@ import { COUNT_KEYS, SETTING_GATES, defaultSettings, encodeSettings, decodeSetti
 const asHex = (text: string) => Buffer.from(text, "base64url").toString("hex");
 const asBase64url = (hex: string) => Buffer.from(hex, "hex").toString("base64url");
 
-describe("settings wire formats v1/v2", () => {
+describe("settings wire formats v1/v2/v3", () => {
   test("frozen binary vector, Base64url output and legacy hex input", () => {
     const hex = "01000000000c000000020a1410400005044006ff07";
-    expect(encodeSettings(defaultSettings())).toBe("AgAAAAAMAAAAAgoUEEAABQRABv8H");
-    expect(asHex(encodeSettings(defaultSettings()))).toBe("02" + hex.slice(2));
-    expect(decodeSettings("AQAAAAAMAAAAAgoUEEAABQRABv8H")).toEqual(defaultSettings());
+    const historical = defaultSettings();
+    historical.counts.jelly = 5;
+    expect(encodeSettings(historical)).toBe("AgAAAAAMAAAAAgoUEEAABQRABv8H");
+    expect(asHex(encodeSettings(historical))).toBe("02" + hex.slice(2));
+    expect(decodeSettings("AQAAAAAMAAAAAgoUEEAABQRABv8H")).toEqual(historical);
     expect(decodeSettings(encodeSettings(defaultSettings()))).toEqual(defaultSettings());
-    expect(decodeSettings(hex.toUpperCase())).toEqual(defaultSettings());
+    expect(decodeSettings(hex.toUpperCase())).toEqual(historical);
   });
   test("all flags, counts, resolutions and extension combinations round trip", () => {
     for (const resolution of [1, 2, 3, 6] as const) for (const frameCap of [62, 32, 0, 47.5]) {
@@ -46,9 +48,27 @@ describe("settings wire formats v1/v2", () => {
     expect(encodeSettings({ ...defaultSettings(), disabled: [...SETTING_GATES].reverse() }))
       .toBe(encodeSettings({ ...defaultSettings(), disabled: [...SETTING_GATES] }));
   });
+  test("v3 hides ruins in bit 41 without changing existing flags or URL length", () => {
+    const shown = { ...defaultSettings(), birthday: true, halloweenBubbles: true };
+    const hidden = { ...shown, disabled: ["ruins"] as const };
+    const before = Buffer.from(encodeSettings(shown), "base64url");
+    const encoded = encodeSettings({ ...hidden, disabled: [...hidden.disabled] });
+    const after = Buffer.from(encoded, "base64url");
+    expect(after.length).toBe(before.length);
+    expect(after[0]).toBe(3);
+    expect(after[6]).toBe(before[6] | 2);
+    const legacy = Buffer.from(after);
+    legacy[0] = 2;
+    expect(decodeSettings(legacy.toString("base64url"))).toBeNull();
+    after[0] = before[0];
+    after[6] &= ~2;
+    expect(after).toEqual(before);
+    expect(decodeSettings(encoded)).toEqual(hidden);
+    expect(decodeSettings(encodeSettings(shown))?.disabled).not.toContain("ruins");
+  });
   test("rejects malformed, truncated, oversized and unknown-version data", () => {
     const hex = asHex(encodeSettings(defaultSettings()));
-    for (const bad of ["", "xyz", hex.slice(1), hex.slice(0, -2), hex + "00", "03" + hex.slice(2), "0".repeat(10000)]) {
+    for (const bad of ["", "xyz", hex.slice(1), hex.slice(0, -2), hex + "00", "04" + hex.slice(2), "0".repeat(10000)]) {
       expect(decodeSettings(bad)).toBeNull();
     }
   });
@@ -72,7 +92,7 @@ describe("settings wire formats v1/v2", () => {
   });
   test("rejects malformed Base64url and noncanonical trailing bits", () => {
     const encoded = encodeSettings(defaultSettings());
-    const unknownVersion = asBase64url("03" + asHex(encoded).slice(2));
+    const unknownVersion = asBase64url("04" + asHex(encoded).slice(2));
     for (const bad of [encoded + "=", encoded.slice(1), "+" + encoded.slice(1),
       "/" + encoded.slice(1), " " + encoded.slice(1), unknownVersion, "A".repeat(10000)]) {
       expect(decodeSettings(bad)).toBeNull();

@@ -1,4 +1,4 @@
-// Wire formats v1/v2. These lists define permanent bit positions, independent of UI
+// Wire formats v1/v2/v3. These lists define permanent bit positions, independent of UI
 // order. Never reorder/reuse entries: incompatible changes need a new version.
 export const SETTING_GATES = [
   "backdrop", "sand", "props", "plants", "caustics", "motes", "bubbles", "puffs",
@@ -7,8 +7,12 @@ export const SETTING_GATES = [
   "fish-odyssey", "fish-giger", "fish-halloween", "fish-witches",
   "obj-sci-fi", "obj-eldritch", "obj-star-wars", "obj-pop-culture", "obj-odyssey",
   "obj-giger", "obj-halloween", "obj-grindelwald", "obj-small",
+  "ruins",
 ] as const;
 export type SettingGate = typeof SETTING_GATES[number];
+// The original 30 gates occupy bits 0..29. Flags already own bits 30..40;
+// v3 appends the ruins gate at bit 41 without moving any existing settings.
+const gateBit = (index: number) => index < 30 ? index : index + 11;
 export const COUNT_KEYS = ["fish", "jelly", "octo", "naut", "crabs", "snail", "plants"] as const;
 export type CountKey = typeof COUNT_KEYS[number];
 export const COUNT_LIMITS: Record<CountKey, number> = {
@@ -19,7 +23,7 @@ export function clampEntityCounts(settings: TankSettings): TankSettings {
   for (const key of COUNT_KEYS) settings.counts[key] = Math.min(COUNT_LIMITS[key], settings.counts[key]);
   return settings;
 }
-export const DEFAULT_ENTITY_COUNTS = { fish: 10, jelly: 5, octo: 1, naut: 1, crabs: 5, snail: 1, plants: 100 } as const;
+export const DEFAULT_ENTITY_COUNTS = { fish: 10, jelly: 0, octo: 1, naut: 1, crabs: 5, snail: 1, plants: 100 } as const;
 const FLAGS = ["birthday", "gothPlants", "gothKelp", "crawlingHands", "smoothTextures",
   "realTimeSun", "paused", "debug", "fps", "gpu", "halloweenBubbles"] as const;
 const RESOLUTIONS = [1, 2, 3, 6] as const;
@@ -52,11 +56,12 @@ export function encodeSettings(s: TankSettings): string {
   const customCap = preset < 0;
   const bytes = new Uint8Array(21 + (customCap ? 8 : 0) + (s.lightTime !== null ? 8 : 0));
   const view = new DataView(bytes.buffer);
-  bytes[0] = 2;
+  // Retain the existing encoding when the new gate is not needed.
+  bytes[0] = s.disabled.includes("ruins") ? 3 : 2;
   const setBit = (bit: number) => { bytes[1 + (bit >> 3)] |= 1 << (bit & 7); };
-  SETTING_GATES.forEach((gate, bit) => { if (s.disabled.includes(gate)) setBit(bit); });
+  SETTING_GATES.forEach((gate, index) => { if (s.disabled.includes(gate)) setBit(gateBit(index)); });
   FLAGS.forEach((key, bit) => { if (s[key]) setBit(30 + bit); });
-  // Bytes 1..8: 64 flag bits (41 used). Byte 9: res/cap codes, light-time flag.
+  // Bytes 1..8: 64 flag bits (42 used in v3). Byte 9: res/cap codes, light-time flag.
   bytes[9] = RESOLUTIONS.indexOf(s.resolution) | ((customCap ? 3 : preset) << 2)
     | (s.lightTime !== null ? 16 : 0);
   // Bytes 10..18: seven 10-bit unsigned counts, least significant bit first.
@@ -93,15 +98,15 @@ export function decodeSettings(text: string): TankSettings | null {
   const bytes = decodeText(text);
   if (!bytes) return null;
   const view = new DataView(bytes.buffer);
-  if ((bytes[0] !== 1 && bytes[0] !== 2)
-    || (bytes[6] & (bytes[0] === 1 ? 255 : 254)) || bytes.slice(7, 9).some(byte => byte !== 0)
+  if ((bytes[0] !== 1 && bytes[0] !== 2 && bytes[0] !== 3)
+    || (bytes[6] & (bytes[0] === 1 ? 255 : bytes[0] === 2 ? 254 : 252)) || bytes.slice(7, 9).some(byte => byte !== 0)
     || (bytes[9] & 224) || (bytes[18] & 192)) return null;
   const capCode = (bytes[9] >> 2) & 3;
   const hasLightTime = Boolean(bytes[9] & 16);
   if (bytes.length !== 21 + (capCode === 3 ? 8 : 0) + (hasLightTime ? 8 : 0)) return null;
   const bit = (index: number) => Boolean(bytes[1 + (index >> 3)] & (1 << (index & 7)));
   const s = defaultSettings();
-  s.disabled = SETTING_GATES.filter((_, index) => bit(index));
+  s.disabled = SETTING_GATES.filter((_, index) => bit(gateBit(index)));
   FLAGS.forEach((key, index) => { s[key] = bit(30 + index); });
   s.resolution = RESOLUTIONS[bytes[9] & 3];
   s.frameCap = capCode === 3 ? view.getFloat64(21, true) : CAPS[capCode];
