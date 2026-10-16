@@ -767,7 +767,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     // Scene-element checkboxes: each maps to a live disabled-layer flag. Every
     // checkbox across every grid below shares one `boxes` map and `apply`, so
     // toggling one section's gates never clobbers another's.
-    const TOGGLES = ["backdrop", "plants", "bubbles", "kelp"];
+    const TOGGLES = ["backdrop", "kelp", "bubbles", "plants"];
     // Fish-atlas and prop-family themes: same flag mechanism as TOGGLES,
     // gate names prefixed so they can't collide with each other or TOGGLES
     // (both have a "pop-culture" entry). Kept in sync by hand with fishKindSet's
@@ -883,7 +883,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     };
     const menu = addToggleGrid(
       "",
-      TOGGLES.map((n) => [n, n === "backdrop" ? "sun" : n] as const),
+      TOGGLES.map((n) => [n, n === "backdrop" ? "sun" : n === "kelp" ? "kelp forest" : n] as const),
     );
     menu.style.borderTop = "none";
     const skinBoxes = new Map<"gothPlants" | "gothKelp" | "crawlingHands" | "halloweenBubbles", HTMLInputElement>();

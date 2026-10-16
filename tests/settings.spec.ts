@@ -13,7 +13,7 @@ function sharedSettings(page: Page): TankSettings {
 }
 const skinField = (query: string) => ({ "goth-plants": "gothPlants", "goth-kelp": "gothKelp", "crawling-hands": "crawlingHands" } as const)[query as "goth-plants" | "goth-kelp" | "crawling-hands"];
 const layer = (page: Page, name: string) => page.evaluate(name => window.birthdayTest.settingsLayer(name), name);
-const checkbox = (page: Page, name: string) => page.getByRole("checkbox", { name, exact: true });
+const checkbox = (page: Page, name: string) => page.getByRole("checkbox", { name: name === "kelp" ? "kelp forest" : name, exact: true });
 async function open(page: Page, query = "") {
   await page.goto(`/fixture?debug&sun=0&fish=3&${query}`);
   await page.locator('canvas[data-ready="true"]').waitFor();
