@@ -166,6 +166,16 @@ See [the binary format](docs/settings-format.md) for the stable bit layout and
 compatibility rules. Run `bun test tools/settings-codec.test.ts` for codec checks
 and `bunx playwright test tests/settings.spec.ts` for browser behavior.
 
+Ground-creature movement regressions run without rendering via
+`bun test tools/crawler-soak.test.ts`. For a longer soak, run
+`bun tools/crab-soak.ts --days=21 --assert-moving` (or add `--creature=snail`
+or `--creature=hand`). This runs the real movement, terrain and rotating-prop
+controllers with 20 creatures and the seabed finds set, records stalls and
+unreachable destinations in `test-results/crab-soak.json`, and fails if either
+occurs. `--fps=60` changes the simulation step; it never skips ahead in large
+time jumps. Destination depths are revalidated when props redirect crabs,
+crawling hands or snails onto a different part of the sand bed.
+
 
 ```sh
 bun run preview:caustics

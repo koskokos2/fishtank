@@ -48,6 +48,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
   let substrateDepth = chooseSubstrateDepth(k, x);
   // main.ts spawns one crab dead-centre on a prop slot; nudge clear of it.
   x = nearestClearX(x, HALF, STANDOFF, substrateDepth, EDGE, k.width() - EDGE);
+  substrateDepth = Math.min(substrateDepth, maxSubstrateDepthAt(x));
   let facing = k.choose([-1, 1]);
   let targetX = x;
   let targetDepth = substrateDepth;
@@ -164,6 +165,10 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
             targetDepth,
           );
         }
+        // A new prop can redirect either the trip or its escape onto a
+        // thinner part of the bed. Revalidate depth at the new destination,
+        // otherwise the bottom clamp prevents arrival forever.
+        targetDepth = Math.min(targetDepth, maxSubstrateDepthAt(targetX));
       }
       if (rest > 0) {
         rest -= dt;

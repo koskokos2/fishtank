@@ -38,6 +38,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
   let x = k.rand(EDGE, k.width() - EDGE);
   let substrateDepth = chooseSubstrateDepth(k, x);
   x = nearestClearX(x, HALF, STANDOFF, substrateDepth, EDGE, k.width() - EDGE);
+  substrateDepth = Math.min(substrateDepth, maxSubstrateDepthAt(x));
   let facing = k.choose([-1, 1]);
   let targetX = x;
   let targetDepth = substrateDepth;
@@ -144,6 +145,10 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
             targetDepth,
           );
         }
+        // A new prop can redirect either the trip or its escape onto a
+        // thinner part of the bed. Revalidate depth at the new destination,
+        // otherwise the bottom clamp prevents arrival forever.
+        targetDepth = Math.min(targetDepth, maxSubstrateDepthAt(targetX));
       }
       if (rest > 0) {
         rest -= dt;
