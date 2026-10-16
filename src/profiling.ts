@@ -3,6 +3,7 @@ import { BIRTHDAY_START_LABEL } from "./birthdayDate";
 import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride } from "./sunClock";
 
 import { settings, copySettings, saveSettings } from "./settings";
+import { showSettingsHint } from "./settingsHint";
 import { applyTheme, selectedTheme } from "./themePresets";
 import { COUNT_LIMITS, COUNT_KEYS, SETTING_GATES, type CountKey, type TankSettings } from "./settingsCodec";
 
@@ -545,11 +546,14 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
 
     const gear = document.createElement("button");
     gear.textContent = "⚙";
+    gear.setAttribute("aria-label", "settings");
+    gear.title = "settings";
     gear.style.cssText =
       "position:fixed;right:8px;top:8px;z-index:9;background:none;border:none;" +
       "color:#fff;font:15px monospace;cursor:pointer;padding:2px 6px;" +
       `border-radius:4px;display:${initialSettingsPanelOpen ? "none" : "block"}`;
     document.body.append(gear);
+    const dismissSettingsHint = showSettingsHint(gear, initialSettingsPanelOpen);
     const close = document.createElement("button");
     close.textContent = "×";
     close.style.cssText =
@@ -628,6 +632,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     });
 
     const setBoxVisible = (visible: boolean) => {
+      if (visible) dismissSettingsHint();
       box.style.display = visible ? "" : "none";
       gear.style.display = visible ? "none" : "block";
       localStorage.setItem("debugSettingsPanelOpen", String(visible));
