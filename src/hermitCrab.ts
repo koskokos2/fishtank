@@ -4,6 +4,7 @@
 // covers every sand column — including the tall left-dune face — instead of
 // tracing only the sand crest. Stops are real stops (one stable frame), so the
 // legs never paddle while it is parked.
+import { filteredSprite } from "./textureFiltering";
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { getCrabTheme } from "./crabTheme";
@@ -70,7 +71,7 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
 
   const crab = k.add([
     profileDraw("crabs"),
-    k.sprite(theme.sprite),
+    filteredSprite(k, theme.sprite),
     profileDrawEnd(),
     k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),

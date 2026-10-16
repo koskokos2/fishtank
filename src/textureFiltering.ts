@@ -77,13 +77,11 @@ function makeGridUniform(k: KAPLAYCtx, data: SpriteData) {
   };
 }
 
-// Keep KAPLAY's sprite animation, dimensions, and collision area intact. Only
-// drawing changes; two virtual border texels give the filter room at the edge.
-export function filteredFishSprite(k: KAPLAYCtx, name: string): SpriteComp {
-  const sprite = k.sprite(name);
-  const drawPixelated = sprite.draw!;
-  const data = k.getSprite(name)!.data!;
-  const frames = data.frames.map(frame => ({
+// Share prepared quads/uniforms between instances and layered body parts. The
+// atlas is immutable after loading, so no per-actor or per-draw rebuild is needed.
+const spriteFrames = new WeakMap<SpriteData, ReturnType<typeof makeSpriteFrames>>();
+function makeSpriteFrames(k: KAPLAYCtx, data: SpriteData) {
+  return data.frames.map(frame => ({
     quad: k.quad(frame.x - 2 / data.tex.width, frame.y - 2 / data.tex.height,
       frame.w + 4 / data.tex.width, frame.h + 4 / data.tex.height),
     uniform: {
@@ -92,6 +90,17 @@ export function filteredFishSprite(k: KAPLAYCtx, name: string): SpriteComp {
       frameMax: k.vec2((frame.x + frame.w) * data.tex.width, (frame.y + frame.h) * data.tex.height),
     },
   }));
+}
+
+// For centre-anchored creature sprites. Keep KAPLAY's animation, dimensions,
+// opacity, flips and collision area intact. Only drawing changes; two virtual
+// border texels give the filter room without sampling adjacent atlas frames.
+export function filteredSprite(k: KAPLAYCtx, name: string): SpriteComp {
+  const sprite = k.sprite(name);
+  const drawPixelated = sprite.draw!;
+  const data = k.getSprite(name)!.data!;
+  const frames = spriteFrames.get(data) ?? makeSpriteFrames(k, data);
+  spriteFrames.set(data, frames);
   sprite.draw = function () {
     if (!smoothTextures) { drawPixelated.call(this); return; }
     const actor = this as SpriteComp & Partial<AnchorComp & ColorComp & OpacityComp>;

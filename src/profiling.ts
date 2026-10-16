@@ -1022,7 +1022,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       updateSettings(query, false);
     });
     textureLabel.append(textureToggle, "texture filtering");
-    textureLabel.title = "smooths fish, plants and kelp while preserving detail. Changes instantly.";
+    textureLabel.title = "smooths fish, octopuses, jellyfish, nautiluses, snails, crabs, hands, plants and kelp while preserving detail. Changes instantly.";
     // Keep the live checkboxes together on their own line.
     const graphicsToggles = document.createElement("div");
     graphicsToggles.style.cssText = "display:flex;gap:12px;align-items:center;flex-basis:100%";

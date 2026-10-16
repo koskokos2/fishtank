@@ -13,6 +13,7 @@
 //    tendril layers. The bell follows propulsion while both appendage layers keep
 //    flowing on independent clocks through coasts, pulses, and turns.
 
+import { filteredSprite } from "./textureFiltering";
 import type { GameObj, KAPLAYCtx } from "kaplay";
 import { OCTOPUS_IDLE_FRAMES, OCTOPUS_POSE } from "./octopusAtlas";
 import {
@@ -295,7 +296,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
 
   const body = k.add([
     profileDraw("cephs"),
-    k.sprite(kindName === "octopus" ? options.octopusSprite ?? cfg.sprite : cfg.sprite),
+    filteredSprite(k, kindName === "octopus" ? options.octopusSprite ?? cfg.sprite : cfg.sprite),
     profileDrawEnd(),
     k.pos(spawnX, spawnY),
     k.anchor("center"),
@@ -313,7 +314,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
     cfg.motion === "pulse"
       ? k.add([
           profileDraw("cephs"),
-          k.sprite("jellyfish"),
+          filteredSprite(k, "jellyfish"),
           profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
@@ -327,7 +328,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
     cfg.motion === "pulse"
       ? k.add([
           profileDraw("cephs"),
-          k.sprite("jellyfish"),
+          filteredSprite(k, "jellyfish"),
           profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
@@ -345,7 +346,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
     cfg.motion === "jet"
       ? k.add([
           profileDraw("cephs"),
-          k.sprite("nautilus"),
+          filteredSprite(k, "nautilus"),
           profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
@@ -359,7 +360,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
     cfg.motion === "jet"
       ? k.add([
           profileDraw("cephs"),
-          k.sprite("nautilus"),
+          filteredSprite(k, "nautilus"),
           profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),
@@ -372,7 +373,7 @@ export function spawnCephalopod(k: KAPLAYCtx, kindName: keyof typeof KINDS, opti
     cfg.motion === "jet"
       ? k.add([
           profileDraw("cephs"),
-          k.sprite("nautilus"),
+          filteredSprite(k, "nautilus"),
           profileDrawEnd(),
           k.pos(body.pos.x, body.pos.y),
           k.anchor("center"),

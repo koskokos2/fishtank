@@ -627,3 +627,52 @@ test("redrawn ordinary octopus retains animation and moves with the new atlas", 
   }, { timeout: 25000, intervals: [250, 500, 1000] }).toBe(3);
   expect(errors).toEqual([]);
 });
+
+for (const halloween of [false, true]) {
+  test(`texture filtering covers every creature layer live (Halloween: ${halloween})`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await open(page, "octo=3&jelly=2&naut=1&snail=1&crabs=2");
+    await checkbox(page, "pause").check();
+    const origin = await page.evaluate(() => performance.timeOrigin);
+    if (halloween) {
+      await page.getByRole("combobox", { name: "theme", exact: true }).selectOption("halloween");
+      await expect.poll(async () => (await layer(page, "octo")).every(o => o.sprite?.startsWith("octopus-"))).toBe(true);
+      await expect.poll(async () => (await layer(page, "crabs")).every(o => o.sprite === "crawling-hand")).toBe(true);
+    }
+    const capture = () => page.evaluate(() => window.birthdayTest.creatureFiltering());
+    const before = await capture();
+    const expected = halloween
+      ? ["octopus-plague-doctor", "octopus-possessed-doll", "octopus-vampire-squid", "nautilus", "crawling-hand"]
+      : ["octopus", "jellyfish", "nautilus", "sea-snail", "hermit-crab"];
+    const checkDraws = (result: typeof before) => {
+      expect([...new Set(result.draws.map(d => d.sprite))].sort()).toEqual(expected.sort());
+      for (const actor of result.actors) {
+        const draw = result.draws.find(d => d.sprite === actor.sprite && d.frame === actor.frame);
+        expect(draw, `${actor.sprite} frame ${actor.frame} must use the filter`).toBeDefined();
+        expect(draw!.width).toBeCloseTo(actor.width + 4);
+        expect(draw!.height).toBeCloseTo(actor.height + 4);
+        for (const padding of draw!.padding) expect(padding).toBeCloseTo(2);
+      }
+      expect(result.uniformCopies.every(copies => copies === 1)).toBe(true);
+      // Every soft-part layer participates, rather than only the main body.
+      expect(result.actors.filter(a => a.sprite === "nautilus")).toHaveLength(4);
+      expect(result.actors.filter(a => a.sprite === "jellyfish")).toHaveLength(halloween ? 0 : 6);
+    };
+    checkDraws(before);
+    const filtering = checkbox(page, "texture filtering");
+    await filtering.uncheck();
+    const pixelated = await capture();
+    expect(pixelated.draws).toEqual([]);
+    expect(pixelated.actors).toEqual(before.actors);
+    expect(sharedSettings(page).smoothTextures).toBe(false);
+    await filtering.check();
+    const after = await capture();
+    checkDraws(after);
+    expect(after.actors).toEqual(before.actors);
+    expect(sharedSettings(page).smoothTextures).toBe(true);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+    await page.screenshot({ path: `test-results/creature-filtering-${halloween ? "halloween" : "normal"}.png` });
+    expect(errors).toEqual([]);
+  });
+}

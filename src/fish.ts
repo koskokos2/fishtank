@@ -48,7 +48,7 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { spawnBubble } from "./tank";
 import { RES } from "./res";
-import { filteredFishSprite } from "./textureFiltering";
+import { filteredSprite } from "./textureFiltering";
 import {
   profile,
   profileDraw,
@@ -947,7 +947,7 @@ export function spawnFish(
   const fish = k.add([
     profileDraw("fish"),
     // Authored birthday/QR animation strips retain their exact pixel rendering.
-    spriteName.startsWith("fish-") ? filteredFishSprite(k, spriteName) : k.sprite(spriteName),
+    spriteName.startsWith("fish-") ? filteredSprite(k, spriteName) : k.sprite(spriteName),
     profileDrawEnd(),
     k.pos(spawnX, spawnY),
     k.anchor("center"),

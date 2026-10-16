@@ -62,6 +62,41 @@ const api = {
       width: f.width, height: f.height, scale: f.scale.x,
     })).sort((a, b) => (a.id ?? 0) - (b.id ?? 0)) };
   },
+  creatureFiltering: async () => {
+    const names = ["octopus", "octopus-plague-doctor", "octopus-possessed-doll", "octopus-vampire-squid",
+      "jellyfish", "nautilus", "sea-snail", "hermit-crab", "crawling-hand"];
+    const assets = names.map(name => ({ name, data: k.getSprite(name)?.data }));
+    const draws = new Map<string, { sprite: string; frame: number; padding: number[]; width: number; height: number }>();
+    const uniforms = new Map<string, Set<unknown>>();
+    drawProbe = options => {
+      if (options.shader !== "fish-cubic-c1") return;
+      const u = options.uniform as unknown as { textureSize: {x: number; y: number}; frameMin: {x: number; y: number}; frameMax: {x: number; y: number} };
+      for (const {name, data} of assets) {
+        if (!data || data.tex !== options.tex) continue;
+        const frame = data.frames.findIndex(q =>
+          Math.abs(q.x * data.tex.width - u.frameMin.x) < 0.001 &&
+          Math.abs(q.y * data.tex.height - u.frameMin.y) < 0.001);
+        if (frame < 0) continue;
+        const key = `${name}:${frame}`;
+        const q = options.quad!;
+        draws.set(key, { sprite: name, frame, width: options.width!, height: options.height!, padding: [
+          u.frameMin.x - q.x * u.textureSize.x, u.frameMin.y - q.y * u.textureSize.y,
+          (q.x + q.w) * u.textureSize.x - u.frameMax.x, (q.y + q.h) * u.textureSize.y - u.frameMax.y,
+        ] });
+        if (!uniforms.has(key)) uniforms.set(key, new Set());
+        uniforms.get(key)!.add(options.uniform);
+      }
+    };
+    await new Promise(resolve => setTimeout(resolve, 120));
+    drawProbe = undefined;
+    const actors = ["octo", "jelly", "naut", "snail", "crabs"].flatMap(group =>
+      k.get(`settings-${group}`).filter(o => o.has("sprite")).map(o => ({
+        id: o.id, sprite: o.sprite as string, frame: o.frame as number, x: o.pos.x, y: o.pos.y,
+        width: o.width as number, height: o.height as number, angle: o.angle as number,
+        scale: [o.scale?.x ?? 1, o.scale?.y ?? 1], flipX: o.flipX as boolean, opacity: o.opacity as number | undefined,
+      }))).sort((a, b) => a.id - b.id);
+    return { actors, draws: [...draws.values()], uniformCopies: [...uniforms.values()].map(v => v.size) };
+  },
   skinAssets: () => Object.fromEntries(skinNames.map(name => {
     const data = k.getSprite(name)?.data;
     if (data && !skinAssetIds.has(data)) skinAssetIds.set(data, skinAssetIds.size + 1);

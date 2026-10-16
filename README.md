@@ -90,11 +90,12 @@ Layer checkboxes, fish/object sets, population counts, birthday fish and pause
 update live and keep the address bar in sync. Only the affected group is rebuilt;
 other creatures keep swimming. Goth plants, goth kelp and crawling hands also
 switch live; alternate atlases load on first use and stay cached for later switches.
-The **Texture filtering** checkbox switches fish, plant and kelp rendering live
-(including goth variants): checked (the default) uses
+The **Texture filtering** checkbox switches fish, octopus, jellyfish, nautilus,
+sea snail, crab, plant and kelp rendering live (including Halloween skins and
+crawling hands, plus every jellyfish/nautilus body layer): checked (the default) uses
 sharp cubic filtering with B=0, C=1 and no neighborhood halo limiter; unchecked
 uses the original nearest sampling. The encoded URL preserves this choice.
-Fish keep their positions, animation and collision
+Creatures keep their positions, animation, opacity and collision
 sizes when switching; plants and kelp keep their roots, joints and sway.
 Smooth fish rotate continuously using their eased swimming pitch; Pixelated keeps
 the original 7° steps to reduce pixel shimmer. Authored birthday/QR strips retain their pixel rendering.

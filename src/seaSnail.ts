@@ -2,6 +2,7 @@
 // local bed (substrate.ts) — every sand column between the dune crest and the
 // bottom margin. The pose cycle advances by total distance travelled, so its
 // muscular foot wave cannot slide while stationary.
+import { filteredSprite } from "./textureFiltering";
 import type { KAPLAYCtx } from "kaplay";
 import { groundZ, sandTopAt } from "./backdrop";
 import { SEA_SNAIL_GROUND_OFFSET } from "./seaSnailAtlas";
@@ -58,7 +59,7 @@ export function spawnSeaSnail(k: KAPLAYCtx) {
 
   const snail = k.add([
     profileDraw("snails"),
-    k.sprite("sea-snail"),
+    filteredSprite(k, "sea-snail"),
     profileDrawEnd(),
     k.pos(x, groundCentreY(x, substrateDepth)),
     k.anchor("center"),
