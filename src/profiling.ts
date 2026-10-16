@@ -1077,12 +1077,17 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "display:grid;grid-template-columns:repeat(2,max-content);gap:4px 16px;margin-top:6px;" +
       "border-top:1px solid #7f74;padding-top:6px";
     box.append(countRow);
+    const countLabels: Record<CountKey, string> = {
+      fish: "fish", jelly: "jellyfish", octo: "octopuses", naut: "nautiluses",
+      crabs: "crabs", snail: "sea snails", plants: "plants",
+    };
     for (const [name, fallback] of entityCountDefaults) {
+      const displayName = countLabels[name as CountKey];
       const countControl = document.createElement("div");
       countControl.style.cssText =
-        "display:grid;grid-template-columns:4.5em 4.5em 1.8em 1.8em;gap:6px;align-items:center";
+        "display:grid;grid-template-columns:7em 4.5em 1.8em 1.8em;gap:6px;align-items:center";
       const label = document.createElement("label");
-      label.textContent = name;
+      label.textContent = displayName;
       label.htmlFor = `count-${name}`;
       label.style.cursor = "pointer";
       const input = document.createElement("input");
@@ -1121,8 +1126,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ] as const) {
         button.type = "button";
         button.textContent = symbol;
-        button.setAttribute("aria-label", `${action} ${name} count`);
-        button.title = `${action} ${name} count`;
+        button.setAttribute("aria-label", `${action} ${displayName} count`);
+        button.title = `${action} ${displayName} count`;
         button.style.cssText =
           "background:#000;color:#7f7;border:1px solid #7f74;border-radius:3px;" +
           "font:inherit;padding:1px 0;cursor:pointer;line-height:1.2";

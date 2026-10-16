@@ -124,7 +124,7 @@ settings; customizing them makes the dropdown show **no theme** without resettin
 other choices.
 
 Halloween also replaces octopuses with **Plague doctor**, **Possessed doll** and
-**Vampire squid** skins, and hides jellyfish and sea snails until the theme is
+**Vampire squid** skins, and hides jellyfish, sea snails and nautiluses until the theme is
 switched off. The octopus count stays unchanged: one or two use random distinct
 skins, three show all three, and higher counts repeat in shuffled groups of three.
 Unrelated controls leave those assignments intact. Switching themes is live;

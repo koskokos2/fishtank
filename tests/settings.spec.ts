@@ -23,7 +23,7 @@ async function open(page: Page, query = "") {
 test("theme presets switch live, sync controls, and round trip in shared settings", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await open(page, "plants=9&jelly=2&snail=2&texture-filter=pixelated&off=bubbles");
+  await open(page, "plants=9&jelly=2&snail=2&naut=2&texture-filter=pixelated&off=bubbles");
   await checkbox(page, "pause").check();
   const origin = await page.evaluate(() => performance.timeOrigin);
   const before = sharedSettings(page);
@@ -32,7 +32,8 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   expect(jellyCount).toBeGreaterThan(0);
   expect(snailCount).toBeGreaterThan(0);
   const octopus = await layer(page, "octo");
-  const nautilus = await layer(page, "naut");
+  const nautilusCount = (await layer(page, "naut")).length;
+  expect(nautilusCount).toBeGreaterThan(0);
   const theme = page.getByRole("combobox", { name: "theme", exact: true });
   await expect(theme).toHaveValue("none");
   await theme.selectOption("halloween");
@@ -52,7 +53,7 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   expect(await layer(page, "snail")).toHaveLength(0);
   await expect.poll(async () => (await layer(page, "octo")).map(o => o.sprite)).toEqual(
     octopus.map(() => expect.stringMatching(/^octopus-(plague-doctor|possessed-doll|vampire-squid)$/)));
-  expect(await layer(page, "naut")).toEqual(nautilus);
+  expect(await layer(page, "naut")).toHaveLength(0);
   await expect.poll(async () => (await layer(page, "crabs")).every(o => o.sprite === "crawling-hand")).toBe(true);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   await page.goto(page.url());
@@ -61,6 +62,7 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   expect(sharedSettings(page)).toEqual(halloween);
   expect(await layer(page, "jelly")).toHaveLength(0);
   expect(await layer(page, "snail")).toHaveLength(0);
+  expect(await layer(page, "naut")).toHaveLength(0);
   // Customizing one field must not reset the remaining preset selections.
   await checkbox(page, "night sparkles").uncheck();
   await expect(theme).toHaveValue("none");
@@ -71,6 +73,7 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   expect(sharedSettings(page)).toEqual(before);
   expect(await layer(page, "jelly")).toHaveLength(jellyCount);
   expect(await layer(page, "snail")).toHaveLength(snailCount);
+  expect(await layer(page, "naut")).toHaveLength(nautilusCount);
   // Bubble visibility is independent of both preset application and detection.
   await checkbox(page, "bubbles").check();
   await theme.selectOption("halloween");
@@ -570,7 +573,7 @@ test("Halloween octopus skins switch live, avoid repeats, and survive shared URL
   const initial = await layer(page, "octo");
   await checkbox(page, "bubbles").uncheck();
   expect(await layer(page, "octo")).toEqual(initial);
-  const count = page.getByRole("spinbutton", { name: "octo", exact: true });
+  const count = page.getByRole("spinbutton", { name: "octopuses", exact: true });
   for (const value of [1, 2, 4, 7, 0, 3]) {
     await count.fill(String(value));
     await count.press("Tab");
@@ -643,7 +646,7 @@ for (const halloween of [false, true]) {
     const capture = () => page.evaluate(() => window.birthdayTest.creatureFiltering());
     const before = await capture();
     const expected = halloween
-      ? ["octopus-plague-doctor", "octopus-possessed-doll", "octopus-vampire-squid", "nautilus", "crawling-hand"]
+      ? ["octopus-plague-doctor", "octopus-possessed-doll", "octopus-vampire-squid", "crawling-hand"]
       : ["octopus", "jellyfish", "nautilus", "sea-snail", "hermit-crab"];
     const checkDraws = (result: typeof before) => {
       expect([...new Set(result.draws.map(d => d.sprite))].sort()).toEqual(expected.sort());
@@ -656,7 +659,7 @@ for (const halloween of [false, true]) {
       }
       expect(result.uniformCopies.every(copies => copies === 1)).toBe(true);
       // Every soft-part layer participates, rather than only the main body.
-      expect(result.actors.filter(a => a.sprite === "nautilus")).toHaveLength(4);
+      expect(result.actors.filter(a => a.sprite === "nautilus")).toHaveLength(halloween ? 0 : 4);
       expect(result.actors.filter(a => a.sprite === "jellyfish")).toHaveLength(halloween ? 0 : 6);
     };
     checkDraws(before);

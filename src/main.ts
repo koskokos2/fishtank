@@ -220,7 +220,7 @@ function installLiveControls() {
       for (let i = 0; i < fishCount; i++) spawn(false);
     });
     for (const [name, kind] of [["naut", "nautilus"], ["octo", "octopus"], ["jelly", "jellyfish"]] as const) {
-      const count = off("cephs") || (halloweenTheme && name === "jelly") ? 0 : num(name, DEFAULT_ENTITY_COUNTS[name]);
+      const count = off("cephs") || (halloweenTheme && (name === "jelly" || name === "naut")) ? 0 : num(name, DEFAULT_ENTITY_COUNTS[name]);
       const halloweenOctopus = kind === "octopus" && halloweenTheme;
       // Start all three loads together; wait for the complete set before dealing
       // skins. Asset callbacks reconcile current settings, not stale requests.
