@@ -176,6 +176,12 @@ occurs. `--fps=60` changes the simulation step; it never skips ahead in large
 time jumps. Destination depths are revalidated when props redirect crabs,
 crawling hands or snails onto a different part of the sand bed.
 
+Use `--creature=octopus` or `--creature=halloween-octopus` for 20 octopuses
+(the latter distributes all three Halloween skins). These runs also check
+swim/landing cycles, frame indices, tank boundaries and unusually long swims.
+The five-minute stall threshold allows their normal rests of up to 100 seconds.
+This validates controller behavior without drawing or loading sprite textures.
+
 
 ```sh
 bun run preview:caustics
