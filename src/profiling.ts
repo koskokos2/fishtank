@@ -24,6 +24,7 @@ export let birthdayFishEnabled = params.get("birthday") === "1";
 export let gothPlantsEnabled = params.get("goth-plants") === "1";
 export let gothKelpEnabled = params.get("goth-kelp") === "1";
 export let crawlingHandsEnabled = params.get("crawling-hands") === "1";
+export let smoothTextures = params.get("texture-filter") !== "pixelated";
 // ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
 // devices (halves sustained load and heat) without needing a separate build.
 export const capFPS = Number(params.get("cap")) || 62;
@@ -42,6 +43,7 @@ function updateSettings(next: URLSearchParams, reload = false) {
   gothPlantsEnabled = next.get("goth-plants") === "1";
   gothKelpEnabled = next.get("goth-kelp") === "1";
   crawlingHandsEnabled = next.get("crawling-hands") === "1";
+  smoothTextures = next.get("texture-filter") !== "pixelated";
   if (kaplayDebug) kaplayDebug.paused = next.has("pause");
   for (const listener of settingsListeners) listener();
 }
@@ -1006,6 +1008,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       options: [string, string][],
       current: string,
       onPick: (v: string, p: URLSearchParams) => void,
+      reload = true,
     ) => {
       const label = document.createElement("label");
       label.style.cssText =
@@ -1024,11 +1027,29 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       sel.addEventListener("change", () => {
         const p = new URLSearchParams(location.search);
         onPick(sel.value, p);
-        updateSettings(p, true);
+        updateSettings(p, reload);
       });
       label.append(title, sel);
       row.append(label);
+      return label;
     };
+    const textureLabel = document.createElement("label");
+    textureLabel.style.cssText = "display:flex;gap:5px;align-items:center;cursor:pointer";
+    const textureToggle = document.createElement("input");
+    textureToggle.type = "checkbox";
+    textureToggle.checked = smoothTextures;
+    textureToggle.style.accentColor = "#7f7";
+    textureToggle.addEventListener("change", () => {
+      const query = new URLSearchParams(location.search);
+      query.set("texture-filter", textureToggle.checked ? "smooth" : "pixelated");
+      updateSettings(query, false);
+    });
+    textureLabel.append(textureToggle, "Texture filtering");
+    row.append(textureLabel);
+    textureLabel.title = "Smooths fish, plants and kelp while preserving detail. Changes instantly.";
+    // Its own line keeps the graphics controls readable in the narrow sidebar.
+    textureLabel.style.flexBasis = "100%";
+    row.style.flexWrap = "wrap";
     const resNow = ["1", "2", "6"].includes(params.get("res") ?? "")
       ? params.get("res")!
       : "3";

@@ -1,6 +1,7 @@
 import kaplay, { type KAPLAYCtx } from "kaplay";
 import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
+import { loadTextureFiltering } from "./textureFiltering";
 import { SWIM_FRAMES } from "./fishbake";
 import { spawnCephalopod } from "./cephalopod";
 import { OCTOPUS_ATLAS, OCTOPUS_COLS, OCTOPUS_ROWS } from "./octopusAtlas";
@@ -139,6 +140,7 @@ const k = kaplay({
 export { k as aquarium };
 installEngineProfiler(k);
 loadWaterLighting(k);
+loadTextureFiltering(k);
 
 // Display scaling: prefer the largest whole-number scale (every buffer pixel maps
 // to an N×N block, perfectly crisp with no crawl). At the 1920x1080 buffer, 4K

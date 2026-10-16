@@ -1,0 +1,3325 @@
+{
+  "generatedAt": "2026-10-16T16:20:36.216Z",
+  "elapsedSeconds": 12.321486208,
+  "assumptions": "RGBA8, no mipmaps; 4 swim frames; three angles -14/0/+14 or seven angles -21..+21 by 7; common padded frame per fish; mirror for right-facing. Shelf estimates are fish-only, 2048px pages, padding 0; exclude other tank textures, CPU copies and browser overhead.",
+  "all": {
+    "species": 108,
+    "extraAuthoredPoses3": 216,
+    "extraAuthoredPoses7": 648,
+    "ms3": 2374.386669000006,
+    "ms7": 4098.251215000003,
+    "current": {
+      "frames": 432,
+      "rgbaMiB": 15.6036376953125,
+      "pngMiB": 2.0319175720214844,
+      "fishOnlyShelfPages": 2,
+      "fishOnlySortedShelfPages": 2,
+      "fishOnlyPoseRowPages": 2
+    },
+    "filtered": {
+      "frames": 432,
+      "rgbaMiB": 16.908203125,
+      "pngMiB": 2.03802490234375,
+      "fishOnlyShelfPages": 2,
+      "fishOnlySortedShelfPages": 2,
+      "fishOnlyPoseRowPages": 2
+    },
+    "baked3": {
+      "frames": 1296,
+      "rgbaMiB": 75.12158203125,
+      "pngMiB": 6.672392845153809,
+      "fishOnlyShelfPages": 7,
+      "fishOnlySortedShelfPages": 6,
+      "fishOnlyPoseRowPages": 6
+    },
+    "baked7": {
+      "frames": 3024,
+      "rgbaMiB": 198.58761596679688,
+      "pngMiB": 15.972698211669922,
+      "fishOnlyShelfPages": 20,
+      "fishOnlySortedShelfPages": 19,
+      "fishOnlyPoseRowPages": 15
+    }
+  },
+  "witches": {
+    "species": 12,
+    "extraAuthoredPoses3": 24,
+    "extraAuthoredPoses7": 72,
+    "ms3": 431.60729100000026,
+    "ms7": 612.8240849999984,
+    "current": {
+      "frames": 48,
+      "rgbaMiB": 2.5814208984375,
+      "pngMiB": 0.35927772521972656,
+      "fishOnlyShelfPages": 1,
+      "fishOnlySortedShelfPages": 1,
+      "fishOnlyPoseRowPages": 1
+    },
+    "filtered": {
+      "frames": 48,
+      "rgbaMiB": 2.75836181640625,
+      "pngMiB": 0.36030006408691406,
+      "fishOnlyShelfPages": 1,
+      "fishOnlySortedShelfPages": 1,
+      "fishOnlyPoseRowPages": 1
+    },
+    "baked3": {
+      "frames": 144,
+      "rgbaMiB": 12.1922607421875,
+      "pngMiB": 1.2059850692749023,
+      "fishOnlyShelfPages": 1,
+      "fishOnlySortedShelfPages": 1,
+      "fishOnlyPoseRowPages": 1
+    },
+    "baked7": {
+      "frames": 336,
+      "rgbaMiB": 32.206878662109375,
+      "pngMiB": 2.8965377807617188,
+      "fishOnlyShelfPages": 4,
+      "fishOnlySortedShelfPages": 4,
+      "fishOnlyPoseRowPages": 3
+    }
+  },
+  "species": [
+    {
+      "name": "angelfish",
+      "set": "main",
+      "ms3": 44.45470900000001,
+      "ms7": 29.758083,
+      "current": {
+        "w": 328,
+        "h": 98,
+        "bytes": 128576,
+        "pngBytes": 15235
+      },
+      "filtered": {
+        "w": 344,
+        "h": 102,
+        "bytes": 140352,
+        "pngBytes": 15300
+      },
+      "baked3": {
+        "w": 432,
+        "h": 360,
+        "bytes": 622080,
+        "pngBytes": 50370
+      },
+      "baked7": {
+        "w": 464,
+        "h": 882,
+        "bytes": 1636992,
+        "pngBytes": 120591
+      }
+    },
+    {
+      "name": "red_tailed_black_shark",
+      "set": "main",
+      "ms3": 20.107999999999976,
+      "ms7": 25.141250000000014,
+      "current": {
+        "w": 404,
+        "h": 70,
+        "bytes": 113120,
+        "pngBytes": 12115
+      },
+      "filtered": {
+        "w": 420,
+        "h": 74,
+        "bytes": 124320,
+        "pngBytes": 12168
+      },
+      "baked3": {
+        "w": 476,
+        "h": 294,
+        "bytes": 559776,
+        "pngBytes": 39165
+      },
+      "baked7": {
+        "w": 500,
+        "h": 742,
+        "bytes": 1484000,
+        "pngBytes": 93462
+      }
+    },
+    {
+      "name": "discus",
+      "set": "main",
+      "ms3": 15.701958999999988,
+      "ms7": 27.123874999999998,
+      "current": {
+        "w": 328,
+        "h": 102,
+        "bytes": 133824,
+        "pngBytes": 21768
+      },
+      "filtered": {
+        "w": 344,
+        "h": 106,
+        "bytes": 145856,
+        "pngBytes": 21828
+      },
+      "baked3": {
+        "w": 440,
+        "h": 372,
+        "bytes": 654720,
+        "pngBytes": 67893
+      },
+      "baked7": {
+        "w": 472,
+        "h": 910,
+        "bytes": 1718080,
+        "pngBytes": 160026
+      }
+    },
+    {
+      "name": "guppy",
+      "set": "main",
+      "ms3": 13.190666000000022,
+      "ms7": 19.95795800000002,
+      "current": {
+        "w": 376,
+        "h": 70,
+        "bytes": 105280,
+        "pngBytes": 13780
+      },
+      "filtered": {
+        "w": 392,
+        "h": 74,
+        "bytes": 116032,
+        "pngBytes": 13826
+      },
+      "baked3": {
+        "w": 456,
+        "h": 288,
+        "bytes": 525312,
+        "pngBytes": 46486
+      },
+      "baked7": {
+        "w": 472,
+        "h": 728,
+        "bytes": 1374464,
+        "pngBytes": 112349
+      }
+    },
+    {
+      "name": "goldfish",
+      "set": "main",
+      "ms3": 23.521457999999996,
+      "ms7": 104.97679099999993,
+      "current": {
+        "w": 372,
+        "h": 83,
+        "bytes": 123504,
+        "pngBytes": 15343
+      },
+      "filtered": {
+        "w": 388,
+        "h": 87,
+        "bytes": 135024,
+        "pngBytes": 15423
+      },
+      "baked3": {
+        "w": 460,
+        "h": 327,
+        "bytes": 601680,
+        "pngBytes": 51666
+      },
+      "baked7": {
+        "w": 484,
+        "h": 805,
+        "bytes": 1558480,
+        "pngBytes": 124158
+      }
+    },
+    {
+      "name": "tiger_barb",
+      "set": "main",
+      "ms3": 10.602959000000055,
+      "ms7": 23.049458999999956,
+      "current": {
+        "w": 336,
+        "h": 76,
+        "bytes": 102144,
+        "pngBytes": 12497
+      },
+      "filtered": {
+        "w": 352,
+        "h": 80,
+        "bytes": 112640,
+        "pngBytes": 12534
+      },
+      "baked3": {
+        "w": 416,
+        "h": 300,
+        "bytes": 499200,
+        "pngBytes": 40164
+      },
+      "baked7": {
+        "w": 440,
+        "h": 742,
+        "bytes": 1305920,
+        "pngBytes": 95636
+      }
+    },
+    {
+      "name": "lionhead_cichlid",
+      "set": "main",
+      "ms3": 14.54404199999999,
+      "ms7": 29.637666999999965,
+      "current": {
+        "w": 384,
+        "h": 68,
+        "bytes": 104448,
+        "pngBytes": 14733
+      },
+      "filtered": {
+        "w": 400,
+        "h": 72,
+        "bytes": 115200,
+        "pngBytes": 14762
+      },
+      "baked3": {
+        "w": 456,
+        "h": 282,
+        "bytes": 514368,
+        "pngBytes": 48137
+      },
+      "baked7": {
+        "w": 472,
+        "h": 714,
+        "bytes": 1348032,
+        "pngBytes": 115493
+      }
+    },
+    {
+      "name": "neon_tetra",
+      "set": "main",
+      "ms3": 13.019916999999964,
+      "ms7": 19.22366599999998,
+      "current": {
+        "w": 360,
+        "h": 66,
+        "bytes": 95040,
+        "pngBytes": 11073
+      },
+      "filtered": {
+        "w": 376,
+        "h": 70,
+        "bytes": 105280,
+        "pngBytes": 11100
+      },
+      "baked3": {
+        "w": 432,
+        "h": 270,
+        "bytes": 466560,
+        "pngBytes": 35692
+      },
+      "baked7": {
+        "w": 448,
+        "h": 686,
+        "bytes": 1229312,
+        "pngBytes": 84832
+      }
+    },
+    {
+      "name": "labidochromis_caeruleus",
+      "set": "main",
+      "ms3": 10.637790999999993,
+      "ms7": 18.089750000000095,
+      "current": {
+        "w": 352,
+        "h": 68,
+        "bytes": 95744,
+        "pngBytes": 11792
+      },
+      "filtered": {
+        "w": 368,
+        "h": 72,
+        "bytes": 105984,
+        "pngBytes": 11839
+      },
+      "baked3": {
+        "w": 424,
+        "h": 276,
+        "bytes": 468096,
+        "pngBytes": 38256
+      },
+      "baked7": {
+        "w": 448,
+        "h": 700,
+        "bytes": 1254400,
+        "pngBytes": 91574
+      }
+    },
+    {
+      "name": "royal_pleco",
+      "set": "main",
+      "ms3": 13.840874999999983,
+      "ms7": 19.98833400000001,
+      "current": {
+        "w": 384,
+        "h": 72,
+        "bytes": 110592,
+        "pngBytes": 12470
+      },
+      "filtered": {
+        "w": 400,
+        "h": 76,
+        "bytes": 121600,
+        "pngBytes": 12508
+      },
+      "baked3": {
+        "w": 464,
+        "h": 294,
+        "bytes": 545664,
+        "pngBytes": 39245
+      },
+      "baked7": {
+        "w": 480,
+        "h": 742,
+        "bytes": 1424640,
+        "pngBytes": 92523
+      }
+    },
+    {
+      "name": "gourami",
+      "set": "main",
+      "ms3": 12.422583999999915,
+      "ms7": 27.142291999999998,
+      "current": {
+        "w": 360,
+        "h": 84,
+        "bytes": 120960,
+        "pngBytes": 17665
+      },
+      "filtered": {
+        "w": 376,
+        "h": 88,
+        "bytes": 132352,
+        "pngBytes": 17706
+      },
+      "baked3": {
+        "w": 448,
+        "h": 324,
+        "bytes": 580608,
+        "pngBytes": 58386
+      },
+      "baked7": {
+        "w": 480,
+        "h": 812,
+        "bytes": 1559040,
+        "pngBytes": 140259
+      }
+    },
+    {
+      "name": "koi",
+      "set": "main",
+      "ms3": 11.617707999999993,
+      "ms7": 23.001792000000023,
+      "current": {
+        "w": 384,
+        "h": 72,
+        "bytes": 110592,
+        "pngBytes": 14398
+      },
+      "filtered": {
+        "w": 400,
+        "h": 76,
+        "bytes": 121600,
+        "pngBytes": 14431
+      },
+      "baked3": {
+        "w": 464,
+        "h": 294,
+        "bytes": 545664,
+        "pngBytes": 46449
+      },
+      "baked7": {
+        "w": 480,
+        "h": 742,
+        "bytes": 1424640,
+        "pngBytes": 111086
+      }
+    },
+    {
+      "name": "betta",
+      "set": "extra",
+      "ms3": 20.95074999999997,
+      "ms7": 41.604041999999936,
+      "current": {
+        "w": 440,
+        "h": 90,
+        "bytes": 158400,
+        "pngBytes": 21714
+      },
+      "filtered": {
+        "w": 456,
+        "h": 94,
+        "bytes": 171456,
+        "pngBytes": 21784
+      },
+      "baked3": {
+        "w": 536,
+        "h": 354,
+        "bytes": 758976,
+        "pngBytes": 74682
+      },
+      "baked7": {
+        "w": 560,
+        "h": 896,
+        "bytes": 2007040,
+        "pngBytes": 181246
+      }
+    },
+    {
+      "name": "corydoras",
+      "set": "extra",
+      "ms3": 13.079124999999976,
+      "ms7": 20.17204199999992,
+      "current": {
+        "w": 368,
+        "h": 70,
+        "bytes": 103040,
+        "pngBytes": 12120
+      },
+      "filtered": {
+        "w": 384,
+        "h": 74,
+        "bytes": 113664,
+        "pngBytes": 12161
+      },
+      "baked3": {
+        "w": 448,
+        "h": 288,
+        "bytes": 516096,
+        "pngBytes": 38018
+      },
+      "baked7": {
+        "w": 464,
+        "h": 728,
+        "bytes": 1351168,
+        "pngBytes": 89406
+      }
+    },
+    {
+      "name": "kuhli_loach",
+      "set": "extra",
+      "ms3": 11.177417000000105,
+      "ms7": 14.247249999999894,
+      "current": {
+        "w": 448,
+        "h": 48,
+        "bytes": 86016,
+        "pngBytes": 9928
+      },
+      "filtered": {
+        "w": 464,
+        "h": 52,
+        "bytes": 96512,
+        "pngBytes": 9965
+      },
+      "baked3": {
+        "w": 504,
+        "h": 234,
+        "bytes": 471744,
+        "pngBytes": 34805
+      },
+      "baked7": {
+        "w": 504,
+        "h": 630,
+        "bytes": 1270080,
+        "pngBytes": 84772
+      }
+    },
+    {
+      "name": "hatchetfish",
+      "set": "extra",
+      "ms3": 21.10420799999997,
+      "ms7": 49.539584000000104,
+      "current": {
+        "w": 400,
+        "h": 78,
+        "bytes": 124800,
+        "pngBytes": 15806
+      },
+      "filtered": {
+        "w": 416,
+        "h": 82,
+        "bytes": 136448,
+        "pngBytes": 15861
+      },
+      "baked3": {
+        "w": 480,
+        "h": 312,
+        "bytes": 599040,
+        "pngBytes": 51132
+      },
+      "baked7": {
+        "w": 504,
+        "h": 798,
+        "bytes": 1608768,
+        "pngBytes": 122468
+      }
+    },
+    {
+      "name": "zebra_danio",
+      "set": "extra",
+      "ms3": 156.0859579999999,
+      "ms7": 50.107124999999996,
+      "current": {
+        "w": 388,
+        "h": 56,
+        "bytes": 86912,
+        "pngBytes": 10394
+      },
+      "filtered": {
+        "w": 404,
+        "h": 60,
+        "bytes": 96960,
+        "pngBytes": 10425
+      },
+      "baked3": {
+        "w": 452,
+        "h": 246,
+        "bytes": 444768,
+        "pngBytes": 34027
+      },
+      "baked7": {
+        "w": 460,
+        "h": 644,
+        "bytes": 1184960,
+        "pngBytes": 81379
+      }
+    },
+    {
+      "name": "harlequin_rasbora",
+      "set": "extra",
+      "ms3": 17.032958000000008,
+      "ms7": 26.784667000000127,
+      "current": {
+        "w": 408,
+        "h": 66,
+        "bytes": 107712,
+        "pngBytes": 12329
+      },
+      "filtered": {
+        "w": 424,
+        "h": 70,
+        "bytes": 118720,
+        "pngBytes": 12383
+      },
+      "baked3": {
+        "w": 480,
+        "h": 282,
+        "bytes": 541440,
+        "pngBytes": 39891
+      },
+      "baked7": {
+        "w": 496,
+        "h": 728,
+        "bytes": 1444352,
+        "pngBytes": 95377
+      }
+    },
+    {
+      "name": "ram_cichlid",
+      "set": "extra",
+      "ms3": 15.562249999999949,
+      "ms7": 31.97304199999985,
+      "current": {
+        "w": 412,
+        "h": 90,
+        "bytes": 148320,
+        "pngBytes": 20201
+      },
+      "filtered": {
+        "w": 428,
+        "h": 94,
+        "bytes": 160928,
+        "pngBytes": 20247
+      },
+      "baked3": {
+        "w": 508,
+        "h": 354,
+        "bytes": 719328,
+        "pngBytes": 67317
+      },
+      "baked7": {
+        "w": 532,
+        "h": 882,
+        "bytes": 1876896,
+        "pngBytes": 162347
+      }
+    },
+    {
+      "name": "black_molly",
+      "set": "extra",
+      "ms3": 15.470499999999902,
+      "ms7": 27.421875,
+      "current": {
+        "w": 392,
+        "h": 78,
+        "bytes": 122304,
+        "pngBytes": 13508
+      },
+      "filtered": {
+        "w": 408,
+        "h": 82,
+        "bytes": 133824,
+        "pngBytes": 13554
+      },
+      "baked3": {
+        "w": 472,
+        "h": 312,
+        "bytes": 589056,
+        "pngBytes": 44847
+      },
+      "baked7": {
+        "w": 496,
+        "h": 784,
+        "bytes": 1555456,
+        "pngBytes": 108288
+      }
+    },
+    {
+      "name": "rainbowfish",
+      "set": "extra",
+      "ms3": 11.023542000000361,
+      "ms7": 20.882458999999926,
+      "current": {
+        "w": 424,
+        "h": 64,
+        "bytes": 108544,
+        "pngBytes": 14770
+      },
+      "filtered": {
+        "w": 440,
+        "h": 68,
+        "bytes": 119680,
+        "pngBytes": 14815
+      },
+      "baked3": {
+        "w": 496,
+        "h": 276,
+        "bytes": 547584,
+        "pngBytes": 48313
+      },
+      "baked7": {
+        "w": 504,
+        "h": 714,
+        "bytes": 1439424,
+        "pngBytes": 115741
+      }
+    },
+    {
+      "name": "glass_catfish",
+      "set": "extra",
+      "ms3": 9.490625000000364,
+      "ms7": 17.161999999999807,
+      "current": {
+        "w": 440,
+        "h": 51,
+        "bytes": 89760,
+        "pngBytes": 11583
+      },
+      "filtered": {
+        "w": 456,
+        "h": 55,
+        "bytes": 100320,
+        "pngBytes": 11639
+      },
+      "baked3": {
+        "w": 496,
+        "h": 243,
+        "bytes": 482112,
+        "pngBytes": 39997
+      },
+      "baked7": {
+        "w": 504,
+        "h": 651,
+        "bytes": 1312416,
+        "pngBytes": 97111
+      }
+    },
+    {
+      "name": "otocinclus",
+      "set": "extra",
+      "ms3": 14.313624999999774,
+      "ms7": 62.388208000000304,
+      "current": {
+        "w": 376,
+        "h": 62,
+        "bytes": 93248,
+        "pngBytes": 10226
+      },
+      "filtered": {
+        "w": 392,
+        "h": 66,
+        "bytes": 103488,
+        "pngBytes": 10286
+      },
+      "baked3": {
+        "w": 448,
+        "h": 264,
+        "bytes": 473088,
+        "pngBytes": 32149
+      },
+      "baked7": {
+        "w": 456,
+        "h": 672,
+        "bytes": 1225728,
+        "pngBytes": 75756
+      }
+    },
+    {
+      "name": "clown_loach",
+      "set": "extra",
+      "ms3": 14.676584000000275,
+      "ms7": 20.800292000000354,
+      "current": {
+        "w": 424,
+        "h": 69,
+        "bytes": 117024,
+        "pngBytes": 14268
+      },
+      "filtered": {
+        "w": 440,
+        "h": 73,
+        "bytes": 128480,
+        "pngBytes": 14305
+      },
+      "baked3": {
+        "w": 496,
+        "h": 291,
+        "bytes": 577344,
+        "pngBytes": 46401
+      },
+      "baked7": {
+        "w": 512,
+        "h": 749,
+        "bytes": 1533952,
+        "pngBytes": 111773
+      }
+    },
+    {
+      "name": "ocellaris_clownfish",
+      "set": "bonus",
+      "ms3": 13.13779199999999,
+      "ms7": 23.35525000000007,
+      "current": {
+        "w": 400,
+        "h": 78,
+        "bytes": 124800,
+        "pngBytes": 15529
+      },
+      "filtered": {
+        "w": 416,
+        "h": 82,
+        "bytes": 136448,
+        "pngBytes": 15588
+      },
+      "baked3": {
+        "w": 480,
+        "h": 312,
+        "bytes": 599040,
+        "pngBytes": 50217
+      },
+      "baked7": {
+        "w": 504,
+        "h": 798,
+        "bytes": 1608768,
+        "pngBytes": 120132
+      }
+    },
+    {
+      "name": "blue_tang",
+      "set": "bonus",
+      "ms3": 15.28537499999993,
+      "ms7": 25.942375000000084,
+      "current": {
+        "w": 396,
+        "h": 74,
+        "bytes": 117216,
+        "pngBytes": 15332
+      },
+      "filtered": {
+        "w": 412,
+        "h": 78,
+        "bytes": 128544,
+        "pngBytes": 15390
+      },
+      "baked3": {
+        "w": 476,
+        "h": 300,
+        "bytes": 571200,
+        "pngBytes": 49566
+      },
+      "baked7": {
+        "w": 492,
+        "h": 770,
+        "bytes": 1515360,
+        "pngBytes": 118206
+      }
+    },
+    {
+      "name": "yellow_tang",
+      "set": "bonus",
+      "ms3": 12.73358300000018,
+      "ms7": 24.50262500000008,
+      "current": {
+        "w": 364,
+        "h": 79,
+        "bytes": 115024,
+        "pngBytes": 14681
+      },
+      "filtered": {
+        "w": 380,
+        "h": 83,
+        "bytes": 126160,
+        "pngBytes": 14715
+      },
+      "baked3": {
+        "w": 452,
+        "h": 309,
+        "bytes": 558672,
+        "pngBytes": 47841
+      },
+      "baked7": {
+        "w": 476,
+        "h": 777,
+        "bytes": 1479408,
+        "pngBytes": 114933
+      }
+    },
+    {
+      "name": "moorish_idol",
+      "set": "bonus",
+      "ms3": 43.09550000000036,
+      "ms7": 31.697250000000167,
+      "current": {
+        "w": 380,
+        "h": 98,
+        "bytes": 148960,
+        "pngBytes": 17510
+      },
+      "filtered": {
+        "w": 396,
+        "h": 102,
+        "bytes": 161568,
+        "pngBytes": 17612
+      },
+      "baked3": {
+        "w": 484,
+        "h": 372,
+        "bytes": 720192,
+        "pngBytes": 57534
+      },
+      "baked7": {
+        "w": 516,
+        "h": 910,
+        "bytes": 1878240,
+        "pngBytes": 138140
+      }
+    },
+    {
+      "name": "lionfish",
+      "set": "bonus",
+      "ms3": 24.824542000000292,
+      "ms7": 38.0065840000002,
+      "current": {
+        "w": 428,
+        "h": 105,
+        "bytes": 179760,
+        "pngBytes": 23612
+      },
+      "filtered": {
+        "w": 444,
+        "h": 109,
+        "bytes": 193584,
+        "pngBytes": 23702
+      },
+      "baked3": {
+        "w": 540,
+        "h": 399,
+        "bytes": 861840,
+        "pngBytes": 78059
+      },
+      "baked7": {
+        "w": 572,
+        "h": 987,
+        "bytes": 2258256,
+        "pngBytes": 186343
+      }
+    },
+    {
+      "name": "porcupine_puffer",
+      "set": "bonus",
+      "ms3": 18.327708000000257,
+      "ms7": 23.696458000000348,
+      "current": {
+        "w": 368,
+        "h": 90,
+        "bytes": 132480,
+        "pngBytes": 18122
+      },
+      "filtered": {
+        "w": 384,
+        "h": 94,
+        "bytes": 144384,
+        "pngBytes": 18195
+      },
+      "baked3": {
+        "w": 464,
+        "h": 342,
+        "bytes": 634752,
+        "pngBytes": 56029
+      },
+      "baked7": {
+        "w": 496,
+        "h": 854,
+        "bytes": 1694336,
+        "pngBytes": 131837
+      }
+    },
+    {
+      "name": "royal_gramma",
+      "set": "bonus",
+      "ms3": 10.687209000000166,
+      "ms7": 14.722042000000329,
+      "current": {
+        "w": 368,
+        "h": 61,
+        "bytes": 89792,
+        "pngBytes": 11604
+      },
+      "filtered": {
+        "w": 384,
+        "h": 65,
+        "bytes": 99840,
+        "pngBytes": 11663
+      },
+      "baked3": {
+        "w": 440,
+        "h": 261,
+        "bytes": 459360,
+        "pngBytes": 37357
+      },
+      "baked7": {
+        "w": 448,
+        "h": 665,
+        "bytes": 1191680,
+        "pngBytes": 88832
+      }
+    },
+    {
+      "name": "mandarin_dragonet",
+      "set": "bonus",
+      "ms3": 14.583750000000236,
+      "ms7": 24.071665999999823,
+      "current": {
+        "w": 400,
+        "h": 77,
+        "bytes": 123200,
+        "pngBytes": 15627
+      },
+      "filtered": {
+        "w": 416,
+        "h": 81,
+        "bytes": 134784,
+        "pngBytes": 15687
+      },
+      "baked3": {
+        "w": 480,
+        "h": 309,
+        "bytes": 593280,
+        "pngBytes": 48925
+      },
+      "baked7": {
+        "w": 504,
+        "h": 791,
+        "bytes": 1594656,
+        "pngBytes": 115718
+      }
+    },
+    {
+      "name": "firefish_goby",
+      "set": "bonus",
+      "ms3": 12.177541999999903,
+      "ms7": 23.107416999999714,
+      "current": {
+        "w": 388,
+        "h": 78,
+        "bytes": 121056,
+        "pngBytes": 11157
+      },
+      "filtered": {
+        "w": 404,
+        "h": 82,
+        "bytes": 132512,
+        "pngBytes": 11213
+      },
+      "baked3": {
+        "w": 468,
+        "h": 312,
+        "bytes": 584064,
+        "pngBytes": 35953
+      },
+      "baked7": {
+        "w": 492,
+        "h": 784,
+        "bytes": 1542912,
+        "pngBytes": 85644
+      }
+    },
+    {
+      "name": "copperband_butterflyfish",
+      "set": "bonus",
+      "ms3": 15.12875000000031,
+      "ms7": 26.276624999999967,
+      "current": {
+        "w": 372,
+        "h": 84,
+        "bytes": 124992,
+        "pngBytes": 16613
+      },
+      "filtered": {
+        "w": 388,
+        "h": 88,
+        "bytes": 136576,
+        "pngBytes": 16672
+      },
+      "baked3": {
+        "w": 460,
+        "h": 330,
+        "bytes": 607200,
+        "pngBytes": 52671
+      },
+      "baked7": {
+        "w": 484,
+        "h": 812,
+        "bytes": 1572032,
+        "pngBytes": 124403
+      }
+    },
+    {
+      "name": "arctic_peeper",
+      "set": "bonus",
+      "ms3": 16.377584000000297,
+      "ms7": 29.832374999999956,
+      "current": {
+        "w": 396,
+        "h": 88,
+        "bytes": 139392,
+        "pngBytes": 15904
+      },
+      "filtered": {
+        "w": 412,
+        "h": 92,
+        "bytes": 151616,
+        "pngBytes": 15957
+      },
+      "baked3": {
+        "w": 492,
+        "h": 342,
+        "bytes": 673056,
+        "pngBytes": 52193
+      },
+      "baked7": {
+        "w": 516,
+        "h": 854,
+        "bytes": 1762656,
+        "pngBytes": 125497
+      }
+    },
+    {
+      "name": "foxface_rabbitfish",
+      "set": "bonus",
+      "ms3": 12.753749999999854,
+      "ms7": 21.279583000000002,
+      "current": {
+        "w": 416,
+        "h": 70,
+        "bytes": 116480,
+        "pngBytes": 15610
+      },
+      "filtered": {
+        "w": 432,
+        "h": 74,
+        "bytes": 127872,
+        "pngBytes": 15657
+      },
+      "baked3": {
+        "w": 488,
+        "h": 294,
+        "bytes": 573888,
+        "pngBytes": 51099
+      },
+      "baked7": {
+        "w": 512,
+        "h": 756,
+        "bytes": 1548288,
+        "pngBytes": 122920
+      }
+    },
+    {
+      "name": "blinky",
+      "set": "alien",
+      "ms3": 13.143749999999727,
+      "ms7": 18.41291599999977,
+      "current": {
+        "w": 332,
+        "h": 78,
+        "bytes": 103584,
+        "pngBytes": 11907
+      },
+      "filtered": {
+        "w": 348,
+        "h": 82,
+        "bytes": 114144,
+        "pngBytes": 11966
+      },
+      "baked3": {
+        "w": 420,
+        "h": 300,
+        "bytes": 504000,
+        "pngBytes": 38855
+      },
+      "baked7": {
+        "w": 444,
+        "h": 756,
+        "bytes": 1342656,
+        "pngBytes": 93321
+      }
+    },
+    {
+      "name": "trilume",
+      "set": "alien",
+      "ms3": 6.897875000000113,
+      "ms7": 11.948041999999987,
+      "current": {
+        "w": 312,
+        "h": 58,
+        "bytes": 72384,
+        "pngBytes": 7967
+      },
+      "filtered": {
+        "w": 328,
+        "h": 62,
+        "bytes": 81344,
+        "pngBytes": 8012
+      },
+      "baked3": {
+        "w": 376,
+        "h": 240,
+        "bytes": 360960,
+        "pngBytes": 25390
+      },
+      "baked7": {
+        "w": 392,
+        "h": 616,
+        "bytes": 965888,
+        "pngBytes": 60375
+      }
+    },
+    {
+      "name": "glassbrain_drifter",
+      "set": "alien",
+      "ms3": 14.05945900000006,
+      "ms7": 19.837334000000283,
+      "current": {
+        "w": 372,
+        "h": 68,
+        "bytes": 101184,
+        "pngBytes": 12833
+      },
+      "filtered": {
+        "w": 388,
+        "h": 72,
+        "bytes": 111744,
+        "pngBytes": 12902
+      },
+      "baked3": {
+        "w": 444,
+        "h": 282,
+        "bytes": 500832,
+        "pngBytes": 40078
+      },
+      "baked7": {
+        "w": 468,
+        "h": 714,
+        "bytes": 1336608,
+        "pngBytes": 94306
+      }
+    },
+    {
+      "name": "moonjaw_angler",
+      "set": "alien",
+      "ms3": 12.760458000000199,
+      "ms7": 24.07166700000016,
+      "current": {
+        "w": 412,
+        "h": 72,
+        "bytes": 118656,
+        "pngBytes": 12495
+      },
+      "filtered": {
+        "w": 428,
+        "h": 76,
+        "bytes": 130112,
+        "pngBytes": 12557
+      },
+      "baked3": {
+        "w": 492,
+        "h": 300,
+        "bytes": 590400,
+        "pngBytes": 39145
+      },
+      "baked7": {
+        "w": 508,
+        "h": 770,
+        "bytes": 1564640,
+        "pngBytes": 92611
+      }
+    },
+    {
+      "name": "prism_mothfish",
+      "set": "alien",
+      "ms3": 19.390625,
+      "ms7": 34.54554099999996,
+      "current": {
+        "w": 352,
+        "h": 112,
+        "bytes": 157696,
+        "pngBytes": 21159
+      },
+      "filtered": {
+        "w": 368,
+        "h": 116,
+        "bytes": 170752,
+        "pngBytes": 21188
+      },
+      "baked3": {
+        "w": 472,
+        "h": 402,
+        "bytes": 758976,
+        "pngBytes": 70644
+      },
+      "baked7": {
+        "w": 512,
+        "h": 994,
+        "bytes": 2035712,
+        "pngBytes": 170331
+      }
+    },
+    {
+      "name": "tentacle_puffer",
+      "set": "alien",
+      "ms3": 15.048583000000235,
+      "ms7": 21.71670899999981,
+      "current": {
+        "w": 372,
+        "h": 73,
+        "bytes": 108624,
+        "pngBytes": 14320
+      },
+      "filtered": {
+        "w": 388,
+        "h": 77,
+        "bytes": 119504,
+        "pngBytes": 14389
+      },
+      "baked3": {
+        "w": 452,
+        "h": 297,
+        "bytes": 536976,
+        "pngBytes": 44676
+      },
+      "baked7": {
+        "w": 468,
+        "h": 749,
+        "bytes": 1402128,
+        "pngBytes": 105242
+      }
+    },
+    {
+      "name": "crowned_oracle",
+      "set": "alien",
+      "ms3": 13.101791999999932,
+      "ms7": 24.341249999999945,
+      "current": {
+        "w": 408,
+        "h": 76,
+        "bytes": 124032,
+        "pngBytes": 16829
+      },
+      "filtered": {
+        "w": 424,
+        "h": 80,
+        "bytes": 135680,
+        "pngBytes": 16876
+      },
+      "baked3": {
+        "w": 488,
+        "h": 312,
+        "bytes": 609024,
+        "pngBytes": 56184
+      },
+      "baked7": {
+        "w": 512,
+        "h": 784,
+        "bytes": 1605632,
+        "pngBytes": 135407
+      }
+    },
+    {
+      "name": "gillstar",
+      "set": "alien",
+      "ms3": 14.18383300000005,
+      "ms7": 21.286833000000115,
+      "current": {
+        "w": 384,
+        "h": 74,
+        "bytes": 113664,
+        "pngBytes": 14227
+      },
+      "filtered": {
+        "w": 400,
+        "h": 78,
+        "bytes": 124800,
+        "pngBytes": 14239
+      },
+      "baked3": {
+        "w": 464,
+        "h": 300,
+        "bytes": 556800,
+        "pngBytes": 47066
+      },
+      "baked7": {
+        "w": 488,
+        "h": 756,
+        "bytes": 1475712,
+        "pngBytes": 112927
+      }
+    },
+    {
+      "name": "crystal_leviathan",
+      "set": "alien",
+      "ms3": 12.494750000000295,
+      "ms7": 25.28683299999966,
+      "current": {
+        "w": 416,
+        "h": 77,
+        "bytes": 128128,
+        "pngBytes": 16419
+      },
+      "filtered": {
+        "w": 432,
+        "h": 81,
+        "bytes": 139968,
+        "pngBytes": 16457
+      },
+      "baked3": {
+        "w": 496,
+        "h": 315,
+        "bytes": 624960,
+        "pngBytes": 53664
+      },
+      "baked7": {
+        "w": 520,
+        "h": 805,
+        "bytes": 1674400,
+        "pngBytes": 128766
+      }
+    },
+    {
+      "name": "mecha_piranha",
+      "set": "alien",
+      "ms3": 16.428750000000036,
+      "ms7": 25.571833000000424,
+      "current": {
+        "w": 400,
+        "h": 84,
+        "bytes": 134400,
+        "pngBytes": 16456
+      },
+      "filtered": {
+        "w": 416,
+        "h": 88,
+        "bytes": 146432,
+        "pngBytes": 16533
+      },
+      "baked3": {
+        "w": 488,
+        "h": 330,
+        "bytes": 644160,
+        "pngBytes": 53431
+      },
+      "baked7": {
+        "w": 512,
+        "h": 840,
+        "bytes": 1720320,
+        "pngBytes": 127980
+      }
+    },
+    {
+      "name": "sporefin",
+      "set": "alien",
+      "ms3": 12.739417000000685,
+      "ms7": 82.01787499999955,
+      "current": {
+        "w": 344,
+        "h": 82,
+        "bytes": 112832,
+        "pngBytes": 15973
+      },
+      "filtered": {
+        "w": 360,
+        "h": 86,
+        "bytes": 123840,
+        "pngBytes": 16010
+      },
+      "baked3": {
+        "w": 432,
+        "h": 318,
+        "bytes": 549504,
+        "pngBytes": 49950
+      },
+      "baked7": {
+        "w": 456,
+        "h": 784,
+        "bytes": 1430016,
+        "pngBytes": 117656
+      }
+    },
+    {
+      "name": "probe_fish",
+      "set": "alien",
+      "ms3": 9.405999999999949,
+      "ms7": 11.205500000000029,
+      "current": {
+        "w": 272,
+        "h": 66,
+        "bytes": 71808,
+        "pngBytes": 9088
+      },
+      "filtered": {
+        "w": 288,
+        "h": 70,
+        "bytes": 80640,
+        "pngBytes": 9128
+      },
+      "baked3": {
+        "w": 344,
+        "h": 258,
+        "bytes": 355008,
+        "pngBytes": 28957
+      },
+      "baked7": {
+        "w": 368,
+        "h": 630,
+        "bytes": 927360,
+        "pngBytes": 68627
+      }
+    },
+    {
+      "name": "rocket_glam",
+      "set": "pop-culture",
+      "ms3": 16.642041000000063,
+      "ms7": 28.288375000000087,
+      "current": {
+        "w": 424,
+        "h": 87,
+        "bytes": 147552,
+        "pngBytes": 19213
+      },
+      "filtered": {
+        "w": 440,
+        "h": 91,
+        "bytes": 160160,
+        "pngBytes": 19256
+      },
+      "baked3": {
+        "w": 512,
+        "h": 345,
+        "bytes": 706560,
+        "pngBytes": 64465
+      },
+      "baked7": {
+        "w": 544,
+        "h": 875,
+        "bytes": 1904000,
+        "pngBytes": 154295
+      }
+    },
+    {
+      "name": "country_dreamer",
+      "set": "pop-culture",
+      "ms3": 16.50958300000002,
+      "ms7": 27.892542000000503,
+      "current": {
+        "w": 400,
+        "h": 90,
+        "bytes": 144000,
+        "pngBytes": 19897
+      },
+      "filtered": {
+        "w": 416,
+        "h": 94,
+        "bytes": 156416,
+        "pngBytes": 19959
+      },
+      "baked3": {
+        "w": 496,
+        "h": 348,
+        "bytes": 690432,
+        "pngBytes": 66080
+      },
+      "baked7": {
+        "w": 520,
+        "h": 868,
+        "bytes": 1805440,
+        "pngBytes": 158806
+      }
+    },
+    {
+      "name": "diamond_diva",
+      "set": "pop-culture",
+      "ms3": 15.791458000000603,
+      "ms7": 27.38537499999984,
+      "current": {
+        "w": 392,
+        "h": 92,
+        "bytes": 144256,
+        "pngBytes": 14183
+      },
+      "filtered": {
+        "w": 408,
+        "h": 96,
+        "bytes": 156672,
+        "pngBytes": 14230
+      },
+      "baked3": {
+        "w": 488,
+        "h": 354,
+        "bytes": 691008,
+        "pngBytes": 44044
+      },
+      "baked7": {
+        "w": 520,
+        "h": 882,
+        "bytes": 1834560,
+        "pngBytes": 104508
+      }
+    },
+    {
+      "name": "golden_wrestler",
+      "set": "pop-culture",
+      "ms3": 13.7318750000004,
+      "ms7": 28.69995800000015,
+      "current": {
+        "w": 416,
+        "h": 83,
+        "bytes": 138112,
+        "pngBytes": 16393
+      },
+      "filtered": {
+        "w": 432,
+        "h": 87,
+        "bytes": 150336,
+        "pngBytes": 16436
+      },
+      "baked3": {
+        "w": 504,
+        "h": 333,
+        "bytes": 671328,
+        "pngBytes": 52723
+      },
+      "baked7": {
+        "w": 528,
+        "h": 833,
+        "bytes": 1759296,
+        "pngBytes": 126717
+      }
+    },
+    {
+      "name": "cyber_hunter",
+      "set": "pop-culture",
+      "ms3": 15.581000000000131,
+      "ms7": 28.63054100000045,
+      "current": {
+        "w": 400,
+        "h": 84,
+        "bytes": 134400,
+        "pngBytes": 14584
+      },
+      "filtered": {
+        "w": 416,
+        "h": 88,
+        "bytes": 146432,
+        "pngBytes": 14654
+      },
+      "baked3": {
+        "w": 488,
+        "h": 330,
+        "bytes": 644160,
+        "pngBytes": 47377
+      },
+      "baked7": {
+        "w": 512,
+        "h": 840,
+        "bytes": 1720320,
+        "pngBytes": 113402
+      }
+    },
+    {
+      "name": "reggae_legend",
+      "set": "pop-culture",
+      "ms3": 19.570040999999947,
+      "ms7": 53.823457999999846,
+      "current": {
+        "w": 424,
+        "h": 88,
+        "bytes": 149248,
+        "pngBytes": 19802
+      },
+      "filtered": {
+        "w": 440,
+        "h": 92,
+        "bytes": 161920,
+        "pngBytes": 19862
+      },
+      "baked3": {
+        "w": 520,
+        "h": 348,
+        "bytes": 723840,
+        "pngBytes": 67483
+      },
+      "baked7": {
+        "w": 544,
+        "h": 882,
+        "bytes": 1919232,
+        "pngBytes": 162742
+      }
+    },
+    {
+      "name": "vegas_king",
+      "set": "pop-culture",
+      "ms3": 17.3538750000007,
+      "ms7": 29.108666000000085,
+      "current": {
+        "w": 424,
+        "h": 91,
+        "bytes": 154336,
+        "pngBytes": 18655
+      },
+      "filtered": {
+        "w": 440,
+        "h": 95,
+        "bytes": 167200,
+        "pngBytes": 18711
+      },
+      "baked3": {
+        "w": 520,
+        "h": 357,
+        "bytes": 742560,
+        "pngBytes": 61847
+      },
+      "baked7": {
+        "w": 544,
+        "h": 889,
+        "bytes": 1934464,
+        "pngBytes": 147837
+      }
+    },
+    {
+      "name": "stardust_hero",
+      "set": "pop-culture",
+      "ms3": 18.897291999999652,
+      "ms7": 26.33366599999954,
+      "current": {
+        "w": 404,
+        "h": 92,
+        "bytes": 148672,
+        "pngBytes": 18508
+      },
+      "filtered": {
+        "w": 420,
+        "h": 96,
+        "bytes": 161280,
+        "pngBytes": 18544
+      },
+      "baked3": {
+        "w": 500,
+        "h": 354,
+        "bytes": 708000,
+        "pngBytes": 59422
+      },
+      "baked7": {
+        "w": 532,
+        "h": 896,
+        "bytes": 1906688,
+        "pngBytes": 142197
+      }
+    },
+    {
+      "name": "soul_beehive",
+      "set": "pop-culture",
+      "ms3": 16.90941699999985,
+      "ms7": 26.95379200000025,
+      "current": {
+        "w": 392,
+        "h": 94,
+        "bytes": 147392,
+        "pngBytes": 18317
+      },
+      "filtered": {
+        "w": 408,
+        "h": 98,
+        "bytes": 159936,
+        "pngBytes": 18366
+      },
+      "baked3": {
+        "w": 488,
+        "h": 360,
+        "bytes": 702720,
+        "pngBytes": 60782
+      },
+      "baked7": {
+        "w": 520,
+        "h": 896,
+        "bytes": 1863680,
+        "pngBytes": 146022
+      }
+    },
+    {
+      "name": "smooth_criminal",
+      "set": "pop-culture",
+      "ms3": 15.987500000000182,
+      "ms7": 31.065416999999798,
+      "current": {
+        "w": 432,
+        "h": 85,
+        "bytes": 146880,
+        "pngBytes": 15258
+      },
+      "filtered": {
+        "w": 448,
+        "h": 89,
+        "bytes": 159488,
+        "pngBytes": 15322
+      },
+      "baked3": {
+        "w": 520,
+        "h": 339,
+        "bytes": 705120,
+        "pngBytes": 49308
+      },
+      "baked7": {
+        "w": 544,
+        "h": 861,
+        "bytes": 1873536,
+        "pngBytes": 117585
+      }
+    },
+    {
+      "name": "fame_monster",
+      "set": "pop-culture",
+      "ms3": 16.895416999999725,
+      "ms7": 27.112708999999995,
+      "current": {
+        "w": 392,
+        "h": 94,
+        "bytes": 147392,
+        "pngBytes": 19428
+      },
+      "filtered": {
+        "w": 408,
+        "h": 98,
+        "bytes": 159936,
+        "pngBytes": 19461
+      },
+      "baked3": {
+        "w": 488,
+        "h": 360,
+        "bytes": 702720,
+        "pngBytes": 64388
+      },
+      "baked7": {
+        "w": 520,
+        "h": 896,
+        "bytes": 1863680,
+        "pngBytes": 154753
+      }
+    },
+    {
+      "name": "purple_reign",
+      "set": "pop-culture",
+      "ms3": 21.580165999999736,
+      "ms7": 29.39850000000024,
+      "current": {
+        "w": 400,
+        "h": 86,
+        "bytes": 137600,
+        "pngBytes": 16543
+      },
+      "filtered": {
+        "w": 416,
+        "h": 90,
+        "bytes": 149760,
+        "pngBytes": 16591
+      },
+      "baked3": {
+        "w": 488,
+        "h": 336,
+        "bytes": 655872,
+        "pngBytes": 51433
+      },
+      "baked7": {
+        "w": 520,
+        "h": 854,
+        "bytes": 1776320,
+        "pngBytes": 122144
+      }
+    },
+    {
+      "name": "cyclops_lanternfish",
+      "set": "odyssey",
+      "ms3": 21.321708999999828,
+      "ms7": 34.35654100000011,
+      "current": {
+        "w": 416,
+        "h": 98,
+        "bytes": 163072,
+        "pngBytes": 19390
+      },
+      "filtered": {
+        "w": 432,
+        "h": 102,
+        "bytes": 176256,
+        "pngBytes": 19434
+      },
+      "baked3": {
+        "w": 520,
+        "h": 378,
+        "bytes": 786240,
+        "pngBytes": 61215
+      },
+      "baked7": {
+        "w": 552,
+        "h": 938,
+        "bytes": 2071104,
+        "pngBytes": 144454
+      }
+    },
+    {
+      "name": "siren_betta",
+      "set": "odyssey",
+      "ms3": 19.641084000000774,
+      "ms7": 35.94075000000066,
+      "current": {
+        "w": 408,
+        "h": 110,
+        "bytes": 179520,
+        "pngBytes": 29063
+      },
+      "filtered": {
+        "w": 424,
+        "h": 114,
+        "bytes": 193344,
+        "pngBytes": 29115
+      },
+      "baked3": {
+        "w": 520,
+        "h": 408,
+        "bytes": 848640,
+        "pngBytes": 97501
+      },
+      "baked7": {
+        "w": 560,
+        "h": 1008,
+        "bytes": 2257920,
+        "pngBytes": 235228
+      }
+    },
+    {
+      "name": "scylla_eel",
+      "set": "odyssey",
+      "ms3": 20.602042000000438,
+      "ms7": 73.67158400000062,
+      "current": {
+        "w": 432,
+        "h": 96,
+        "bytes": 165888,
+        "pngBytes": 20790
+      },
+      "filtered": {
+        "w": 448,
+        "h": 100,
+        "bytes": 179200,
+        "pngBytes": 20855
+      },
+      "baked3": {
+        "w": 536,
+        "h": 372,
+        "bytes": 797568,
+        "pngBytes": 70210
+      },
+      "baked7": {
+        "w": 560,
+        "h": 938,
+        "bytes": 2101120,
+        "pngBytes": 169306
+      }
+    },
+    {
+      "name": "charybdis_ray",
+      "set": "odyssey",
+      "ms3": 19.07329100000061,
+      "ms7": 31.479333999999653,
+      "current": {
+        "w": 424,
+        "h": 88,
+        "bytes": 149248,
+        "pngBytes": 18425
+      },
+      "filtered": {
+        "w": 440,
+        "h": 92,
+        "bytes": 161920,
+        "pngBytes": 18498
+      },
+      "baked3": {
+        "w": 520,
+        "h": 348,
+        "bytes": 723840,
+        "pngBytes": 61980
+      },
+      "baked7": {
+        "w": 544,
+        "h": 882,
+        "bytes": 1919232,
+        "pngBytes": 149658
+      }
+    },
+    {
+      "name": "lotus_puffer",
+      "set": "odyssey",
+      "ms3": 14.857499999999163,
+      "ms7": 29.186125000000175,
+      "current": {
+        "w": 384,
+        "h": 88,
+        "bytes": 135168,
+        "pngBytes": 18419
+      },
+      "filtered": {
+        "w": 400,
+        "h": 92,
+        "bytes": 147200,
+        "pngBytes": 18474
+      },
+      "baked3": {
+        "w": 480,
+        "h": 342,
+        "bytes": 656640,
+        "pngBytes": 57408
+      },
+      "baked7": {
+        "w": 504,
+        "h": 854,
+        "bytes": 1721664,
+        "pngBytes": 135288
+      }
+    },
+    {
+      "name": "aeolus_sailfin",
+      "set": "odyssey",
+      "ms3": 20.24170800000047,
+      "ms7": 37.67816700000003,
+      "current": {
+        "w": 440,
+        "h": 106,
+        "bytes": 186560,
+        "pngBytes": 26672
+      },
+      "filtered": {
+        "w": 456,
+        "h": 110,
+        "bytes": 200640,
+        "pngBytes": 26748
+      },
+      "baked3": {
+        "w": 552,
+        "h": 402,
+        "bytes": 887616,
+        "pngBytes": 89312
+      },
+      "baked7": {
+        "w": 584,
+        "h": 1008,
+        "bytes": 2354688,
+        "pngBytes": 214905
+      }
+    },
+    {
+      "name": "circe_lionfish",
+      "set": "odyssey",
+      "ms3": 21.023041999999805,
+      "ms7": 39.5630000000001,
+      "current": {
+        "w": 412,
+        "h": 108,
+        "bytes": 177984,
+        "pngBytes": 24165
+      },
+      "filtered": {
+        "w": 428,
+        "h": 112,
+        "bytes": 191744,
+        "pngBytes": 24225
+      },
+      "baked3": {
+        "w": 524,
+        "h": 402,
+        "bytes": 842592,
+        "pngBytes": 81108
+      },
+      "baked7": {
+        "w": 556,
+        "h": 994,
+        "bytes": 2210656,
+        "pngBytes": 194860
+      }
+    },
+    {
+      "name": "calypso_angelfish",
+      "set": "odyssey",
+      "ms3": 15.756542000000081,
+      "ms7": 28.882583000000523,
+      "current": {
+        "w": 396,
+        "h": 98,
+        "bytes": 155232,
+        "pngBytes": 23237
+      },
+      "filtered": {
+        "w": 412,
+        "h": 102,
+        "bytes": 168096,
+        "pngBytes": 23281
+      },
+      "baked3": {
+        "w": 500,
+        "h": 372,
+        "bytes": 744000,
+        "pngBytes": 77130
+      },
+      "baked7": {
+        "w": 532,
+        "h": 924,
+        "bytes": 1966272,
+        "pngBytes": 185846
+      }
+    },
+    {
+      "name": "laestrygon_grouper",
+      "set": "odyssey",
+      "ms3": 17.078333999999813,
+      "ms7": 68.16345900000033,
+      "current": {
+        "w": 448,
+        "h": 86,
+        "bytes": 154112,
+        "pngBytes": 21169
+      },
+      "filtered": {
+        "w": 464,
+        "h": 90,
+        "bytes": 167040,
+        "pngBytes": 21223
+      },
+      "baked3": {
+        "w": 536,
+        "h": 348,
+        "bytes": 746112,
+        "pngBytes": 69273
+      },
+      "baked7": {
+        "w": 560,
+        "h": 882,
+        "bytes": 1975680,
+        "pngBytes": 165409
+      }
+    },
+    {
+      "name": "argos_dogfish",
+      "set": "odyssey",
+      "ms3": 16.930332999999337,
+      "ms7": 32.56608300000062,
+      "current": {
+        "w": 448,
+        "h": 83,
+        "bytes": 148736,
+        "pngBytes": 15080
+      },
+      "filtered": {
+        "w": 464,
+        "h": 87,
+        "bytes": 161472,
+        "pngBytes": 15149
+      },
+      "baked3": {
+        "w": 536,
+        "h": 339,
+        "bytes": 726816,
+        "pngBytes": 48997
+      },
+      "baked7": {
+        "w": 560,
+        "h": 861,
+        "bytes": 1928640,
+        "pngBytes": 116923
+      }
+    },
+    {
+      "name": "athena_owlfin",
+      "set": "odyssey",
+      "ms3": 19.28112500000043,
+      "ms7": 29.04966599999989,
+      "current": {
+        "w": 392,
+        "h": 96,
+        "bytes": 150528,
+        "pngBytes": 21489
+      },
+      "filtered": {
+        "w": 408,
+        "h": 100,
+        "bytes": 163200,
+        "pngBytes": 21540
+      },
+      "baked3": {
+        "w": 496,
+        "h": 366,
+        "bytes": 726144,
+        "pngBytes": 71993
+      },
+      "baked7": {
+        "w": 520,
+        "h": 910,
+        "bytes": 1892800,
+        "pngBytes": 173397
+      }
+    },
+    {
+      "name": "odysseus_compassfish",
+      "set": "odyssey",
+      "ms3": 19.879374999999527,
+      "ms7": 39.01420899999994,
+      "current": {
+        "w": 448,
+        "h": 90,
+        "bytes": 161280,
+        "pngBytes": 21240
+      },
+      "filtered": {
+        "w": 464,
+        "h": 94,
+        "bytes": 174464,
+        "pngBytes": 21306
+      },
+      "baked3": {
+        "w": 544,
+        "h": 360,
+        "bytes": 783360,
+        "pngBytes": 69167
+      },
+      "baked7": {
+        "w": 568,
+        "h": 910,
+        "bytes": 2067520,
+        "pngBytes": 165137
+      }
+    },
+    {
+      "name": "necronom_ray",
+      "set": "giger",
+      "ms3": 27.39641699999993,
+      "ms7": 47.87687499999993,
+      "current": {
+        "w": 444,
+        "h": 122,
+        "bytes": 216672,
+        "pngBytes": 23046
+      },
+      "filtered": {
+        "w": 460,
+        "h": 126,
+        "bytes": 231840,
+        "pngBytes": 23116
+      },
+      "baked3": {
+        "w": 572,
+        "h": 450,
+        "bytes": 1029600,
+        "pngBytes": 77541
+      },
+      "baked7": {
+        "w": 612,
+        "h": 1106,
+        "bytes": 2707488,
+        "pngBytes": 186719
+      }
+    },
+    {
+      "name": "li_spinefish",
+      "set": "giger",
+      "ms3": 22.18000000000029,
+      "ms7": 36.951750000000175,
+      "current": {
+        "w": 448,
+        "h": 100,
+        "bytes": 179200,
+        "pngBytes": 24735
+      },
+      "filtered": {
+        "w": 464,
+        "h": 104,
+        "bytes": 193024,
+        "pngBytes": 24792
+      },
+      "baked3": {
+        "w": 552,
+        "h": 390,
+        "bytes": 861120,
+        "pngBytes": 81864
+      },
+      "baked7": {
+        "w": 584,
+        "h": 966,
+        "bytes": 2256576,
+        "pngBytes": 196236
+      }
+    },
+    {
+      "name": "birth_machine_puffer",
+      "set": "giger",
+      "ms3": 18.3056660000002,
+      "ms7": 31.220040999999583,
+      "current": {
+        "w": 400,
+        "h": 102,
+        "bytes": 163200,
+        "pngBytes": 22942
+      },
+      "filtered": {
+        "w": 416,
+        "h": 106,
+        "bytes": 176384,
+        "pngBytes": 23003
+      },
+      "baked3": {
+        "w": 504,
+        "h": 384,
+        "bytes": 774144,
+        "pngBytes": 71277
+      },
+      "baked7": {
+        "w": 536,
+        "h": 952,
+        "bytes": 2041088,
+        "pngBytes": 169410
+      }
+    },
+    {
+      "name": "passage_angler",
+      "set": "giger",
+      "ms3": 19.812666000000718,
+      "ms7": 37.994292000000314,
+      "current": {
+        "w": 440,
+        "h": 98,
+        "bytes": 172480,
+        "pngBytes": 22348
+      },
+      "filtered": {
+        "w": 456,
+        "h": 102,
+        "bytes": 186048,
+        "pngBytes": 22403
+      },
+      "baked3": {
+        "w": 544,
+        "h": 378,
+        "bytes": 822528,
+        "pngBytes": 69403
+      },
+      "baked7": {
+        "w": 568,
+        "h": 952,
+        "bytes": 2162944,
+        "pngBytes": 163354
+      }
+    },
+    {
+      "name": "biomechanoid_surgeonfish",
+      "set": "giger",
+      "ms3": 19.811749999999847,
+      "ms7": 33.26458300000013,
+      "current": {
+        "w": 456,
+        "h": 94,
+        "bytes": 171456,
+        "pngBytes": 20081
+      },
+      "filtered": {
+        "w": 472,
+        "h": 98,
+        "bytes": 185024,
+        "pngBytes": 20127
+      },
+      "baked3": {
+        "w": 552,
+        "h": 372,
+        "bytes": 821376,
+        "pngBytes": 65711
+      },
+      "baked7": {
+        "w": 584,
+        "h": 938,
+        "bytes": 2191168,
+        "pngBytes": 156810
+      }
+    },
+    {
+      "name": "mordor_eel",
+      "set": "giger",
+      "ms3": 20.89441700000043,
+      "ms7": 33.77333300000009,
+      "current": {
+        "w": 440,
+        "h": 90,
+        "bytes": 158400,
+        "pngBytes": 20878
+      },
+      "filtered": {
+        "w": 456,
+        "h": 94,
+        "bytes": 171456,
+        "pngBytes": 20951
+      },
+      "baked3": {
+        "w": 536,
+        "h": 354,
+        "bytes": 758976,
+        "pngBytes": 70155
+      },
+      "baked7": {
+        "w": 560,
+        "h": 896,
+        "bytes": 2007040,
+        "pngBytes": 169239
+      }
+    },
+    {
+      "name": "spell_oraclefish",
+      "set": "giger",
+      "ms3": 19.843542000000525,
+      "ms7": 34.90483400000085,
+      "current": {
+        "w": 416,
+        "h": 88,
+        "bytes": 146432,
+        "pngBytes": 20478
+      },
+      "filtered": {
+        "w": 432,
+        "h": 92,
+        "bytes": 158976,
+        "pngBytes": 20530
+      },
+      "baked3": {
+        "w": 512,
+        "h": 348,
+        "bytes": 712704,
+        "pngBytes": 67105
+      },
+      "baked7": {
+        "w": 536,
+        "h": 868,
+        "bytes": 1860992,
+        "pngBytes": 160765
+      }
+    },
+    {
+      "name": "erotomechanical_couplingfish",
+      "set": "giger",
+      "ms3": 18.79912499999955,
+      "ms7": 30.1909169999999,
+      "current": {
+        "w": 440,
+        "h": 90,
+        "bytes": 158400,
+        "pngBytes": 20328
+      },
+      "filtered": {
+        "w": 456,
+        "h": 94,
+        "bytes": 171456,
+        "pngBytes": 20382
+      },
+      "baked3": {
+        "w": 536,
+        "h": 354,
+        "bytes": 758976,
+        "pngBytes": 65691
+      },
+      "baked7": {
+        "w": 560,
+        "h": 896,
+        "bytes": 2007040,
+        "pngBytes": 156753
+      }
+    },
+    {
+      "name": "kookoo_fanfin",
+      "set": "giger",
+      "ms3": 23.565209000000323,
+      "ms7": 46.84095900000011,
+      "current": {
+        "w": 440,
+        "h": 114,
+        "bytes": 200640,
+        "pngBytes": 25774
+      },
+      "filtered": {
+        "w": 456,
+        "h": 118,
+        "bytes": 215232,
+        "pngBytes": 25857
+      },
+      "baked3": {
+        "w": 560,
+        "h": 426,
+        "bytes": 954240,
+        "pngBytes": 84902
+      },
+      "baked7": {
+        "w": 592,
+        "h": 1050,
+        "bytes": 2486400,
+        "pngBytes": 202637
+      }
+    },
+    {
+      "name": "brain_salad_crownfish",
+      "set": "giger",
+      "ms3": 21.48462500000005,
+      "ms7": 36.07112500000039,
+      "current": {
+        "w": 400,
+        "h": 114,
+        "bytes": 182400,
+        "pngBytes": 21746
+      },
+      "filtered": {
+        "w": 416,
+        "h": 118,
+        "bytes": 196352,
+        "pngBytes": 21880
+      },
+      "baked3": {
+        "w": 520,
+        "h": 420,
+        "bytes": 873600,
+        "pngBytes": 70155
+      },
+      "baked7": {
+        "w": 560,
+        "h": 1036,
+        "bytes": 2320640,
+        "pngBytes": 166442
+      }
+    },
+    {
+      "name": "victory_lionfish",
+      "set": "giger",
+      "ms3": 26.189542000000074,
+      "ms7": 42.111291999999594,
+      "current": {
+        "w": 424,
+        "h": 128,
+        "bytes": 217088,
+        "pngBytes": 27946
+      },
+      "filtered": {
+        "w": 440,
+        "h": 132,
+        "bytes": 232320,
+        "pngBytes": 28023
+      },
+      "baked3": {
+        "w": 552,
+        "h": 462,
+        "bytes": 1020096,
+        "pngBytes": 91300
+      },
+      "baked7": {
+        "w": 600,
+        "h": 1134,
+        "bytes": 2721600,
+        "pngBytes": 218246
+      }
+    },
+    {
+      "name": "biomechanical_trainfish",
+      "set": "giger",
+      "ms3": 18.384125000000495,
+      "ms7": 32.08429100000012,
+      "current": {
+        "w": 492,
+        "h": 82,
+        "bytes": 161376,
+        "pngBytes": 18328
+      },
+      "filtered": {
+        "w": 508,
+        "h": 86,
+        "bytes": 174752,
+        "pngBytes": 18373
+      },
+      "baked3": {
+        "w": 580,
+        "h": 342,
+        "bytes": 793440,
+        "pngBytes": 59034
+      },
+      "baked7": {
+        "w": 596,
+        "h": 882,
+        "bytes": 2102688,
+        "pngBytes": 140567
+      }
+    },
+    {
+      "name": "pumpkin_goldfish",
+      "set": "halloween",
+      "ms3": 23.318625000000793,
+      "ms7": 40.024334000000636,
+      "current": {
+        "w": 424,
+        "h": 106,
+        "bytes": 179776,
+        "pngBytes": 23242
+      },
+      "filtered": {
+        "w": 440,
+        "h": 110,
+        "bytes": 193600,
+        "pngBytes": 23282
+      },
+      "baked3": {
+        "w": 536,
+        "h": 402,
+        "bytes": 861888,
+        "pngBytes": 72948
+      },
+      "baked7": {
+        "w": 568,
+        "h": 994,
+        "bytes": 2258368,
+        "pngBytes": 171846
+      }
+    },
+    {
+      "name": "ghost_betta",
+      "set": "halloween",
+      "ms3": 26.410041000001,
+      "ms7": 44.222374999999374,
+      "current": {
+        "w": 448,
+        "h": 120,
+        "bytes": 215040,
+        "pngBytes": 33607
+      },
+      "filtered": {
+        "w": 464,
+        "h": 124,
+        "bytes": 230144,
+        "pngBytes": 33677
+      },
+      "baked3": {
+        "w": 568,
+        "h": 444,
+        "bytes": 1008768,
+        "pngBytes": 113074
+      },
+      "baked7": {
+        "w": 608,
+        "h": 1106,
+        "bytes": 2689792,
+        "pngBytes": 272149
+      }
+    },
+    {
+      "name": "vampire_angelfish",
+      "set": "halloween",
+      "ms3": 25.247917000000598,
+      "ms7": 46.00537500000064,
+      "current": {
+        "w": 440,
+        "h": 125,
+        "bytes": 220000,
+        "pngBytes": 26856
+      },
+      "filtered": {
+        "w": 456,
+        "h": 129,
+        "bytes": 235296,
+        "pngBytes": 26917
+      },
+      "baked3": {
+        "w": 568,
+        "h": 459,
+        "bytes": 1042848,
+        "pngBytes": 89856
+      },
+      "baked7": {
+        "w": 608,
+        "h": 1127,
+        "bytes": 2740864,
+        "pngBytes": 215636
+      }
+    },
+    {
+      "name": "witch_fish",
+      "set": "halloween",
+      "ms3": 22.2465830000001,
+      "ms7": 38.491667000000234,
+      "current": {
+        "w": 440,
+        "h": 108,
+        "bytes": 190080,
+        "pngBytes": 25025
+      },
+      "filtered": {
+        "w": 456,
+        "h": 112,
+        "bytes": 204288,
+        "pngBytes": 25084
+      },
+      "baked3": {
+        "w": 552,
+        "h": 408,
+        "bytes": 900864,
+        "pngBytes": 83387
+      },
+      "baked7": {
+        "w": 584,
+        "h": 1022,
+        "bytes": 2387392,
+        "pngBytes": 199908
+      }
+    },
+    {
+      "name": "skeleton_fish",
+      "set": "halloween",
+      "ms3": 20.04424999999901,
+      "ms7": 179.85391699999855,
+      "current": {
+        "w": 464,
+        "h": 96,
+        "bytes": 178176,
+        "pngBytes": 23621
+      },
+      "filtered": {
+        "w": 480,
+        "h": 100,
+        "bytes": 192000,
+        "pngBytes": 23683
+      },
+      "baked3": {
+        "w": 560,
+        "h": 378,
+        "bytes": 846720,
+        "pngBytes": 76708
+      },
+      "baked7": {
+        "w": 592,
+        "h": 952,
+        "bytes": 2254336,
+        "pngBytes": 183310
+      }
+    },
+    {
+      "name": "frankenstein_carp",
+      "set": "halloween",
+      "ms3": 59.32104099999924,
+      "ms7": 78.94200000000092,
+      "current": {
+        "w": 448,
+        "h": 96,
+        "bytes": 172032,
+        "pngBytes": 23153
+      },
+      "filtered": {
+        "w": 464,
+        "h": 100,
+        "bytes": 185600,
+        "pngBytes": 23204
+      },
+      "baked3": {
+        "w": 544,
+        "h": 378,
+        "bytes": 822528,
+        "pngBytes": 75706
+      },
+      "baked7": {
+        "w": 576,
+        "h": 938,
+        "bytes": 2161152,
+        "pngBytes": 181229
+      }
+    },
+    {
+      "name": "mummy_fish",
+      "set": "halloween",
+      "ms3": 66.78329200000007,
+      "ms7": 94.47329199999876,
+      "current": {
+        "w": 440,
+        "h": 100,
+        "bytes": 176000,
+        "pngBytes": 24545
+      },
+      "filtered": {
+        "w": 456,
+        "h": 104,
+        "bytes": 189696,
+        "pngBytes": 24600
+      },
+      "baked3": {
+        "w": 544,
+        "h": 384,
+        "bytes": 835584,
+        "pngBytes": 79551
+      },
+      "baked7": {
+        "w": 576,
+        "h": 966,
+        "bytes": 2225664,
+        "pngBytes": 189707
+      }
+    },
+    {
+      "name": "bat_ray",
+      "set": "halloween",
+      "ms3": 28.066208000000188,
+      "ms7": 47.20720799999981,
+      "current": {
+        "w": 456,
+        "h": 108,
+        "bytes": 196992,
+        "pngBytes": 24682
+      },
+      "filtered": {
+        "w": 472,
+        "h": 112,
+        "bytes": 211456,
+        "pngBytes": 24765
+      },
+      "baked3": {
+        "w": 568,
+        "h": 414,
+        "bytes": 940608,
+        "pngBytes": 82851
+      },
+      "baked7": {
+        "w": 600,
+        "h": 1022,
+        "bytes": 2452800,
+        "pngBytes": 200085
+      }
+    },
+    {
+      "name": "candy_corn_puffer",
+      "set": "halloween",
+      "ms3": 20.49462499999936,
+      "ms7": 125.60870900000009,
+      "current": {
+        "w": 424,
+        "h": 102,
+        "bytes": 172992,
+        "pngBytes": 23830
+      },
+      "filtered": {
+        "w": 440,
+        "h": 106,
+        "bytes": 186560,
+        "pngBytes": 23878
+      },
+      "baked3": {
+        "w": 528,
+        "h": 390,
+        "bytes": 823680,
+        "pngBytes": 74147
+      },
+      "baked7": {
+        "w": 560,
+        "h": 966,
+        "bytes": 2163840,
+        "pngBytes": 174651
+      }
+    },
+    {
+      "name": "werewolf_fish",
+      "set": "halloween",
+      "ms3": 21.504499999999098,
+      "ms7": 36.648833999999624,
+      "current": {
+        "w": 440,
+        "h": 102,
+        "bytes": 179520,
+        "pngBytes": 23767
+      },
+      "filtered": {
+        "w": 456,
+        "h": 106,
+        "bytes": 193344,
+        "pngBytes": 23841
+      },
+      "baked3": {
+        "w": 544,
+        "h": 390,
+        "bytes": 848640,
+        "pngBytes": 77617
+      },
+      "baked7": {
+        "w": 576,
+        "h": 980,
+        "bytes": 2257920,
+        "pngBytes": 185543
+      }
+    },
+    {
+      "name": "spiderweb_lionfish",
+      "set": "halloween",
+      "ms3": 26.050374999998894,
+      "ms7": 53.945458000000144,
+      "current": {
+        "w": 456,
+        "h": 124,
+        "bytes": 226176,
+        "pngBytes": 34123
+      },
+      "filtered": {
+        "w": 472,
+        "h": 128,
+        "bytes": 241664,
+        "pngBytes": 34181
+      },
+      "baked3": {
+        "w": 584,
+        "h": 456,
+        "bytes": 1065216,
+        "pngBytes": 113764
+      },
+      "baked7": {
+        "w": 624,
+        "h": 1134,
+        "bytes": 2830464,
+        "pngBytes": 273336
+      }
+    },
+    {
+      "name": "grim_reaper_fish",
+      "set": "halloween",
+      "ms3": 23.090500000000247,
+      "ms7": 35.56908300000032,
+      "current": {
+        "w": 440,
+        "h": 104,
+        "bytes": 183040,
+        "pngBytes": 28199
+      },
+      "filtered": {
+        "w": 456,
+        "h": 108,
+        "bytes": 196992,
+        "pngBytes": 28275
+      },
+      "baked3": {
+        "w": 544,
+        "h": 396,
+        "bytes": 861696,
+        "pngBytes": 94579
+      },
+      "baked7": {
+        "w": 576,
+        "h": 994,
+        "bytes": 2290176,
+        "pngBytes": 227544
+      }
+    },
+    {
+      "name": "midnight_coven_witch",
+      "set": "witches",
+      "ms3": 24.133374999999432,
+      "ms7": 43.407624999999825,
+      "current": {
+        "w": 456,
+        "h": 112,
+        "bytes": 204288,
+        "pngBytes": 30310
+      },
+      "filtered": {
+        "w": 472,
+        "h": 116,
+        "bytes": 219008,
+        "pngBytes": 30380
+      },
+      "baked3": {
+        "w": 568,
+        "h": 426,
+        "bytes": 967872,
+        "pngBytes": 101871
+      },
+      "baked7": {
+        "w": 608,
+        "h": 1050,
+        "bytes": 2553600,
+        "pngBytes": 245353
+      }
+    },
+    {
+      "name": "mourning_veil_witch",
+      "set": "witches",
+      "ms3": 33.90287499999977,
+      "ms7": 58.305583999999726,
+      "current": {
+        "w": 480,
+        "h": 134,
+        "bytes": 257280,
+        "pngBytes": 32227
+      },
+      "filtered": {
+        "w": 496,
+        "h": 138,
+        "bytes": 273792,
+        "pngBytes": 32327
+      },
+      "baked3": {
+        "w": 616,
+        "h": 492,
+        "bytes": 1212288,
+        "pngBytes": 107066
+      },
+      "baked7": {
+        "w": 664,
+        "h": 1218,
+        "bytes": 3235008,
+        "pngBytes": 256274
+      }
+    },
+    {
+      "name": "thorn_witch",
+      "set": "witches",
+      "ms3": 45.55674999999974,
+      "ms7": 49.12654199999997,
+      "current": {
+        "w": 448,
+        "h": 120,
+        "bytes": 215040,
+        "pngBytes": 29709
+      },
+      "filtered": {
+        "w": 464,
+        "h": 124,
+        "bytes": 230144,
+        "pngBytes": 29798
+      },
+      "baked3": {
+        "w": 568,
+        "h": 444,
+        "bytes": 1008768,
+        "pngBytes": 99961
+      },
+      "baked7": {
+        "w": 608,
+        "h": 1106,
+        "bytes": 2689792,
+        "pngBytes": 240038
+      }
+    },
+    {
+      "name": "crescent_witch",
+      "set": "witches",
+      "ms3": 32.78429099999994,
+      "ms7": 56.27779200000077,
+      "current": {
+        "w": 480,
+        "h": 122,
+        "bytes": 234240,
+        "pngBytes": 32204
+      },
+      "filtered": {
+        "w": 496,
+        "h": 126,
+        "bytes": 249984,
+        "pngBytes": 32311
+      },
+      "baked3": {
+        "w": 600,
+        "h": 456,
+        "bytes": 1094400,
+        "pngBytes": 107273
+      },
+      "baked7": {
+        "w": 640,
+        "h": 1134,
+        "bytes": 2903040,
+        "pngBytes": 257341
+      }
+    },
+    {
+      "name": "plague_witch",
+      "set": "witches",
+      "ms3": 26.392166999999972,
+      "ms7": 48.498374999999214,
+      "current": {
+        "w": 464,
+        "h": 120,
+        "bytes": 222720,
+        "pngBytes": 28262
+      },
+      "filtered": {
+        "w": 480,
+        "h": 124,
+        "bytes": 238080,
+        "pngBytes": 28338
+      },
+      "baked3": {
+        "w": 584,
+        "h": 450,
+        "bytes": 1051200,
+        "pngBytes": 96208
+      },
+      "baked7": {
+        "w": 624,
+        "h": 1106,
+        "bytes": 2760576,
+        "pngBytes": 232144
+      }
+    },
+    {
+      "name": "raven_witch",
+      "set": "witches",
+      "ms3": 104.93500000000131,
+      "ms7": 49.350374999999985,
+      "current": {
+        "w": 440,
+        "h": 118,
+        "bytes": 207680,
+        "pngBytes": 28002
+      },
+      "filtered": {
+        "w": 456,
+        "h": 122,
+        "bytes": 222528,
+        "pngBytes": 28120
+      },
+      "baked3": {
+        "w": 560,
+        "h": 438,
+        "bytes": 981120,
+        "pngBytes": 94903
+      },
+      "baked7": {
+        "w": 600,
+        "h": 1078,
+        "bytes": 2587200,
+        "pngBytes": 228558
+      }
+    },
+    {
+      "name": "bone_oracle_witch",
+      "set": "witches",
+      "ms3": 31.552749999998923,
+      "ms7": 63.33441600000151,
+      "current": {
+        "w": 464,
+        "h": 129,
+        "bytes": 239424,
+        "pngBytes": 33575
+      },
+      "filtered": {
+        "w": 480,
+        "h": 133,
+        "bytes": 255360,
+        "pngBytes": 33666
+      },
+      "baked3": {
+        "w": 592,
+        "h": 477,
+        "bytes": 1129536,
+        "pngBytes": 111963
+      },
+      "baked7": {
+        "w": 640,
+        "h": 1169,
+        "bytes": 2992640,
+        "pngBytes": 268072
+      }
+    },
+    {
+      "name": "widow_witch",
+      "set": "witches",
+      "ms3": 28.613374999998996,
+      "ms7": 53.72870899999907,
+      "current": {
+        "w": 472,
+        "h": 116,
+        "bytes": 219008,
+        "pngBytes": 30728
+      },
+      "filtered": {
+        "w": 488,
+        "h": 120,
+        "bytes": 234240,
+        "pngBytes": 30822
+      },
+      "baked3": {
+        "w": 592,
+        "h": 438,
+        "bytes": 1037184,
+        "pngBytes": 103029
+      },
+      "baked7": {
+        "w": 624,
+        "h": 1092,
+        "bytes": 2725632,
+        "pngBytes": 247450
+      }
+    },
+    {
+      "name": "swamp_hex_witch",
+      "set": "witches",
+      "ms3": 23.105125000000044,
+      "ms7": 45.24408399999993,
+      "current": {
+        "w": 432,
+        "h": 123,
+        "bytes": 212544,
+        "pngBytes": 31344
+      },
+      "filtered": {
+        "w": 448,
+        "h": 127,
+        "bytes": 227584,
+        "pngBytes": 31421
+      },
+      "baked3": {
+        "w": 560,
+        "h": 453,
+        "bytes": 1014720,
+        "pngBytes": 105240
+      },
+      "baked7": {
+        "w": 600,
+        "h": 1113,
+        "bytes": 2671200,
+        "pngBytes": 252177
+      }
+    },
+    {
+      "name": "frost_witch",
+      "set": "witches",
+      "ms3": 28.289208000000144,
+      "ms7": 54.76212499999929,
+      "current": {
+        "w": 464,
+        "h": 129,
+        "bytes": 239424,
+        "pngBytes": 33112
+      },
+      "filtered": {
+        "w": 480,
+        "h": 133,
+        "bytes": 255360,
+        "pngBytes": 33200
+      },
+      "baked3": {
+        "w": 592,
+        "h": 477,
+        "bytes": 1129536,
+        "pngBytes": 110413
+      },
+      "baked7": {
+        "w": 640,
+        "h": 1169,
+        "bytes": 2992640,
+        "pngBytes": 263910
+      }
+    },
+    {
+      "name": "ember_witch",
+      "set": "witches",
+      "ms3": 26.731708000001163,
+      "ms7": 43.067290999999386,
+      "current": {
+        "w": 448,
+        "h": 124,
+        "bytes": 222208,
+        "pngBytes": 30592
+      },
+      "filtered": {
+        "w": 464,
+        "h": 128,
+        "bytes": 237568,
+        "pngBytes": 30670
+      },
+      "baked3": {
+        "w": 576,
+        "h": 456,
+        "bytes": 1050624,
+        "pngBytes": 102727
+      },
+      "baked7": {
+        "w": 616,
+        "h": 1120,
+        "bytes": 2759680,
+        "pngBytes": 247075
+      }
+    },
+    {
+      "name": "elder_coven_witch",
+      "set": "witches",
+      "ms3": 25.61066700000083,
+      "ms7": 47.721166999999696,
+      "current": {
+        "w": 448,
+        "h": 130,
+        "bytes": 232960,
+        "pngBytes": 36665
+      },
+      "filtered": {
+        "w": 464,
+        "h": 134,
+        "bytes": 248704,
+        "pngBytes": 36749
+      },
+      "baked3": {
+        "w": 584,
+        "h": 474,
+        "bytes": 1107264,
+        "pngBytes": 123913
+      },
+      "baked7": {
+        "w": 624,
+        "h": 1162,
+        "bytes": 2900352,
+        "pngBytes": 298848
+      }
+    }
+  ]
+}

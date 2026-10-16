@@ -90,6 +90,18 @@ Layer checkboxes, fish/object sets, population counts, birthday fish and pause
 update live and keep the address bar in sync. Only the affected group is rebuilt;
 other creatures keep swimming. Goth plants, goth kelp and crawling hands also
 switch live; alternate atlases load on first use and stay cached for later switches.
+The **Texture filtering** checkbox switches fish, plant and kelp rendering live
+(including goth variants): checked (the default) uses
+sharp cubic filtering with B=0, C=1 and no neighborhood halo limiter; unchecked
+uses the original nearest sampling. The URL stores `texture-filter=smooth` or
+`texture-filter=pixelated`. Fish keep their positions, animation and collision
+sizes when switching; plants and kelp keep their roots, joints and sway.
+Smooth fish rotate continuously using their eased swimming pitch; Pixelated keeps
+the original 7° steps to reduce pixel shimmer. Authored birthday/QR strips retain their pixel rendering.
+The shader reuses the packed textures and masks neighboring frames; it adds GPU
+work but no duplicate atlases. Plant and kelp pieces share atlas-level filter
+uniforms to preserve batching.
+
 Resolution and frame cap still reload because they configure the renderer at startup.
 
 ```sh

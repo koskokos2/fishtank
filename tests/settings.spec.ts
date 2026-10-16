@@ -215,3 +215,91 @@ test("witch fish set has twelve previews and switches live with shareable settin
   }
   expect(errors).toEqual([]);
 });
+
+
+test("texture filtering switches the existing fish live and persists in shared URLs", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await open(page);
+  const filtering = checkbox(page, "Texture filtering");
+  await expect(filtering).toBeChecked();
+  await checkbox(page, "pause").check();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const before = await page.evaluate(() => window.birthdayTest.fishFiltering());
+  expect(before.fish).toHaveLength(3);
+  expect(before.draws.length).toBeGreaterThan(0);
+  for (const draw of before.draws) {
+    expect(draw.leftPadding).toBeCloseTo(2);
+    expect(draw.rightPadding).toBeCloseTo(2);
+    expect(draw.topPadding).toBeCloseTo(2);
+    expect(draw.bottomPadding).toBeCloseTo(2);
+  }
+  await filtering.uncheck();
+  expect(new URL(page.url()).searchParams.get("texture-filter")).toBe("pixelated");
+  const pixelated = await page.evaluate(() => window.birthdayTest.fishFiltering());
+  expect(pixelated.draws).toHaveLength(0);
+  expect(pixelated.fish).toEqual(before.fish);
+  await filtering.check();
+  const smooth = await page.evaluate(() => window.birthdayTest.fishFiltering());
+  expect(smooth.draws.length).toBeGreaterThan(0);
+  expect(smooth.fish).toEqual(before.fish);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  expect(new URL(page.url()).searchParams.get("texture-filter")).toBe("smooth");
+  await page.reload();
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await expect(filtering).toBeChecked();
+  await filtering.uncheck();
+  await page.reload();
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await expect(filtering).not.toBeChecked();
+  expect((await page.evaluate(() => window.birthdayTest.fishFiltering())).draws).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
+for (const goth of [false, true]) {
+  test(`texture filtering preserves plant and kelp geometry and batching (goth: ${goth})`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await open(page, goth ? "goth-plants=1&goth-kelp=1" : "");
+    await checkbox(page, "pause").check();
+    const origin = await page.evaluate(() => performance.timeOrigin);
+    const controllers = await Promise.all(["plants", "kelp"].map(name => layer(page, name)));
+    const assets = await page.evaluate(() => window.birthdayTest.skinAssets());
+    const before = await page.evaluate(() => window.birthdayTest.plantDrawing());
+    expect(before.skins).toEqual((goth ? ["plant-atlas-v2-goth", "luminous-kelp-goth"] : ["plant-atlas-v2", "luminous-kelp"]).sort());
+    expect(before.filtered).toEqual(before.skins);
+    expect(before.validBounds).toBe(true);
+    expect(before.uniformCounts).toEqual([1, 1]);
+    expect(before.poses.length).toBeGreaterThan(20);
+    const filtering = checkbox(page, "Texture filtering");
+    await filtering.uncheck();
+    const pixelated = await page.evaluate(() => window.birthdayTest.plantDrawing());
+    expect(pixelated.filtered).toEqual([]);
+    expect(pixelated.poses).toEqual(before.poses);
+    await filtering.check();
+    const smooth = await page.evaluate(() => window.birthdayTest.plantDrawing());
+    expect(smooth.filtered).toEqual(before.skins);
+    expect(smooth.poses).toEqual(before.poses);
+    expect(smooth.uniformCounts).toEqual([1, 1]);
+    expect(await Promise.all(["plants", "kelp"].map(name => layer(page, name)))).toEqual(controllers);
+    expect(await page.evaluate(() => window.birthdayTest.skinAssets())).toEqual(assets);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+    await page.screenshot({ path: `test-results/plant-filtering-${goth ? "goth" : "normal"}.png` });
+    expect(errors).toEqual([]);
+  });
+}
+
+test("smooth fish rotate continuously and pixelated fish retain stepped pitch", async ({ page }) => {
+  await open(page);
+  const filtering = checkbox(page, "Texture filtering");
+  const angles = () => page.evaluate(() => window.birthdayTest.fishAngles());
+  const ids = (await angles()).map(f => f.id).sort();
+  const hasContinuousPitch = async () => (await angles()).some(f => Math.abs(f.angle / 7 - Math.round(f.angle / 7)) > 0.001);
+  await expect.poll(hasContinuousPitch).toBe(true);
+  expect((await angles()).every(f => Math.abs(f.angle) <= 22)).toBe(true);
+  await filtering.uncheck();
+  await expect.poll(hasContinuousPitch).toBe(false);
+  await filtering.check();
+  await expect.poll(hasContinuousPitch).toBe(true);
+  expect((await angles()).map(f => f.id).sort()).toEqual(ids);
+});

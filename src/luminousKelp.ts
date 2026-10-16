@@ -1,10 +1,11 @@
+import { GRID_FILTER_SHADER, gridFilterUniform } from "./textureFiltering";
 // A grove of surface-reaching giant kelp assembled from one coherent atlas.
 // Each stalk is an articulated stem chain; branches, tendrils, crowns and pod
 // clusters attach to shared anatomical joints and sway on independent clocks.
 import type { KAPLAYCtx, Color, Quad, Vec2 } from "kaplay";
 import { sandTopAt } from "./backdrop";
 import { getKelpTheme } from "./kelpTheme";
-import { gothKelpEnabled, profile, withDrawProfile } from "./profiling";
+import { smoothTextures, gothKelpEnabled, profile, withDrawProfile } from "./profiling";
 import { RES } from "./res";
 
 const S = RES;
@@ -184,6 +185,7 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
   const defaultOpacity = rear ? 0.88 : 0.98;
 
   const data = k.getSprite(theme.sprite)?.data;
+  const filterUniform = data && gridFilterUniform(k, data);
   const rearColor = k.rgb(186, 207, 190);
   const frontColor = k.rgb(238, 249, 232);
 
@@ -565,6 +567,8 @@ export function spawnLuminousKelp(k: KAPLAYCtx, spec: LuminousKelpSpec) {
             for (const p of drawList)
               k.drawUVQuad({
                 tex: data.tex,
+                shader: smoothTextures ? GRID_FILTER_SHADER : undefined,
+                uniform: smoothTextures ? filterUniform : undefined,
                 quad: p.quad,
                 width: p.width,
                 height: p.height,

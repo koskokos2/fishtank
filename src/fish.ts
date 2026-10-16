@@ -48,11 +48,13 @@ import { groundZ, sandTopAt } from "./backdrop";
 import { spawnSandPuff } from "./sandPuff";
 import { spawnBubble } from "./tank";
 import { RES } from "./res";
+import { filteredFishSprite } from "./textureFiltering";
 import {
   profile,
   profileDraw,
   profileDrawEnd,
   registerSetPreview,
+  smoothTextures,
 } from "./profiling";
 
 const clamp = (v: number, lo: number, hi: number) =>
@@ -842,8 +844,7 @@ const DRAG = 1.1; // horizontal water resistance (per second)
 const VDRAG = 1.4; // vertical water resistance
 const VMAX = 26 * RES; // cap on vertical speed (keeps pitch gentle)
 const MAX_TILT = (22 * Math.PI) / 180;
-// Pitch snaps to multiples of this (degrees) so a tilted sprite holds a fixed
-// rotation between steps instead of resampling — and rotating pixels — every frame.
+// Unfiltered sprites retain stepped pitch to reduce nearest-sampling shimmer.
 const TILT_STEP = 7;
 const AVOID = 520 * RES; // separation acceleration; grows as fish get closer
 const AVOID_MAX = 150 * RES; // cap so a deep overlap can't fling a fish across the tank
@@ -945,7 +946,8 @@ export function spawnFish(
   const spawnY = opts.position?.y ?? k.rand(bandTop(spawnX), bandBot(spawnX));
   const fish = k.add([
     profileDraw("fish"),
-    k.sprite(spriteName),
+    // Authored birthday/QR animation strips retain their exact pixel rendering.
+    spriteName.startsWith("fish-") ? filteredFishSprite(k, spriteName) : k.sprite(spriteName),
     profileDrawEnd(),
     k.pos(spawnX, spawnY),
     k.anchor("center"),
@@ -1426,16 +1428,17 @@ export function spawnFish(
       const targetAngle = ((facingRight ? slope : -slope) * 180) / Math.PI;
       ang = lerpTo(ang, targetAngle, 8, dt);
 
-      // Snap the rendered transform: position to the pixel grid, pitch to fixed
-      // tilt steps (the float state above stays smooth). A shallow slope snaps to
-      // 0°, keeping slow horizontal swimmers perfectly crisp.
+      // Keep positions on the pixel grid. Filtered fish use the continuous eased
+      // pitch; unfiltered/authored strips retain the original tilt steps.
       contain();
       fish.pos.x = Math.round(px);
       fish.pos.y = Math.round(py);
       // Depth-sort by its own y: a fish never descends below the sand crest, so
       // it slips behind whatever is rooted on the dune as it swims past.
       fish.z = groundZ(py);
-      fish.angle = opts.levelBody ? 0 : Math.round(ang / TILT_STEP) * TILT_STEP;
+      fish.angle = opts.levelBody ? 0
+        : smoothTextures && spriteName.startsWith("fish-") ? ang
+        : Math.round(ang / TILT_STEP) * TILT_STEP;
 
       // Publish body points for neighbours' separation checks.
       const dir = facingRight ? 1 : -1;

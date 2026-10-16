@@ -1,3 +1,4 @@
+import { GRID_FILTER_SHADER, gridFilterUniform } from "./textureFiltering";
 import type {
   KAPLAYCtx,
   Quad,
@@ -17,6 +18,7 @@ import { spawnFixedProps, spawnRotatingProps } from "./propPlacement";
 import {
   off,
   gothPlantsEnabled,
+  smoothTextures,
   profile,
   profileDraw,
   profileDrawEnd,
@@ -473,6 +475,7 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
   // and allocates a fresh opts object every frond every frame.
   const theme = getPlantTheme(gothPlantsEnabled);
   const data = k.getSprite(theme.sprite)?.data;
+  const filterUniform = data && gridFilterUniform(k, data);
   const BAND = 6;
   const bands = new Map<number, Frond[]>();
   for (const frond of fronds) {
@@ -518,6 +521,8 @@ function commitPlantField(k: KAPLAYCtx, fronds: Frond[]) {
               for (const it of items)
                 k.drawUVQuad({
                   tex: data.tex,
+                  shader: smoothTextures ? GRID_FILTER_SHADER : undefined,
+                  uniform: smoothTextures ? filterUniform : undefined,
                   quad: it.quad,
                   width: it.width,
                   height: it.height,

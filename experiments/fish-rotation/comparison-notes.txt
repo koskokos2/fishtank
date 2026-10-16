@@ -1,0 +1,68 @@
+FISH ROTATION COMPARISON
+
+Open index.html in a browser. It is self-contained and works offline.
+Choose a fish, tilt, swim frame, and 3 or 7 baked poses. Animate motion to inspect
+shimmer and pose transitions. PNGs show tank-scale rendering plus 3x nearest zoom;
+motion-comparison.webm shows the same animation first with 3, then 7 baked poses.
+No production tank files were changed.
+
+METHODS
+Current: actual KAPLAY/WebGL rendering, nearest texture filtering, 7-degree steps.
+Baked: automatic Scale2x enlargement to 8x, inverse-sampled offline rotation down
+to native resolution, four existing swim frames at each angle, nearest display.
+This is an automatic prototype, NOT hand-redrawn artwork. Artist cleanup could
+improve silhouettes; merely saving rotated images does not guarantee good art.
+Filtered: actual WebGL LINEAR min/mag filtering on separate sprite textures,
+premultiplied alpha, two transparent pixels at both horizontal frame edges.
+It retains the current 7-degree angle steps so filtering is the only difference.
+Both current and baked horizontal renderings were checked pixel-for-pixel equal.
+
+SOURCE / REPRODUCTION
+Scale2x algorithm: https://www.scale2x.it/algorithm
+Bun + installed KAPLAY version; native 1920x1080 tank scale, RES=3, no extra CSS
+minification at the 1760px capture viewport. Production body scaling is retained.
+bun tools/fish-rotation/generate.ts
+bun tools/fish-rotation/capture.ts
+
+MEMORY (fish sprite data only, MiB = 1048576 bytes)
+Current: 432 frames; 15.60 MiB RGBA8 pixels; 2.03 MiB PNG sheets.
+Filtered: 432 frames; 16.21 MiB RGBA8 pixels; 2.04 MiB PNG sheets.
+Baked 3 poses: 1296 frames; 75.12 MiB RGBA8 pixels; 6.67 MiB PNG sheets.
+Baked 7 poses: 3024 frames; 198.59 MiB RGBA8 pixels; 15.97 MiB PNG sheets.
+
+These are full resident catalogs of 108 fish, not the number currently swimming.
+Right-facing fish mirror the same frames. Birthday fish are excluded because
+those use separate authored sheets and keep their bodies level.
+
+GPU ALLOCATION ESTIMATES
+The installed KAPLAY uses 2048x2048 RGBA pages, 16 MiB each. Simulated fish-only
+packing, excluding the tank's props/background/other sprites:
+Current: 32 MiB with height-sorted pose rows; 32 MiB in current species order as whole sheets.
+Filtered: 32 MiB with height-sorted pose rows; 32 MiB in current species order as whole sheets.
+Baked 3 poses: 96 MiB with height-sorted pose rows; 112 MiB in current species order as whole sheets.
+Baked 7 poses: 240 MiB with height-sorted pose rows; 320 MiB in current species order as whole sheets.
+Actual whole-app VRAM and RAM were NOT measured. Shared atlas placement,
+fragmentation, separate filtered pages, CPU image copies, canvases and driver
+overhead change the totals. PNG byte size is disk/bundle data, not GPU memory.
+Embedding base64 costs roughly another 33% before transport compression.
+
+GENERATION WORK
+Existing: 108 source fish and 432 synthesized animation frames.
+Three poses: 1296 frames, 864 additional runtime frames.
+Seven poses: 3024 frames, 2592 additional runtime frames.
+This automatic prototype needs zero AI generations or paid image calls.
+Measured in this run: 1.98s for all three-pose transforms, 3.45s for seven-pose transforms.
+Full generation of BOTH catalogs, baseline/filtered PNGs and estimates took
+10.05s locally, excluding browser launch/rendering. This is not a Pi benchmark.
+If artist-authored poses are preferred, retaining each existing level pose means
+216 NEW source poses for three directions (18 sheets at 12 sprites per sheet),
+or 648 new source poses for seven directions (54 sheets). These are minimum
+accepted-art counts, not a promise of one image-generation attempt per sheet;
+identity, consistent pivots and small-pixel cleanup need review. Four swim frames
+can still be synthesized per pose. Manual art/review time is not benchmarked.
+
+WITCHES-ONLY PILOT
+12 witches: 2.58 MiB currently; 12.19 MiB for 3 poses; 32.21 MiB for 7.
+Only 24 new authored poses (two 12-sprite sheets) for a 3-direction witch set.
+With 3-pose witches and all other fish unchanged, raw fish pixels total
+25.21 MiB, about 9.61 MiB more than now.

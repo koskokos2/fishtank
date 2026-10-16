@@ -38,6 +38,26 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  fishAngles: () => k.get("fish").filter(f => !f.is("birthday-fish")).map(f => ({ id: f.id, angle: f.angle as number })),
+  fishFiltering: async () => {
+    const draws: { width: number; height: number; leftPadding: number; topPadding: number; rightPadding: number; bottomPadding: number }[] = [];
+    drawProbe = options => {
+      if (options.shader !== "fish-cubic-c1") return;
+      const u = options.uniform as unknown as { textureSize: { x: number; y: number }; frameMin: { x: number; y: number }; frameMax: { x: number; y: number } };
+      const q = options.quad!;
+      draws.push({ width: options.width!, height: options.height!,
+        leftPadding: u.frameMin.x - q.x * u.textureSize.x,
+        topPadding: u.frameMin.y - q.y * u.textureSize.y,
+        rightPadding: (q.x + q.w) * u.textureSize.x - u.frameMax.x,
+        bottomPadding: (q.y + q.h) * u.textureSize.y - u.frameMax.y });
+    };
+    await new Promise(resolve => setTimeout(resolve, 120));
+    drawProbe = undefined;
+    return { draws, fish: k.get("fish").filter(f => !f.is("birthday-fish")).map(f => ({
+      id: f.id, x: f.pos.x, y: f.pos.y, frame: f.frame,
+      width: f.width, height: f.height, scale: f.scale.x,
+    })).sort((a, b) => (a.id ?? 0) - (b.id ?? 0)) };
+  },
   skinAssets: () => Object.fromEntries(skinNames.map(name => {
     const data = k.getSprite(name)?.data;
     if (data && !skinAssetIds.has(data)) skinAssetIds.set(data, skinAssetIds.size + 1);
@@ -47,11 +67,30 @@ const api = {
   plantDrawing: async () => {
     let kelpMinY = Infinity, kelpMaxY = -Infinity;
     const seen = new Set<string>();
+    const poses = new Set<string>();
+    const filtered = new Set<string>();
+    const uniforms = new Map<string, Set<unknown>>();
+    let validBounds = true;
     const assets = skinNames.slice(0, 4).map(name => ({ name, data: k.getSprite(name)?.data }));
     drawProbe = options => {
       for (const { name, data } of assets) {
         if (data && data.tex === options.tex && data.frames.includes(options.quad!)) {
           seen.add(name);
+          poses.add(JSON.stringify([name, data.frames.indexOf(options.quad!), options.pos,
+            options.scale, options.angle, options.width, options.height, options.anchor]));
+          if (options.shader === "grid-cubic-c1") {
+            filtered.add(name);
+            if (!uniforms.has(name)) uniforms.set(name, new Set());
+            uniforms.get(name)!.add(options.uniform);
+            const u = options.uniform as unknown as { textureSize: {x: number; y: number}; atlasOrigin: {x: number; y: number}; cellSize: {x: number; y: number} };
+            const q = options.quad!;
+            for (const axis of ["x", "y"] as const) {
+              const edge = q[axis] * u.textureSize[axis];
+              const centre = edge + u.cellSize[axis] * 0.5;
+              const derived = u.atlasOrigin[axis] + Math.floor((centre - u.atlasOrigin[axis]) / u.cellSize[axis]) * u.cellSize[axis];
+              validBounds &&= Math.abs(derived - edge) < 0.001;
+            }
+          }
           if (name.startsWith("luminous-kelp")) {
             const y = (options.pos as { y: number }).y;
             kelpMinY = Math.min(kelpMinY, y);
@@ -62,7 +101,9 @@ const api = {
     };
     await new Promise(resolve => setTimeout(resolve, 100));
     drawProbe = undefined;
-    return { skins: [...seen].sort(), kelpHeight: (kelpMaxY - kelpMinY) / k.height() };
+    return { skins: [...seen].sort(), kelpHeight: (kelpMaxY - kelpMinY) / k.height(),
+      poses: [...poses].sort(), filtered: [...filtered].sort(), validBounds,
+      uniformCounts: [...uniforms.values()].map(values => values.size) };
   },
   settingsLayer: (name: string) => k.get(`settings-${name}`).map(object => ({
     id: object.id, hidden: object.hidden, sprite: object.sprite as string | undefined,
