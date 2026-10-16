@@ -1,3 +1,5 @@
+import { settings } from "./settings";
+import { DEFAULT_ENTITY_COUNTS } from "./settingsCodec";
 import kaplay, { type KAPLAYCtx } from "kaplay";
 import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
@@ -83,15 +85,6 @@ import {
 import { VW, VH } from "./res";
 import { installBirthdayFish, loadBirthdayFish, syncBirthdaySparkles } from "./birthdayFish";
 
-const DEFAULT_ENTITY_COUNTS = {
-  fish: 10,
-  jelly: 5,
-  octo: 1,
-  naut: 1,
-  crabs: 5,
-  snail: 1,
-  plants: 100,
-} as const;
 configureEntityCountDefaults(DEFAULT_ENTITY_COUNTS);
 const BACKDROP_SEED = 1;
 
@@ -194,7 +187,7 @@ function installLiveControls() {
     const crab = getCrabTheme(crawlingHandsEnabled);
     const plantsReady = off("plants") || plantCount === 0 || skinReady(plants, { sliceX: plants.cols, sliceY: plants.rows });
     const plantKey = `${off("plants")}:${plantCount}:${plants.sprite}`;
-    const propKey = `${off("props")}:${new URLSearchParams(location.search).get("off")?.split(",").filter(n => n.startsWith("obj-")).sort().join(",") ?? ""}`;
+    const propKey = `${off("props")}:${settings.disabled.filter(n => n.startsWith("obj-")).sort().join(",")}`;
     for (const layer of ["backdrop", "sand", "props", "plants", "motes", "bubbles"]) {
       // Pearling bubbles reference the plant field, so replace the two together.
       if (!plantsReady && (layer === "plants" || layer === "bubbles")) continue;

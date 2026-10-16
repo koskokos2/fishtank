@@ -1,6 +1,7 @@
 // Desktop launcher for the Linux binary. The webview's native run loop blocks
 // this thread, so the embedded HTTP server runs in a worker.
 import { Webview } from "webview-bun";
+import { encodeSettings, settingsFromSearch, type TankSettings } from "./src/settingsCodec";
 
 const PORT = 8421;
 
@@ -31,7 +32,16 @@ if (process.platform === "linux" && !process.env.FISHTANK_NO_GPU_TWEAKS) {
 //   FISHTANK_QUERY="res=2&plants=40" ./fishtank
 //   FISHTANK_RES=2 ./fishtank
 const query = new URLSearchParams(process.env.FISHTANK_QUERY ?? "");
-if (process.env.FISHTANK_RES) query.set("res", process.env.FISHTANK_RES);
+if (process.env.FISHTANK_RES) {
+  if (query.has("settings")) {
+    // The explicit launcher override must also work with a copied encoded URL.
+    const settings = settingsFromSearch(query.toString());
+    const res = Number(process.env.FISHTANK_RES);
+    settings.resolution = ([1, 2, 3, 6].includes(res) ? res : 3) as TankSettings["resolution"];
+    query.set("settings", encodeSettings(settings));
+    query.delete("res");
+  } else query.set("res", process.env.FISHTANK_RES);
+}
 const QUERY_STRING = query.toString();
 
 type ServerMessage =

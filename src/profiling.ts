@@ -1,58 +1,39 @@
 import type { KAPLAYCtx } from "kaplay";
 import { BIRTHDAY_START_LABEL } from "./birthdayDate";
-import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride, writeSunSettings } from "./sunClock";
+import { currentSun, realTimeSun, setRealTimeSun, setSunTimeOverride, sunTimeOverride } from "./sunClock";
 
-// Scene-ablation toggles for performance profiling. Normal operation is
-// unaffected (empty query = everything on). Open the page with e.g.
-// ?off=caustics,kelp to skip surface lighting or those layers,
-// ?off=water-light is a legacy alias for all surface lighting, ?off=all for the
-// empty tank floor, and ?uncap to lift the maxFPS cap — then read the FPS console.
-// Headless tools import scene modules that import this one — no location there.
-let params =
-  typeof location === "undefined"
-    ? new URLSearchParams()
-    : new URLSearchParams(location.search);
-const OFF = new Set((params.get("off") ?? "").split(",").filter(Boolean));
-// Normalize old links so the sidebar also reflects the unified lighting gate.
-if (OFF.has("water-light")) OFF.add("caustics");
-export const off = (name: string) => OFF.has("all") ||
-  (name === "backdrop" && realTimeSun ? !currentSun().daylight : OFF.has(name));
-export const uncapped = params.has("uncap");
-// Opt-in schedule; unchecked always hides birthday fish.
-export let birthdayFishEnabled = params.get("birthday") === "1";
-// A skin for the existing plant field; the plants visibility gate still applies.
-export let gothPlantsEnabled = params.get("goth-plants") === "1";
-export let gothKelpEnabled = params.get("goth-kelp") === "1";
-export let crawlingHandsEnabled = params.get("crawling-hands") === "1";
-export let smoothTextures = params.get("texture-filter") !== "pixelated";
-// ?cap=32 overrides the default frame cap — launchers pass a lower cap on weak
-// devices (halves sustained load and heat) without needing a separate build.
-export const capFPS = Number(params.get("cap")) || 62;
+import { settings, copySettings, saveSettings } from "./settings";
+import { COUNT_KEYS, SETTING_GATES, type CountKey, type TankSettings } from "./settingsCodec";
+
+const OFF = new Set<string>(settings.disabled);
+export const off = (name: string) =>
+  name === "backdrop" && realTimeSun ? !currentSun().daylight : OFF.has(name);
+export const uncapped = settings.frameCap === 0;
+export let birthdayFishEnabled = settings.birthday;
+export let gothPlantsEnabled = settings.gothPlants;
+export let gothKelpEnabled = settings.gothKelp;
+export let crawlingHandsEnabled = settings.crawlingHands;
+export let smoothTextures = settings.smoothTextures;
+export const capFPS = settings.frameCap || 62;
 const settingsListeners = new Set<() => void>();
 export const onSettingsChange = (listener: () => void) => { settingsListeners.add(listener); };
-function updateSettings(next: URLSearchParams, reload = false) {
-  writeSunSettings(next);
-  const url = `${location.pathname}${next.size ? `?${next}` : ""}${location.hash}`;
-  if (reload) { location.assign(url); return; }
-  history.replaceState(null, "", url);
-  params = next;
+function updateSettings(next: TankSettings, reload = false) {
+  next.realTimeSun = realTimeSun;
+  next.sunTime = realTimeSun ? sunTimeOverride : null;
+  saveSettings(next, reload);
+  if (reload) return;
   OFF.clear();
-  for (const name of (next.get("off") ?? "").split(",").filter(Boolean)) OFF.add(name);
-  if (OFF.has("water-light")) OFF.add("caustics");
-  birthdayFishEnabled = next.get("birthday") === "1";
-  gothPlantsEnabled = next.get("goth-plants") === "1";
-  gothKelpEnabled = next.get("goth-kelp") === "1";
-  crawlingHandsEnabled = next.get("crawling-hands") === "1";
-  smoothTextures = next.get("texture-filter") !== "pixelated";
-  if (kaplayDebug) kaplayDebug.paused = next.has("pause");
+  for (const name of next.disabled) OFF.add(name);
+  birthdayFishEnabled = next.birthday;
+  gothPlantsEnabled = next.gothPlants;
+  gothKelpEnabled = next.gothKelp;
+  crawlingHandsEnabled = next.crawlingHands;
+  smoothTextures = next.smoothTextures;
+  if (kaplayDebug) kaplayDebug.paused = next.paused;
   for (const listener of settingsListeners) listener();
 }
-// ?fish=4 style spawn-count overrides; anything unparseable keeps the default.
-export const num = (name: string, fallback: number) => {
-  if (!params.has(name)) return fallback;
-  const v = Number(params.get(name));
-  return Number.isFinite(v) && v >= 0 ? Math.min(999, Math.floor(v)) : fallback;
-};
+export const num = (name: string, fallback: number) =>
+  COUNT_KEYS.includes(name as CountKey) ? settings.counts[name as CountKey] : fallback;
 let entityCountDefaults: readonly (readonly [string, number])[] = [];
 export const configureEntityCountDefaults = (
   counts: Readonly<Record<string, number>>,
@@ -278,7 +259,7 @@ const makeLongFrameBreakdown = (
   };
 };
 
-let debugProfiling = params.has("debug");
+let debugProfiling = settings.debug;
 const jsProfileTotals = new Map<string, number>();
 const drawProfileTotals = new Map<string, number>();
 const glProfileTotals = new Map<string, number>();
@@ -369,7 +350,7 @@ export const installEngineProfiler = (
   k: Pick<KAPLAYCtx, "getTreeRoot" | "debug">,
 ) => {
   kaplayDebug = k.debug;
-  kaplayDebug.paused = params.has("pause");
+  kaplayDebug.paused = settings.paused;
   const root = k.getTreeRoot() as ProfileRoot;
   if (profiledRoots.has(root)) return;
   profiledRoots.add(root);
@@ -519,7 +500,7 @@ const setDebugProfiling = (enabled: boolean) => {
 // ?fps overlays a live frame-rate readout — easier to read than the in-scene
 // console prop, and available even with ?off=props. Superseded by ?debug's
 // panel, which occupies the same corner.
-if (params.has("fps") && !params.has("debug"))
+if (settings.fps && !settings.debug)
   addEventListener("load", () => {
     const label = document.createElement("div");
     label.style.cssText =
@@ -644,7 +625,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     }, 250);
 
     // Auto-open the detail panel (performance breakdown) if debug param is set
-    if (params.has("debug")) {
+    if (settings.debug) {
       setDetailsVisible(true);
     } else {
       // Otherwise, restore from localStorage
@@ -752,15 +733,14 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     birthdayCb.checked = birthdayFishEnabled;
     birthdayCb.style.accentColor = "#7f7";
     birthdayCb.addEventListener("change", () => {
-      const p = new URLSearchParams(location.search);
-      if (birthdayCb.checked) p.set("birthday", "1");
-      else p.delete("birthday");
+      const p = copySettings();
+      p.birthday = birthdayCb.checked;
       updateSettings(p);
     });
     birthdayLabel.append(birthdayCb, "Birthday fish (scheduled)");
     box.append(birthdayLabel);
 
-    // Scene-element checkboxes: each maps to a live ?off= gate. Every
+    // Scene-element checkboxes: each maps to a live disabled-layer flag. Every
     // checkbox across every grid below shares one `boxes` map and `apply`, so
     // toggling one section's gates never clobbers another's.
     const TOGGLES = [
@@ -777,7 +757,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       "crabs",
       "kelp",
     ];
-    // Fish-atlas and prop-family themes: same off= gate mechanism as TOGGLES,
+    // Fish-atlas and prop-family themes: same flag mechanism as TOGGLES,
     // gate names prefixed so they can't collide with each other or TOGGLES
     // (both have a "pop-culture" entry). Kept in sync by hand with fishKindSet's
     // FISH_SET_ATLASES (fish.ts) and the families built into PROP_WHITELIST
@@ -810,9 +790,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         // A scheduled night must not become a permanent manual backdrop choice.
         .filter(([name, cb]) => name === "backdrop" && realTimeSun ? OFF.has(name) : !cb.checked)
         .map(([name]) => name);
-      const p = new URLSearchParams(location.search);
-      if (offNow.length) p.set("off", offNow.join(","));
-      else p.delete("off");
+      const p = copySettings();
+      p.disabled = SETTING_GATES.filter(gate => offNow.includes(gate));
       updateSettings(p);
     };
     const addToggleGrid = (
@@ -892,7 +871,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     const addSkinToggle = (
       layer: "plants" | "kelp" | "crabs",
       enabled: boolean,
-      query = `goth-${layer}`,
+      field: "gothPlants" | "gothKelp" | "crawlingHands" = layer === "plants" ? "gothPlants" : "gothKelp",
       display = `goth ${layer}`,
     ) => {
       const label = document.createElement("label");
@@ -905,9 +884,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       cb.checked = enabled;
       cb.style.accentColor = "#7f7";
       cb.addEventListener("change", () => {
-        const p = new URLSearchParams(location.search);
-        if (cb.checked) p.set(query, "1");
-        else p.delete(query);
+        const p = copySettings();
+        p[field] = cb.checked;
         updateSettings(p);
       });
       label.append(cb, display);
@@ -915,7 +893,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     };
     addSkinToggle("plants", gothPlantsEnabled);
     addSkinToggle("kelp", gothKelpEnabled);
-    addSkinToggle("crabs", crawlingHandsEnabled, "crawling-hands", "crawling hands");
+    addSkinToggle("crabs", crawlingHandsEnabled, "crawlingHands", "crawling hands");
     const allBtn = document.createElement("label");
     allBtn.style.cssText =
       "display:flex;gap:6px;align-items:center;cursor:pointer";
@@ -976,17 +954,17 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     }
     sunToggle.addEventListener("change", () => {
       setRealTimeSun(sunToggle.checked);
-      updateSettings(new URLSearchParams(location.search));
+      updateSettings(copySettings());
       syncSunControls();
     });
     timeSlider.addEventListener("input", () => {
       setSunTimeOverride(Number(timeSlider.value));
-      updateSettings(new URLSearchParams(location.search));
+      updateSettings(copySettings());
       syncSunControls();
     });
     resetTime.addEventListener("click", () => {
       setSunTimeOverride(null);
-      updateSettings(new URLSearchParams(location.search));
+      updateSettings(copySettings());
       syncSunControls();
     });
     syncSunControls();
@@ -1007,7 +985,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       title: string,
       options: [string, string][],
       current: string,
-      onPick: (v: string, p: URLSearchParams) => void,
+      onPick: (v: string, p: TankSettings) => void,
       reload = true,
     ) => {
       const label = document.createElement("label");
@@ -1025,7 +1003,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         sel.append(o);
       }
       sel.addEventListener("change", () => {
-        const p = new URLSearchParams(location.search);
+        const p = copySettings();
         onPick(sel.value, p);
         updateSettings(p, reload);
       });
@@ -1040,8 +1018,8 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     textureToggle.checked = smoothTextures;
     textureToggle.style.accentColor = "#7f7";
     textureToggle.addEventListener("change", () => {
-      const query = new URLSearchParams(location.search);
-      query.set("texture-filter", textureToggle.checked ? "smooth" : "pixelated");
+      const query = copySettings();
+      query.smoothTextures = textureToggle.checked;
       updateSettings(query, false);
     });
     textureLabel.append(textureToggle, "Texture filtering");
@@ -1050,9 +1028,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     // Its own line keeps the graphics controls readable in the narrow sidebar.
     textureLabel.style.flexBasis = "100%";
     row.style.flexWrap = "wrap";
-    const resNow = ["1", "2", "6"].includes(params.get("res") ?? "")
-      ? params.get("res")!
-      : "3";
+    const resNow = String(settings.resolution);
     makeSelect(
       "res",
       [
@@ -1063,15 +1039,10 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ],
       resNow,
       (v, p) => {
-        if (v === "3") p.delete("res");
-        else p.set("res", v);
+        p.resolution = Number(v) as TankSettings["resolution"];
       },
     );
-    const capNow = params.has("uncap")
-      ? "off"
-      : params.get("cap") === "32"
-        ? "30"
-        : "60";
+    const capNow = settings.frameCap === 0 ? "off" : settings.frameCap === 32 ? "30" : "60";
     makeSelect(
       "cap",
       [
@@ -1081,10 +1052,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
       ],
       capNow,
       (v, p) => {
-        p.delete("cap");
-        p.delete("uncap");
-        if (v === "30") p.set("cap", "32");
-        if (v === "off") p.set("uncap", "");
+        p.frameCap = v === "off" ? 0 : v === "30" ? 32 : 62;
       },
     );
     const pauseLabel = document.createElement("label");
@@ -1093,11 +1061,10 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
     const pauseCb = document.createElement("input");
     pauseCb.type = "checkbox";
     pauseCb.style.accentColor = "#7f7";
-    pauseCb.checked = params.has("pause");
+    pauseCb.checked = settings.paused;
     pauseCb.addEventListener("change", () => {
-      const p = new URLSearchParams(location.search);
-      if (pauseCb.checked) p.set("pause", "1");
-      else p.delete("pause");
+      const p = copySettings();
+      p.paused = pauseCb.checked;
       updateSettings(p);
     });
     pauseLabel.append(pauseCb, "pause");
@@ -1123,10 +1090,9 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
         "width:4em;background:#000;color:#7f7;border:1px solid #7f74;" +
         "border-radius:3px;font:inherit;padding:1px 3px";
       input.addEventListener("change", () => {
-        const p = new URLSearchParams(location.search);
+        const p = copySettings();
         const v = Math.min(999, Math.max(0, Math.floor(Number(input.value))));
-        if (!Number.isFinite(v) || v === fallback) p.delete(name);
-        else p.set(name, String(v));
+        p.counts[name as CountKey] = Number.isFinite(v) ? v : fallback;
         input.value = String(Number.isFinite(v) ? v : fallback);
         updateSettings(p);
       });
@@ -1489,7 +1455,7 @@ if (typeof addEventListener !== "undefined" && typeof document !== "undefined")
 // browser or webview is on the real GPU (V3D/VideoCore/Apple/ANGLE-Metal) or a
 // software rasterizer (llvmpipe/softpipe/SwiftShader). Useful where internal
 // pages like webkit://gpu or chrome://gpu aren't reachable.
-if (params.has("gpu"))
+if (settings.gpu)
   addEventListener("load", () => {
     const gl = document.querySelector("canvas")?.getContext("webgl");
     const dbg = gl?.getExtension("WEBGL_debug_renderer_info");

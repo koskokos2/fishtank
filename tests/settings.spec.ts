@@ -1,11 +1,23 @@
+import { decodeSettings, encodeSettings, defaultSettings, type TankSettings } from "../src/settingsCodec";
 import { test, expect, type Page } from "@playwright/test";
 import { FISH_KINDS, FISH_SETS, fishKindSet } from "../src/fish";
 
+function sharedSettings(page: Page): TankSettings {
+  const params = new URL(page.url()).searchParams;
+  expect([...params.keys()]).toEqual(["settings"]);
+  expect(params.get("settings")).toMatch(/^[A-Za-z0-9_-]+$/);
+  expect([28, 39, 50]).toContain(params.get("settings")!.length);
+  const decoded = decodeSettings(params.get("settings")!);
+  expect(decoded).not.toBeNull();
+  return decoded!;
+}
+const skinField = (query: string) => ({ "goth-plants": "gothPlants", "goth-kelp": "gothKelp", "crawling-hands": "crawlingHands" } as const)[query as "goth-plants" | "goth-kelp" | "crawling-hands"];
 const layer = (page: Page, name: string) => page.evaluate(name => window.birthdayTest.settingsLayer(name), name);
 const checkbox = (page: Page, name: string) => page.getByRole("checkbox", { name, exact: true });
 async function open(page: Page, query = "") {
   await page.goto(`/fixture?debug&sun=0&fish=3&${query}`);
   await page.locator('canvas[data-ready="true"]').waitFor();
+  sharedSettings(page);
 }
 
 test("layers toggle live, re-enable from URL-off, and leave other populations intact", async ({ page }) => {
@@ -28,7 +40,7 @@ test("layers toggle live, re-enable from URL-off, and leave other populations in
     for (let i = 0; i < 2; i++) {
       await checkbox(page, name).uncheck();
       expect(await layer(page, name)).toHaveLength(0);
-      expect(new URL(page.url()).searchParams.get("off")?.split(",")).toContain(name);
+      expect(sharedSettings(page).disabled).toContain(name);
       await checkbox(page, name).check();
       expect((await layer(page, name)).length, name).toBe(count);
     }
@@ -57,7 +69,7 @@ test("populations, sets and birthday fish update without reloading", async ({ pa
   await count.fill("7");
   await count.press("Tab");
   expect(await layer(page, "fish")).toHaveLength(7);
-  expect(new URL(page.url()).searchParams.get("fish")).toBe("7");
+  expect(sharedSettings(page).counts.fish).toBe(7);
   await page.getByTitle("Toggle all fish sets").click();
   expect(await layer(page, "fish")).toHaveLength(0);
   await checkbox(page, "main ⓘ").check();
@@ -97,13 +109,13 @@ test("copied URLs restore live choices including manual night, sun preview and p
   expect(await shared.evaluate(() => window.birthdayTest.paused())).toBe(true);
   await checkbox(page, "real-time sun").check();
   await page.getByRole("slider", { name: "Temporary sun time" }).fill("480");
-  expect(new URL(page.url()).searchParams.get("sun-time")).toBe("08:00");
+  expect(sharedSettings(page).sunTime).toBe(480);
   await shared.goto(page.url());
   await shared.locator('canvas[data-ready="true"]').waitFor();
   await expect(checkbox(shared, "real-time sun")).toBeChecked();
   await expect(shared.getByRole("slider", { name: "Temporary sun time" })).toHaveValue("480");
   await page.getByRole("button", { name: "Use real time" }).click();
-  expect(new URL(page.url()).searchParams.has("sun-time")).toBe(false);
+  expect(sharedSettings(page).sunTime !== null).toBe(false);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   await shared.close();
 });
@@ -141,7 +153,7 @@ for (const startAlternate of [false, true]) {
       const before = await layer(page, skin.group);
       await checkbox(page, skin.label).setChecked(!startAlternate);
       await expect.poll(async () => (await layer(page, skin.group))[0]?.id).not.toBe(before[0].id);
-      expect(new URL(page.url()).searchParams.get(skin.query)).toBe(startAlternate ? null : "1");
+      expect(sharedSettings(page)[skinField(skin.query)]).toBe(!startAlternate);
     }
     const drawing = await page.evaluate(() => window.birthdayTest.plantDrawing());
     expect(drawing.kelpHeight).toBeGreaterThan(0.25);
@@ -181,7 +193,7 @@ test("hidden skin changes load when enabled; rapid changes keep the latest selec
       find(label).click();
     }, skin);
     await expect.poll(async () => (await page.evaluate(() => window.birthdayTest.skinAssets()))[skin.alternate]).toBeTruthy();
-    expect(new URL(page.url()).searchParams.has(skin.query)).toBe(false);
+    expect(sharedSettings(page)[skinField(skin.query)]).toBe(false);
     expect((await layer(page, skin.group)).length).toBeGreaterThan(0);
   }
   expect((await page.evaluate(() => window.birthdayTest.plantDrawing())).skins).toEqual(["luminous-kelp", "plant-atlas-v2"]);
@@ -204,7 +216,7 @@ test("witch fish set has twelve previews and switches live with shareable settin
   expect(fish.every(object => witchSprites.has(object.sprite!))).toBe(true);
   await checkbox(page, "witches ⓘ").uncheck();
   expect(await layer(page, "fish")).toHaveLength(0);
-  expect(new URL(page.url()).searchParams.get("off")?.split(",")).toContain("fish-witches");
+  expect(sharedSettings(page).disabled).toContain("fish-witches");
   await checkbox(page, "witches ⓘ").check();
   expect(await layer(page, "fish")).toHaveLength(3);
   expect(await layer(page, "kelp")).toEqual(kelp);
@@ -235,7 +247,7 @@ test("texture filtering switches the existing fish live and persists in shared U
     expect(draw.bottomPadding).toBeCloseTo(2);
   }
   await filtering.uncheck();
-  expect(new URL(page.url()).searchParams.get("texture-filter")).toBe("pixelated");
+  expect(sharedSettings(page).smoothTextures).toBe(false);
   const pixelated = await page.evaluate(() => window.birthdayTest.fishFiltering());
   expect(pixelated.draws).toHaveLength(0);
   expect(pixelated.fish).toEqual(before.fish);
@@ -244,7 +256,7 @@ test("texture filtering switches the existing fish live and persists in shared U
   expect(smooth.draws.length).toBeGreaterThan(0);
   expect(smooth.fish).toEqual(before.fish);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
-  expect(new URL(page.url()).searchParams.get("texture-filter")).toBe("smooth");
+  expect(sharedSettings(page).smoothTextures).toBe(true);
   await page.reload();
   await page.locator('canvas[data-ready="true"]').waitFor();
   await expect(filtering).toBeChecked();
@@ -302,4 +314,66 @@ test("smooth fish rotate continuously and pixelated fish retain stepped pitch", 
   await filtering.check();
   await expect.poll(hasContinuousPitch).toBe(true);
   expect((await angles()).map(f => f.id).sort()).toEqual(ids);
+});
+
+
+test("legacy links normalize without navigation; encoded settings win and preserve the hash", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("realTimeSun", "false");
+    sessionStorage.setItem("settingsLoads", String(Number(sessionStorage.getItem("settingsLoads") ?? 0) + 1));
+  });
+  await page.goto("/fixture?debug&sun=1&sun-time=08:00&fish=4&res=1&cap=32&light-time=0#goth");
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(sharedSettings(page)).toMatchObject({ debug: true, realTimeSun: true, sunTime: 480, counts: { fish: 4 }, resolution: 1, frameCap: 32, lightTime: 0 });
+  expect(new URL(page.url()).hash).toBe("#goth");
+  expect(await page.evaluate(() => sessionStorage.getItem("settingsLoads"))).toBe("1");
+  const s = { ...defaultSettings(), debug: true, resolution: 1 as const, realTimeSun: true, paused: true };
+  await page.goto(`/fixture?settings=${encodeSettings(s)}&fish=999&sun=0`);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(sharedSettings(page)).toEqual(s);
+  await expect(checkbox(page, "real-time sun")).toBeChecked();
+  expect(await page.evaluate(() => window.birthdayTest.paused())).toBe(true);
+});
+
+test("resolution and frame cap reload with the full encoded snapshot intact", async ({ page }) => {
+  await open(page, "res=1&goth-plants=1&texture-filter=pixelated&pause&sun-time=12:30");
+  let origin = await page.evaluate(() => performance.timeOrigin);
+  const before = sharedSettings(page);
+  await Promise.all([page.waitForEvent("load"), page.getByRole("combobox", { name: "res", exact: true }).selectOption("2")]);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(await page.evaluate(() => performance.timeOrigin)).not.toBe(origin);
+  expect(sharedSettings(page)).toEqual({ ...before, resolution: 2 });
+  expect((await page.evaluate(() => window.birthdayTest.state())).width).toBe(1280);
+  origin = await page.evaluate(() => performance.timeOrigin);
+  await Promise.all([page.waitForEvent("load"), page.getByRole("combobox", { name: "cap", exact: true }).selectOption("30")]);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(await page.evaluate(() => performance.timeOrigin)).not.toBe(origin);
+  expect(sharedSettings(page)).toEqual({ ...before, resolution: 2, frameCap: 32 });
+});
+
+test("malformed encoded settings fall back safely and discard conflicting legacy fields", async ({ page }) => {
+  await page.goto("/fixture?settings=nothex&fish=999&goth-plants=1");
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(sharedSettings(page)).toEqual(defaultSettings());
+});
+
+
+test("existing hex links normalize to Base64url without reload or lost settings", async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("settingsLoads", String(Number(sessionStorage.getItem("settingsLoads") ?? 0) + 1));
+  });
+  const s = { ...defaultSettings(), debug: true, paused: true, resolution: 1 as const,
+    gothPlants: true, gothKelp: true, smoothTextures: false, sunTime: 480,
+    frameCap: 47, lightTime: 12.5 };
+  const hex = Buffer.from(encodeSettings(s), "base64url").toString("hex").toUpperCase();
+  await page.goto(`/fixture?settings=${hex}#shared`);
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  expect(sharedSettings(page)).toEqual(s);
+  expect(new URL(page.url()).searchParams.get("settings")).toBe(encodeSettings(s));
+  expect(new URL(page.url()).hash).toBe("#shared");
+  expect(await page.evaluate(() => sessionStorage.getItem("settingsLoads"))).toBe("1");
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  await checkbox(page, "Texture filtering").check();
+  expect(sharedSettings(page)).toEqual({ ...s, smoothTextures: true });
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
 });

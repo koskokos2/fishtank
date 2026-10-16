@@ -82,7 +82,7 @@ local clock. Rays travel from just beyond the left edge at 04:00 to just beyond
 the right edge at 18:00. From 18:00 until 04:00, the backdrop switches off to show
 the existing dark night background; dawn restores it. These changes happen live.
 **Preview time** overrides the clock until **Use real time** is selected. The URL
-records the mode (`sun=1` or `sun=0`) and any preview (`sun-time=08:30`), so shared
+records the mode and preview time inside `settings=`, so shared
 links reproduce your selection even on another device. Disable the
 mode for fixed daytime rays, or click **backdrop** to take manual control live.
 
@@ -93,8 +93,8 @@ switch live; alternate atlases load on first use and stay cached for later switc
 The **Texture filtering** checkbox switches fish, plant and kelp rendering live
 (including goth variants): checked (the default) uses
 sharp cubic filtering with B=0, C=1 and no neighborhood halo limiter; unchecked
-uses the original nearest sampling. The URL stores `texture-filter=smooth` or
-`texture-filter=pixelated`. Fish keep their positions, animation and collision
+uses the original nearest sampling. The encoded URL preserves this choice.
+Fish keep their positions, animation and collision
 sizes when switching; plants and kelp keep their roots, joints and sway.
 Smooth fish rotate continuously using their eased swimming pitch; Pixelated keeps
 the original 7° steps to reduce pixel shimmer. Authored birthday/QR strips retain their pixel rendering.
@@ -103,6 +103,22 @@ work but no duplicate atlases. Plant and kelp pieces share atlas-level filter
 uniforms to preserve batching.
 
 Resolution and frame cap still reload because they configure the renderer at startup.
+
+All settings are shared through a single `?settings=<base64url>` parameter. The standard
+version-1 snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. It includes layers,
+fish/prop sets, skins, filtering, populations, sunlight and preview time, pause,
+resolution, frame cap and debug flags. Controls update it without reloading except
+for resolution and frame cap. Old query strings (including the examples above)
+and earlier hex snapshots are still accepted and rewritten to Base64url in place;
+when both encoded and legacy query formats are supplied,
+`settings` wins. Encoded sunlight settings override device preferences. Invalid or
+unsupported encoded data falls back to defaults. The path and URL fragment survive
+normalization; unknown query parameters are discarded.
+
+See [the binary format](docs/settings-format.md) for the stable bit layout and
+compatibility rules. Run `bun test tools/settings-codec.test.ts` for codec checks
+and `bunx playwright test tests/settings.spec.ts` for browser behavior.
+
 
 ```sh
 bun run preview:caustics
@@ -120,6 +136,7 @@ light intensity and source position in `src/waterLighting.ts`.
 
 The **witches** fish set adds twelve goth witches inspired by `grim_reaper_fish`,
 with pale faces, dark hats and hoods, and flowing veil fins. Toggle it live in
-**fish sets**; `off=fish-witches` excludes it from shared URLs. Rebuild the atlas
+**fish sets**; the encoded URL preserves its visibility. The legacy
+`off=fish-witches` parameter is still accepted. Rebuild the atlas
 with `bun run atlas:witches`, or inspect its swim frames with
 `bun tools/preview.ts SET=witches S=1 OUT=/tmp/witch-swim-preview.png`.

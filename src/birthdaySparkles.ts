@@ -38,8 +38,6 @@ export function attachBirthdaySparkles(k: KAPLAYCtx, fish: FishActor, palette: n
           const vx = (fish.pos.x - previousX) / dt;
           const vy = (fish.pos.y - previousY) / dt;
           previousX = fish.pos.x; previousY = fish.pos.y;
-          // Remain in the aquarium depth order, behind the opaque fish/QR.
-          trail.z = fish.z - 0.01;
           for (let i = grains.length - 1; i >= 0; i--) {
             const grain = grains[i];
             grain.age += dt;
@@ -95,6 +93,9 @@ export function attachBirthdaySparkles(k: KAPLAYCtx, fish: FishActor, palette: n
       },
     },
   ]);
+  // The trail's lower z can make its update run before the fish's movement.
+  // Follow the owner's update instead, after spawnFish has set this frame's z.
+  const ownerUpdated = fish.onUpdate(() => { trail.z = fish.z - 0.01; });
   const ownerDestroyed = fish.onDestroy(() => trail.destroy());
-  trail.onDestroy(() => ownerDestroyed.cancel());
+  trail.onDestroy(() => { ownerUpdated.cancel(); ownerDestroyed.cancel(); });
 }

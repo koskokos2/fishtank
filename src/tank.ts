@@ -1,3 +1,4 @@
+import { settings } from "./settings";
 import { GRID_FILTER_SHADER, gridFilterUniform } from "./textureFiltering";
 import type {
   KAPLAYCtx,
@@ -38,7 +39,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
   // The gap between the two z values is where far plants (the luminous kelp)
   // live, so the dune crest occludes their roots.
   if (!layer || layer === "backdrop") {
-    const fixedLightTime = new URLSearchParams(location.search).get("light-time");
+    const fixedLightTime = settings.lightTime === null ? null : String(settings.lightTime);
     const waterLightUniform = {
       u_time: 0,
       u_emitterX: WATER_LIGHTING_TUNING.emitterX as number,

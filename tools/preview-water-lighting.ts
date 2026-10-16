@@ -1,3 +1,4 @@
+import { decodeSettings } from "../src/settingsCodec";
 // Capture and validate the real, bundled WebGL lighting. Chrome is used just as
 // in the project's Playwright suite. Outputs are intentionally outside the art
 // pipeline: no screenshots or lighting textures are loaded by the application.
@@ -132,10 +133,10 @@ try {
   await page.goto(`http://localhost:${server.port}/?debug&light-time=0&off=${hidden}`);
   await page.locator('canvas[data-ready="true"]').waitFor();
   await page.getByRole("checkbox", { name: "caustics", exact: true }).uncheck();
-  await page.waitForURL(url => (url.searchParams.get("off") ?? "").split(",").includes("caustics"));
+  await page.waitForURL(url => Boolean(decodeSettings(url.searchParams.get("settings") ?? "")?.disabled.includes("caustics")));
   await page.locator('canvas[data-ready="true"]').waitFor();
   await page.getByRole("checkbox", { name: "caustics", exact: true }).check();
-  await page.waitForURL(url => !(url.searchParams.get("off") ?? "").split(",").includes("caustics"));
+  await page.waitForURL(url => !decodeSettings(url.searchParams.get("settings") ?? "")?.disabled.includes("caustics"));
   await page.locator('canvas[data-ready="true"]').waitFor();
   // The clock, preview slider and backdrop must all update without rebuilding.
   await page.getByRole("button", { name: "Hide performance details", exact: true }).click();

@@ -1,27 +1,8 @@
 // Local wall-clock lighting. Shared URL settings take precedence over this device.
 const STORAGE_KEY = "realTimeSun";
-export let realTimeSun = true;
-export let sunTimeOverride: number | null = null;
-try {
-  if (typeof localStorage !== "undefined")
-    realTimeSun = localStorage.getItem(STORAGE_KEY) !== "false";
-} catch { /* Use real time when storage is unavailable. */ }
-const initialParams = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
-if (initialParams.has("sun")) realTimeSun = initialParams.get("sun") !== "0";
-const initialTime = initialParams.get("sun-time");
-if (realTimeSun && initialTime && /^\d{2}:\d{2}$/.test(initialTime)) {
-  const [hours, minutes] = initialTime.split(":").map(Number);
-  if (hours < 24 && minutes < 60) sunTimeOverride = hours * 60 + minutes;
-}
-
-export function writeSunSettings(params: URLSearchParams) {
-  params.set("sun", realTimeSun ? "1" : "0");
-  if (realTimeSun && sunTimeOverride !== null) {
-    const hours = String(Math.floor(sunTimeOverride / 60)).padStart(2, "0");
-    const minutes = String(Math.floor(sunTimeOverride % 60)).padStart(2, "0");
-    params.set("sun-time", `${hours}:${minutes}`);
-  } else params.delete("sun-time");
-}
+import { settings } from "./settings";
+export let realTimeSun = settings.realTimeSun;
+export let sunTimeOverride: number | null = settings.sunTime;
 
 export function setRealTimeSun(enabled: boolean) {
   realTimeSun = enabled;
