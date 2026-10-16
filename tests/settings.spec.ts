@@ -23,10 +23,16 @@ async function open(page: Page, query = "") {
 test("theme presets switch live, sync controls, and round trip in shared settings", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await open(page, "plants=9&texture-filter=pixelated&off=bubbles");
+  await open(page, "plants=9&jelly=2&snail=2&texture-filter=pixelated&off=bubbles");
   await checkbox(page, "pause").check();
   const origin = await page.evaluate(() => performance.timeOrigin);
   const before = sharedSettings(page);
+  const jellyCount = (await layer(page, "jelly")).length;
+  const snailCount = (await layer(page, "snail")).length;
+  expect(jellyCount).toBeGreaterThan(0);
+  expect(snailCount).toBeGreaterThan(0);
+  const octopus = await layer(page, "octo");
+  const nautilus = await layer(page, "naut");
   const theme = page.getByRole("combobox", { name: "theme", exact: true });
   await expect(theme).toHaveValue("none");
   await theme.selectOption("halloween");
@@ -42,12 +48,18 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   await expect(checkbox(page, "night sparkles")).toBeChecked();
   await expect(checkbox(page, "bubbles")).not.toBeChecked();
   await expect(theme).toHaveValue("halloween");
+  expect(await layer(page, "jelly")).toHaveLength(0);
+  expect(await layer(page, "snail")).toHaveLength(0);
+  expect(await layer(page, "octo")).toEqual(octopus);
+  expect(await layer(page, "naut")).toEqual(nautilus);
   await expect.poll(async () => (await layer(page, "crabs")).every(o => o.sprite === "crawling-hand")).toBe(true);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   await page.goto(page.url());
   await page.locator('canvas[data-ready="true"]').waitFor();
   await expect(theme).toHaveValue("halloween");
   expect(sharedSettings(page)).toEqual(halloween);
+  expect(await layer(page, "jelly")).toHaveLength(0);
+  expect(await layer(page, "snail")).toHaveLength(0);
   // Customizing one field must not reset the remaining preset selections.
   await checkbox(page, "night sparkles").uncheck();
   await expect(theme).toHaveValue("none");
@@ -56,6 +68,8 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   await theme.selectOption("none");
   await expect(checkbox(page, "night sparkles")).not.toBeChecked();
   expect(sharedSettings(page)).toEqual(before);
+  expect(await layer(page, "jelly")).toHaveLength(jellyCount);
+  expect(await layer(page, "snail")).toHaveLength(snailCount);
   // Bubble visibility is independent of both preset application and detection.
   await checkbox(page, "bubbles").check();
   await theme.selectOption("halloween");

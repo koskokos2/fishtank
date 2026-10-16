@@ -1,5 +1,6 @@
 import { settings } from "./settings";
 import { DEFAULT_ENTITY_COUNTS } from "./settingsCodec";
+import { selectedTheme } from "./themePresets";
 import kaplay, { type KAPLAYCtx } from "kaplay";
 import { makeBackdrop } from "./backdrop";
 import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
@@ -184,6 +185,9 @@ function installLiveControls() {
   let particleNight = halloweenBubblesActive();
   const reconcile = () => {
     particleNight = halloweenBubblesActive();
+    // Hide these populations for Halloween without overwriting their saved
+    // counts, so switching themes (including through a shared URL) restores them.
+    const halloweenTheme = selectedTheme(settings) === "halloween";
     const plantCount = num("plants", DEFAULT_ENTITY_COUNTS.plants);
     const plants = getPlantTheme(gothPlantsEnabled);
     const kelp = getKelpTheme(gothKelpEnabled);
@@ -215,7 +219,7 @@ function installLiveControls() {
       for (let i = 0; i < fishCount; i++) spawn(false);
     });
     for (const [name, kind] of [["naut", "nautilus"], ["octo", "octopus"], ["jelly", "jellyfish"]] as const) {
-      const count = off("cephs") ? 0 : num(name, DEFAULT_ENTITY_COUNTS[name]);
+      const count = off("cephs") || (halloweenTheme && name === "jelly") ? 0 : num(name, DEFAULT_ENTITY_COUNTS[name]);
       reconcileGroup(name, String(count), ctx => {
         for (let i = 0; i < count; i++) spawnCephalopod(ctx, kind);
       });
@@ -226,7 +230,7 @@ function installLiveControls() {
         for (let i = 0; i < crabs; i++) spawnHermitCrab(ctx, ctx.width() * ((i + 0.5) / crabs));
       });
     }
-    const snails = off("crabs") ? 0 : num("snail", DEFAULT_ENTITY_COUNTS.snail);
+    const snails = off("crabs") || halloweenTheme ? 0 : num("snail", DEFAULT_ENTITY_COUNTS.snail);
     reconcileGroup("snail", String(snails), ctx => {
       for (let i = 0; i < snails; i++) spawnSeaSnail(ctx);
     });
