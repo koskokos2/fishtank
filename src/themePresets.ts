@@ -22,6 +22,8 @@ export function applyTheme(current: TankSettings, theme: TankTheme): TankSetting
 
 export function selectedTheme(settings: TankSettings): TankTheme {
   const matches = SKINS.every(skin => settings[skin]) && SETTING_GATES.every(gate => {
+    // Kelp visibility is independent of its selected skin and the theme.
+    if (gate === "kelp") return true;
     if (LAYERS.has(gate)) return !settings.disabled.includes(gate);
     if (isSet(gate)) return settings.disabled.includes(gate) === !HALLOWEEN_SETS.has(gate);
     return true;

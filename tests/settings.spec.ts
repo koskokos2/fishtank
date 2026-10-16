@@ -679,3 +679,32 @@ for (const halloween of [false, true]) {
     expect(errors).toEqual([]);
   });
 }
+
+test("kelp visibility keeps Halloween active and round trips through shared URLs", async ({ page }) => {
+  await open(page, "octo=3&jelly=2&naut=2&snail=2");
+  await checkbox(page, "pause").check();
+  const theme = page.getByRole("combobox", { name: "theme", exact: true });
+  await theme.selectOption("halloween");
+  await expect.poll(async () => (await layer(page, "octo")).filter(o => o.sprite?.startsWith("octopus-")).length).toBe(3);
+  const octopuses = await layer(page, "octo");
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  await checkbox(page, "kelp").uncheck();
+  await expect(theme).toHaveValue("halloween");
+  expect(await layer(page, "kelp")).toHaveLength(0);
+  expect(await layer(page, "octo")).toEqual(octopuses);
+  for (const group of ["jelly", "naut", "snail"]) expect(await layer(page, group)).toHaveLength(0);
+  const settings = sharedSettings(page);
+  expect(settings.disabled).toContain("kelp");
+  expect(settings.gothKelp).toBe(true);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  await page.reload();
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await expect(theme).toHaveValue("halloween");
+  await expect(checkbox(page, "kelp")).not.toBeChecked();
+  expect(sharedSettings(page)).toEqual(settings);
+  expect(await layer(page, "kelp")).toHaveLength(0);
+  for (const group of ["jelly", "naut", "snail"]) expect(await layer(page, group)).toHaveLength(0);
+  await checkbox(page, "kelp").check();
+  await expect(theme).toHaveValue("halloween");
+  await expect.poll(async () => (await page.evaluate(() => window.birthdayTest.plantDrawing())).skins).toContain("luminous-kelp-goth");
+});
