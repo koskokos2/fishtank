@@ -3,6 +3,7 @@ import { DEFAULT_ENTITY_COUNTS } from "./settingsCodec";
 import { selectedTheme } from "./themePresets";
 import kaplay, { type KAPLAYCtx } from "kaplay";
 import { makeBackdrop } from "./backdrop";
+import { cityRelicFootprints, makeCityRelicSprites, spawnCityDuneRelic } from "./cityDuneRelic";
 import { loadCityDistanceShader } from "./sunkenCityAppearance";
 import { spawnFish, makeFishSheets, FISH_KINDS, fishKindSet } from "./fish";
 import { loadTextureFiltering } from "./textureFiltering";
@@ -70,7 +71,7 @@ import {
 } from "./halloweenPropsAtlas";
 import { setupTank } from "./tank";
 import { liveGroup } from "./liveGroup";
-import { resetPropObstacles } from "./propPlacement";
+import { resetPropObstacles, setCityRelicObstacles } from "./propPlacement";
 import { loadWaterLighting } from "./waterLighting";
 import {
   off,
@@ -212,6 +213,10 @@ function installLiveControls() {
     // The toolbar still works while creature updates are paused.
     for (const backdrop of k.get("settings-backdrop")) backdrop.hidden = off("backdrop");
     for (const ruins of k.get("settings-ruins")) ruins.hidden = off("ruins");
+    reconcileGroup("city-relic", "live", spawnCityDuneRelic);
+    const hideCityRelic = off("ruins") || off("sand");
+    for (const relic of k.get("settings-city-relic")) relic.hidden = hideCityRelic;
+    setCityRelicObstacles(hideCityRelic ? null : cityRelicFootprints());
     const fishKinds = FISH_KINDS.map((_, i) => i).filter(i => !off(`fish-${fishKindSet(FISH_KINDS[i].name)}`));
     const fishCount = off("fish") ? 0 : num("fish", DEFAULT_ENTITY_COUNTS.fish);
     reconcileGroup("fish", `${fishCount}:${fishKinds.join(",")}`, ctx => {
@@ -270,9 +275,10 @@ function installLiveControls() {
 // first, then register every sprite together — that way they're all in the load
 // queue before onLoad fires (no load-order race).
 (async () => {
-  const [fishSheets, backdrop] = await Promise.all([
+  const [fishSheets, backdrop, cityRelic] = await Promise.all([
     makeFishSheets(),
     makeBackdrop(BACKDROP_SEED),
+    makeCityRelicSprites(),
   ]);
 
   // Benthic + rooted-plant sprites — the two crawlers, every prop, and the plant
@@ -358,6 +364,7 @@ function installLiveControls() {
   await loadSpriteSeq("sea-snail", SEA_SNAIL_ATLAS, {
     sliceX: SEA_SNAIL_FRAMES,
   });
+  for (const layer of cityRelic) await loadSpriteSeq(layer.name, layer.image, {});
 
   const sceneAssets = [
     k.loadSprite("backdrop", backdrop.back),

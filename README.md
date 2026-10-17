@@ -86,6 +86,15 @@ depth uses a restrained blue palette, retaining masonry and sculptural detail.
 The **sunken city** checkbox in the top section hides or restores all three
 depths live, independently of the sun, sand, creatures and theme. This choice is
 included in shared URLs; older links show the city by default.
+The fallen guardian head has a fixed placement on the left dune: horizontal -3,
+vertical +50 design pixels, with dithered sand burial and a matching crawler footprint.
+It follows **sunken city** visibility and also hides when sand is disabled.
+Placement controls have been removed. Retired v4–v6 URL fields still decode safely,
+but no longer override this chosen placement. Sand burial is baked once at startup.
+Only the guardian artwork is bundled; earlier source artwork remains for reference.
+Source: `art/sunken-city-landmark-guardian.png`; built-in imagegen prompts:
+`art/sunken-city-landmark-prompts.txt`. Run `bun tools/embed-city-relic.ts` to
+rebuild the compact embedded sprite.
 Distance is conveyed through smaller architecture, overlap and cooler colour;
 the far plate retains internal detail, with adjustable opacity for distance.
 Foundations are positioned against the real sand contour with a small buried
@@ -185,7 +194,12 @@ The original source artwork remains available in `art/octopus-atlas-128.png`.
 Saved tank settings are shared through a single `?settings=<base64url>` parameter. The standard
 snapshot is 21 bytes / 28 URL-safe characters, without `=` padding. Version 3 uses
 previously reserved bit 41 to hide the sunken city; links that show it retain
-version 2, and versions 1/2 still decode with the city visible. The snapshot includes layers,
+version 2, and versions 1/2 still decode with the city visible. Version 4 uses bits
+42–43 for the now-retired dune landmark selection. Version 5 used those bits for
+guardian position presets. Neither
+version increases the snapshot size. Version 6 stored guardian horizontal and vertical
+coordinates in bits 42–59. The retired v4–v6 fields are now validated and ignored;
+new links use v2/v3 with the guardian fixed in place. The snapshot includes layers,
 fish/prop sets, skins, filtering, populations, sunlight and preview time, pause,
 resolution, frame cap and debug flags. Controls update it without reloading except
 for resolution and frame cap. Old query strings (including the examples above)

@@ -123,6 +123,15 @@ const SETTLE_DUR = 0.35;
 export type PropObstacle = { x0: number; x1: number; baseY: number }; // buffer px
 let obstacles: readonly PropObstacle[] = []; // fresh array identity per change = cheap version stamp
 const slotObstacles: PropObstacle[] = [];
+let cityRelicObstacles: readonly PropObstacle[] | null = null;
+function refreshObstacles() {
+  obstacles = [...slotObstacles.filter(Boolean), ...(cityRelicObstacles ?? [])];
+}
+export function setCityRelicObstacles(next: readonly PropObstacle[] | null) {
+  if (cityRelicObstacles === next) return;
+  cityRelicObstacles = next;
+  refreshObstacles();
+}
 const DEPTH_BAND = 10 * RES; // creature ground line within 10 design px of the plane = conflict
 
 // Six evenly spaced centres leave roomy prop silhouettes across the 1920px
@@ -484,7 +493,7 @@ function claimSlot(
     x1: left + prop.layout.contactRight,
     baseY: placement.rootY,
   };
-  obstacles = slotObstacles.filter(Boolean);
+  refreshObstacles();
 }
 
 function spawnProp(
@@ -667,7 +676,7 @@ function dropInProp(
 
 export function resetPropObstacles() {
   slotObstacles.length = 0;
-  obstacles = [];
+  refreshObstacles();
 }
 
 const propEnabled = (prop: WhitelistedProp) => !off(`obj-${prop.id.split(":")[0]}`);

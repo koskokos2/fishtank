@@ -38,6 +38,9 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  guardianPosition: () => k.get("city-dune-relic").map(object => ({
+    x: object.pos.x, y: object.pos.y, z: object.z, id: object.id,
+  })),
   waterAppearance: () => k.get("settings-backdrop").map(object => ({
     shader: object.shader as string, z: object.z, hidden: object.hidden,
   })),

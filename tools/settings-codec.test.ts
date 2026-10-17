@@ -4,7 +4,7 @@ import { COUNT_KEYS, SETTING_GATES, defaultSettings, encodeSettings, decodeSetti
 const asHex = (text: string) => Buffer.from(text, "base64url").toString("hex");
 const asBase64url = (hex: string) => Buffer.from(hex, "hex").toString("base64url");
 
-describe("settings wire formats v1/v2/v3", () => {
+describe("settings wire formats v1/v2/v3/v4/v5/v6", () => {
   test("frozen binary vector, Base64url output and legacy hex input", () => {
     const hex = "01000000000c000000020a1410400005044006ff07";
     const historical = defaultSettings();
@@ -50,7 +50,7 @@ describe("settings wire formats v1/v2/v3", () => {
   });
   test("v3 hides ruins in bit 41 without changing existing flags or URL length", () => {
     const shown = { ...defaultSettings(), birthday: true, halloweenBubbles: true };
-    const hidden = { ...shown, disabled: ["ruins"] as const };
+    const hidden = { ...shown, disabled: ["ruins"] as ["ruins"] };
     const before = Buffer.from(encodeSettings(shown), "base64url");
     const encoded = encodeSettings({ ...hidden, disabled: [...hidden.disabled] });
     const after = Buffer.from(encoded, "base64url");
@@ -66,9 +66,37 @@ describe("settings wire formats v1/v2/v3", () => {
     expect(decodeSettings(encoded)).toEqual(hidden);
     expect(decodeSettings(encodeSettings(shown))?.disabled).not.toContain("ruins");
   });
+  test("retired v6 positions are validated and ignored", () => {
+    for (const x of [-100, -38, -3, 440]) for (const y of [-60, 0, 50, 120]) {
+      const s = { ...defaultSettings(), disabled: ["ruins"] as ["ruins"], halloweenBubbles: true, lightTime: 12.5, frameCap: 47 };
+      const bytes = Buffer.from(encodeSettings(s), "base64url");
+      bytes[0] = 6;
+      const position = (x + 100) | ((y + 60) << 10);
+      for (let bit = 0; bit < 18; bit++) if (position & (1 << bit)) bytes[1 + ((42 + bit) >> 3)] |= 1 << ((42 + bit) & 7);
+      expect(decodeSettings(bytes.toString("base64url"))).toEqual(s);
+      bytes[8] |= 16;
+      expect(decodeSettings(bytes.toString("base64url"))).toBeNull();
+    }
+  });
+  test("retired v5 presets decode without restoring placement controls", () => {
+    for (const code of [0, 1, 2]) {
+      const bytes = Buffer.from(encodeSettings(defaultSettings()), "base64url");
+      bytes[0] = 5;
+      bytes[6] = code << 2;
+      expect(decodeSettings(bytes.toString("base64url"))).toEqual(defaultSettings());
+    }
+  });
+  test("retired v4 landmark selections decode without restoring object choices", () => {
+    for (const oldKind of [0, 1, 2]) {
+      const bytes = Buffer.from(encodeSettings(defaultSettings()), "base64url");
+      bytes[0] = 4;
+      bytes[6] = oldKind << 2;
+      expect(decodeSettings(bytes.toString("base64url"))).toEqual(defaultSettings());
+    }
+  });
   test("rejects malformed, truncated, oversized and unknown-version data", () => {
     const hex = asHex(encodeSettings(defaultSettings()));
-    for (const bad of ["", "xyz", hex.slice(1), hex.slice(0, -2), hex + "00", "04" + hex.slice(2), "0".repeat(10000)]) {
+    for (const bad of ["", "xyz", hex.slice(1), hex.slice(0, -2), hex + "00", "07" + hex.slice(2), "0".repeat(10000)]) {
       expect(decodeSettings(bad)).toBeNull();
     }
   });
@@ -92,7 +120,7 @@ describe("settings wire formats v1/v2/v3", () => {
   });
   test("rejects malformed Base64url and noncanonical trailing bits", () => {
     const encoded = encodeSettings(defaultSettings());
-    const unknownVersion = asBase64url("04" + asHex(encoded).slice(2));
+    const unknownVersion = asBase64url("07" + asHex(encoded).slice(2));
     for (const bad of [encoded + "=", encoded.slice(1), "+" + encoded.slice(1),
       "/" + encoded.slice(1), " " + encoded.slice(1), unknownVersion, "A".repeat(10000)]) {
       expect(decodeSettings(bad)).toBeNull();

@@ -53,12 +53,16 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   const layers = (name: string) => page.evaluate(name => window.birthdayTest.settingsLayer(name), name);
   await expect(toggle).toBeChecked();
   const before = await layers("ruins");
+  const relic = await layers("city-relic");
+  expect(relic).toHaveLength(1);
+  expect(relic[0]).toMatchObject({ sprite: "city-guardian", hidden: false });
   const sand = await layers("sand");
   const water = await layers("backdrop");
   const fish = await layers("fish");
   const origin = await page.evaluate(() => performance.timeOrigin);
   await toggle.uncheck();
   expect(await layers("ruins")).toEqual(before.map(layer => ({ ...layer, hidden: true })));
+  expect(await layers("city-relic")).toEqual(relic.map(layer => ({ ...layer, hidden: true })));
   expect(await layers("sand")).toEqual(sand);
   expect(await layers("backdrop")).toEqual(water);
   expect(await layers("fish")).toEqual(fish);
@@ -71,6 +75,27 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   const restored = await layers("ruins");
   expect(restored).toHaveLength(3);
   expect(restored.every(layer => layer.hidden)).toBe(true);
+  expect((await layers("city-relic"))[0].hidden).toBe(true);
   await toggle.check();
   expect(await layers("ruins")).toEqual(restored.map(layer => ({ ...layer, hidden: false })));
+  expect((await layers("city-relic"))[0].hidden).toBe(false);
+});
+
+test("guardian stays at the chosen position without placement controls", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("settingsHintSeen", "true"));
+  await page.goto("/fixture?pause&sun=0&light-time=9&fish=12&plants=40");
+  const canvas = page.locator('canvas[data-ready="true"]');
+  await canvas.waitFor();
+  const position = () => page.evaluate(() => window.birthdayTest.guardianPosition()[0]);
+  const initial = await position();
+  expect(initial.x).toBe((-3 - 2) * 3); // selected x minus transparent padding, RES=3
+  await canvas.screenshot({ path: "test-results/guardian-fixed.png" });
+  await page.getByRole("button", { name: "settings", exact: true }).click();
+  await expect(page.getByRole("slider", { name: /guardian/ })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "guardian position", exact: true })).toHaveCount(0);
+  await page.getByRole("combobox", { name: "theme", exact: true }).selectOption("halloween");
+  expect(await position()).toEqual(initial);
+  await page.goto(page.url());
+  await canvas.waitFor();
+  expect(await position()).toMatchObject({ x: initial.x, y: initial.y, z: initial.z });
 });

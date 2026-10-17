@@ -1,4 +1,4 @@
-// Wire formats v1/v2/v3. These lists define permanent bit positions, independent of UI
+// Wire formats v1/v2/v3/v4/v5/v6. These lists define permanent bit positions, independent of UI
 // order. Never reorder/reuse entries: incompatible changes need a new version.
 export const SETTING_GATES = [
   "backdrop", "sand", "props", "plants", "caustics", "motes", "bubbles", "puffs",
@@ -28,6 +28,7 @@ const FLAGS = ["birthday", "gothPlants", "gothKelp", "crawlingHands", "smoothTex
   "realTimeSun", "paused", "debug", "fps", "gpu", "halloweenBubbles"] as const;
 const RESOLUTIONS = [1, 2, 3, 6] as const;
 const CAPS = [62, 32, 0] as const; // 0 = uncapped; code 3 = float64 extension
+// Legacy v4–v6 position bits remain readable; the guardian now has a fixed placement.
 export type TankSettings = Record<typeof FLAGS[number], boolean> & {
   disabled: SettingGate[];
   counts: Record<CountKey, number>;
@@ -61,7 +62,7 @@ export function encodeSettings(s: TankSettings): string {
   const setBit = (bit: number) => { bytes[1 + (bit >> 3)] |= 1 << (bit & 7); };
   SETTING_GATES.forEach((gate, index) => { if (s.disabled.includes(gate)) setBit(gateBit(index)); });
   FLAGS.forEach((key, bit) => { if (s[key]) setBit(30 + bit); });
-  // Bytes 1..8: 64 flag bits (42 used in v3). Byte 9: res/cap codes, light-time flag.
+  // Bytes 1..8: 64 bits (42 currently used; old v6 used 60). Byte 9: res/cap codes, light-time flag.
   bytes[9] = RESOLUTIONS.indexOf(s.resolution) | ((customCap ? 3 : preset) << 2)
     | (s.lightTime !== null ? 16 : 0);
   // Bytes 10..18: seven 10-bit unsigned counts, least significant bit first.
@@ -98,14 +99,26 @@ export function decodeSettings(text: string): TankSettings | null {
   const bytes = decodeText(text);
   if (!bytes) return null;
   const view = new DataView(bytes.buffer);
-  if ((bytes[0] !== 1 && bytes[0] !== 2 && bytes[0] !== 3)
-    || (bytes[6] & (bytes[0] === 1 ? 255 : bytes[0] === 2 ? 254 : 252)) || bytes.slice(7, 9).some(byte => byte !== 0)
+  if (![1, 2, 3, 4, 5, 6].includes(bytes[0])
+    || (bytes[0] === 6 ? (bytes[8] & 240)
+      : (bytes[6] & [255, 254, 252, 240, 240][bytes[0] - 1]) || bytes.slice(7, 9).some(byte => byte !== 0))
     || (bytes[9] & 224) || (bytes[18] & 192)) return null;
   const capCode = (bytes[9] >> 2) & 3;
   const hasLightTime = Boolean(bytes[9] & 16);
   if (bytes.length !== 21 + (capCode === 3 ? 8 : 0) + (hasLightTime ? 8 : 0)) return null;
   const bit = (index: number) => Boolean(bytes[1 + (index >> 3)] & (1 << (index & 7)));
   const s = defaultSettings();
+  if (bytes[0] === 6) {
+    let position = 0;
+    for (let index = 0; index < 18; index++) if (bit(42 + index)) position |= 1 << index;
+    // Validate retired fields without letting old links override the chosen position.
+    const x = (position & 1023) - 100, y = (position >> 10) - 60;
+    if (x < -100 || x > 440 || y < -60 || y > 120) return null;
+  } else {
+    const landmark = (bytes[6] >> 2) & 3;
+    if (landmark === 3) return null;
+
+  }
   s.disabled = SETTING_GATES.filter((_, index) => bit(gateBit(index)));
   FLAGS.forEach((key, index) => { s[key] = bit(30 + index); });
   s.resolution = RESOLUTIONS[bytes[9] & 3];
