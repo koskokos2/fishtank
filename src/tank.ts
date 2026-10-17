@@ -112,6 +112,7 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
         profileDrawEnd(),
         k.pos(0, 0),
         k.z(z),
+        { cityBaseSprite: sprite },
       ]);
     }
   }

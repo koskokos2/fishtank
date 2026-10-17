@@ -36,12 +36,14 @@ test("ruins persist through live day, night and theme changes", async ({ page })
   await expect.poll(async () => (await appearance())[0].tint[0]).toBeLessThan(70);
   await page.screenshot({ path: "test-results/ruins-night.png" });
   await page.getByRole("combobox", { name: "theme", exact: true }).selectOption("halloween");
-  expect(await ruins()).toEqual(initial);
+  expect(await ruins()).toEqual(initial.map(layer => ({ ...layer, sprite: `${layer.sprite}-halloween` })));
   await page.getByRole("slider", { name: "temporary sun time" }).fill("720");
   expect((await page.evaluate(() => window.birthdayTest.settingsLayer("backdrop")))[0].hidden).toBe(false);
   expect((await water()).every(layer => !layer.hidden)).toBe(true);
-  expect(await ruins()).toEqual(initial);
+  expect(await ruins()).toEqual(initial.map(layer => ({ ...layer, sprite: `${layer.sprite}-halloween` })));
   await expect.poll(async () => (await appearance())[0].tint).toEqual([255, 255, 255]);
+  await page.getByRole("combobox", { name: "theme", exact: true }).selectOption("none");
+  expect(await ruins()).toEqual(initial);
   expect(errors).toEqual([]);
 });
 
@@ -102,4 +104,55 @@ test("guardian stays at the chosen position without placement controls", async (
   await page.goto(page.url());
   await canvas.waitFor();
   expect(await position()).toMatchObject({ x: initial.x, y: initial.y, z: initial.z });
+});
+
+
+test("Halloween replaces all four city assets live and restores its shared URL", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => localStorage.setItem("settingsHintSeen", "true"));
+  await page.goto("/fixture?pause&sun=1&sun-time=12:00&light-time=9&fish=12&plants=40");
+  const canvas = page.locator('canvas[data-ready="true"]');
+  await canvas.waitFor();
+  const layers = (name: string) => page.evaluate(name => window.birthdayTest.settingsLayer(name), name);
+  const normalRuins = await layers("ruins"), normalHead = await layers("city-relic");
+  const sand = await layers("sand"), water = await layers("backdrop");
+  const position = await page.evaluate(() => window.birthdayTest.guardianPosition());
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const gear = page.getByRole("button", { name: "settings", exact: true });
+  await gear.click();
+  const theme = page.getByRole("combobox", { name: "theme", exact: true });
+  const city = page.getByRole("checkbox", { name: "sunken city", exact: true });
+  for (let i = 0; i < 3; i++) {
+    await theme.selectOption("halloween");
+    expect(await layers("ruins")).toEqual(normalRuins.map(layer => ({...layer, sprite: `${layer.sprite}-halloween`})));
+    expect(await layers("city-relic")).toEqual(normalHead.map(layer => ({...layer, sprite: "city-guardian-halloween"})));
+    expect(await layers("sand")).toEqual(sand);
+    expect(await layers("backdrop")).toEqual(water);
+    expect(await page.evaluate(() => window.birthdayTest.guardianPosition())).toEqual(position);
+    if (i < 2) {
+      await theme.selectOption("none");
+      expect(await layers("ruins")).toEqual(normalRuins);
+      expect(await layers("city-relic")).toEqual(normalHead);
+    }
+  }
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  await page.getByRole("button", { name: "×", exact: true }).first().click();
+  await canvas.screenshot({ path: "test-results/halloween-city-day.png" });
+  await gear.click();
+  await page.getByRole("slider", { name: "temporary sun time" }).fill("1320");
+  await page.getByRole("button", { name: "×", exact: true }).first().click();
+  await canvas.screenshot({ path: "test-results/halloween-city-night.png" });
+  await gear.click();
+  await city.uncheck();
+  expect((await layers("ruins")).every(layer => layer.hidden)).toBe(true);
+  expect((await layers("city-relic"))[0].hidden).toBe(true);
+  await city.check();
+  const url = page.url();
+  await page.goto(url);
+  await canvas.waitFor();
+  await expect(theme).toHaveValue("halloween");
+  expect((await layers("ruins")).every(layer => layer.sprite?.endsWith("-halloween") && !layer.hidden)).toBe(true);
+  expect((await layers("city-relic"))[0]).toMatchObject({sprite: "city-guardian-halloween", hidden: false});
+  expect(errors).toEqual([]);
 });

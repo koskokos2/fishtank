@@ -95,7 +95,19 @@ rotating prop and both fixed consoles remain. Disabling the city restores all si
 rotating slots live; rebuilding the prop group cancels its old timers and transitions.
 Placement controls have been removed. Retired v4–v6 URL fields still decode safely,
 but no longer override this chosen placement. Sand burial is baked once at startup.
-Only the guardian artwork is bundled; earlier source artwork remains for reference.
+Halloween switches all four city assets live: the distant necropolis skyline,
+bronze-bell sanctuary, gothic framing ruins and broken crowned stone head.
+The normal city returns when the Halloween preset is removed. Both sets are baked
+once and their existing scene objects are reused; switching preserves depth,
+day/night shading, the selected head placement and the cleared rotating-prop slots.
+The new city art has no flames, candles, torches, lamps or emissive windows.
+The v2 artwork uses the normal city's source plates as the reference for texture
+scale, carved relief and sharpness; the gothic concept supplies the designs.
+Both sets share the same luminance treatment without a Halloween exposure boost.
+Sources: `art/halloween-city-{far,middle,near,guardian}-v2.png`; built-in imagegen
+prompts: `art/halloween-city-production-v2-prompts.txt`. Rebuild with
+`bun tools/embed-sunken-ruins.ts` and `bun tools/embed-city-relic.ts`.
+Only the normal and Halloween heads are bundled; earlier source artwork remains for reference.
 Source: `art/sunken-city-landmark-guardian.png`; built-in imagegen prompts:
 `art/sunken-city-landmark-prompts.txt`. Run `bun tools/embed-city-relic.ts` to
 rebuild the compact embedded sprite.

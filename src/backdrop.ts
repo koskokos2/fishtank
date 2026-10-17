@@ -259,7 +259,8 @@ const CLEAR: RGBA = [0, 0, 0, 0];
 // occludes their roots. Props remain live so the rotating pool can replace them.
 export async function makeBackdrop(
   seed = 1,
-): Promise<{ back: string; sand: string; ruins: string; distantRuins: string; middleRuins: string }> {
+): Promise<{ back: string; sand: string; ruins: string; distantRuins: string; middleRuins: string;
+  halloweenRuins: { far: string; middle: string; near: string } }> {
   const backBuf: Buf = new Array(BW * BH);
   paintWater(backBuf);
 
@@ -267,9 +268,12 @@ export async function makeBackdrop(
   paintSand(sandBuf);
   const sand = bufToCanvas(sandBuf);
 
-  const ruins = await makeSunkenCity(BW, BH, sandTopAt);
+  const [ruins, halloweenRuins] = await Promise.all([
+    makeSunkenCity(BW, BH, sandTopAt),
+    makeSunkenCity(BW, BH, sandTopAt, true),
+  ]);
   return { back: bufToCanvas(backBuf).toDataURL(), sand: sand.toDataURL(),
-    ruins: ruins.near, distantRuins: ruins.far, middleRuins: ruins.middle };
+    ruins: ruins.near, distantRuins: ruins.far, middleRuins: ruins.middle, halloweenRuins };
 }
 
 function bufToCanvas(buf: Buf): HTMLCanvasElement {

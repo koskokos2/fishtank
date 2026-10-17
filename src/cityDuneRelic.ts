@@ -25,26 +25,33 @@ function burialY(worldX: number) {
 export function cityRelicFootprints() { return layout.footprints; }
 
 export async function makeCityRelicSprites() {
-  const source = new Image();
-  source.src = image.image;
-  await source.decode();
-  const canvas = document.createElement("canvas");
-  canvas.width = width + padding * 2;
-  canvas.height = height + padding * 2;
-  const context = canvas.getContext("2d")!;
-  context.imageSmoothingEnabled = false;
-  context.drawImage(source, padding, padding, width, height);
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  const burialBand = 6 * RES;
-  for (let x = 0; x < canvas.width; x++) {
-    const bottom = burialY(layout.x + x - padding) - layout.y + padding;
-    for (let y = Math.max(0, Math.floor(bottom - burialBand)); y < canvas.height; y++) {
-      const coverage = Math.max(0, Math.min(1, (bottom - y) / burialBand));
-      if (coverage <= (BAYER[y & 3][x & 3] + .5) / 16) pixels.data[(y * canvas.width + x) * 4 + 3] = 0;
+  return Promise.all(CITY_LANDMARK_IMAGES.map(async art => {
+    const source = new Image();
+    source.src = art.image;
+    await source.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = width + padding * 2;
+    canvas.height = height + padding * 2;
+    const context = canvas.getContext("2d")!;
+    context.imageSmoothingEnabled = false;
+    // Both skins share the chosen contact line and canvas bounds. Fit the new
+    // sculpture without stretching its face; align its bottom before burial.
+    const scale = Math.min(width / art.width, height / art.height);
+    const drawnWidth = Math.round(art.width * scale), drawnHeight = Math.round(art.height * scale);
+    context.drawImage(source, padding + Math.round((width - drawnWidth) / 2),
+      padding + height - drawnHeight, drawnWidth, drawnHeight);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    const burialBand = 6 * RES;
+    for (let x = 0; x < canvas.width; x++) {
+      const bottom = burialY(layout.x + x - padding) - layout.y + padding;
+      for (let y = Math.max(0, Math.floor(bottom - burialBand)); y < canvas.height; y++) {
+        const coverage = Math.max(0, Math.min(1, (bottom - y) / burialBand));
+        if (coverage <= (BAYER[y & 3][x & 3] + .5) / 16) pixels.data[(y * canvas.width + x) * 4 + 3] = 0;
+      }
     }
-  }
-  context.putImageData(pixels, 0, 0);
-  return [{ name: spriteName, image: canvas.toDataURL() }];
+    context.putImageData(pixels, 0, 0);
+    return { name: art.name === "halloween" ? "city-guardian-halloween" : spriteName, image: canvas.toDataURL() };
+  }));
 }
 
 export function spawnCityDuneRelic(k: KAPLAYCtx) {

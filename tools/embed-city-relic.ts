@@ -4,10 +4,11 @@ import { PNG } from "pngjs";
 // Source art stays lossless. Normalize each architectural fragment at
 // its maximum display size (RES=6), preserving openings and native alpha.
 const layers = [
-  { name: "guardian", designWidth: 205 },
+  { name: "guardian", designWidth: 205, source: "art/sunken-city-landmark-guardian.png" },
+  { name: "halloween", designWidth: 205, source: "art/halloween-city-guardian-v2.png" },
 ] as const;
-const sprites = layers.map(({ name, designWidth }) => {
-  const png = PNG.sync.read(readFileSync(`art/sunken-city-landmark-${name}.png`));
+const sprites = layers.map(({ name, designWidth, source }) => {
+  const png = PNG.sync.read(readFileSync(source));
   let left = png.width, top = png.height, right = 0, bottom = 0;
   for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) {
     if (!png.data[(y * png.width + x) * 4 + 3]) continue;

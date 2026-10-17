@@ -212,10 +212,18 @@ function installLiveControls() {
     }
     // The toolbar still works while creature updates are paused.
     for (const backdrop of k.get("settings-backdrop")) backdrop.hidden = off("backdrop");
-    for (const ruins of k.get("settings-ruins")) ruins.hidden = off("ruins");
+    for (const ruins of k.get("settings-ruins")) {
+      ruins.hidden = off("ruins");
+      const sprite = `${ruins.cityBaseSprite}${halloweenTheme ? "-halloween" : ""}`;
+      if (ruins.sprite !== sprite) ruins.use(k.sprite(sprite, { width: k.width(), height: k.height() }));
+    }
     reconcileGroup("city-relic", "live", spawnCityDuneRelic);
     const hideCityRelic = off("ruins") || off("sand");
-    for (const relic of k.get("settings-city-relic")) relic.hidden = hideCityRelic;
+    for (const relic of k.get("settings-city-relic")) {
+      relic.hidden = hideCityRelic;
+      const sprite = halloweenTheme ? "city-guardian-halloween" : "city-guardian";
+      if (relic.sprite !== sprite) relic.use(k.sprite(sprite));
+    }
     setCityRelicObstacles(hideCityRelic ? null : cityRelicFootprints());
     const fishKinds = FISH_KINDS.map((_, i) => i).filter(i => !off(`fish-${fishKindSet(FISH_KINDS[i].name)}`));
     const fishCount = off("fish") ? 0 : num("fish", DEFAULT_ENTITY_COUNTS.fish);
@@ -372,6 +380,9 @@ function installLiveControls() {
     k.loadSprite("backdrop-ruins", backdrop.ruins),
     k.loadSprite("backdrop-distant-ruins", backdrop.distantRuins),
     k.loadSprite("backdrop-middle-ruins", backdrop.middleRuins),
+    k.loadSprite("backdrop-ruins-halloween", backdrop.halloweenRuins.near),
+    k.loadSprite("backdrop-distant-ruins-halloween", backdrop.halloweenRuins.far),
+    k.loadSprite("backdrop-middle-ruins-halloween", backdrop.halloweenRuins.middle),
     ...fishSheets.map((sheet, i) => k.loadSprite(`fish-${i}`, sheet, {
       sliceX: SWIM_FRAMES,
       anims: { swim: { from: 0, to: SWIM_FRAMES - 1, loop: true, speed: 1 } },

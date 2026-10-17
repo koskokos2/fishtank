@@ -1,5 +1,6 @@
 import { SUNKEN_CITY_FAR, SUNKEN_CITY_MIDDLE, SUNKEN_CITY_NEAR } from "./sunkenRuinsImage";
 import { FAR_CITY_COLOR } from "./sunkenCityAppearance";
+import { HALLOWEEN_CITY_FAR, HALLOWEEN_CITY_MIDDLE, HALLOWEEN_CITY_NEAR } from "./halloweenCityImage";
 
 // Each plate is original artwork with a different architectural scale, rather
 // than shifted copies of one silhouette. Smaller architecture and overlap give
@@ -20,8 +21,14 @@ export async function makeSunkenCity(
   width: number,
   height: number,
   sandTopAt: (x: number) => number,
+  halloween = false,
 ): Promise<{ far: string; middle: string; near: string }> {
-  const images = await Promise.all(PLANES.map(async plane => {
+  const planes = halloween ? PLANES.map((plane, index) => ({
+    ...plane,
+    image: [HALLOWEEN_CITY_FAR, HALLOWEEN_CITY_MIDDLE, HALLOWEEN_CITY_NEAR][index],
+    color: [[65, 91, 120], [44, 76, 100], [17, 36, 51]][index],
+  })) : PLANES;
+  const images = await Promise.all(planes.map(async plane => {
     const image = new Image();
     image.src = plane.image;
     await image.decode();
@@ -32,7 +39,7 @@ export async function makeSunkenCity(
   plate.height = Math.min(height, 1080);
   const paint = plate.getContext("2d", { willReadFrequently: true })!;
   paint.imageSmoothingEnabled = false;
-  const plates = PLANES.map((plane, index) => {
+  const plates = planes.map((plane, index) => {
     paint.clearRect(0, 0, plate.width, plate.height);
     const w = plate.width * plane.scale;
     const h = plate.height * plane.scale;
@@ -51,6 +58,8 @@ export async function makeSunkenCity(
       // from scale, overlap and palette, without blurring away this modelling.
       // Native alpha preserves every arcade opening.
       const luminance = (data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722) / 255;
+      // Both city sets use the same source-art tonal range, so their carved
+      // relief survives the same distance/night treatment without clipping.
       const shade = 1 - plane.detail * (1 - luminance);
       for (let c = 0; c < 3; c++) data[i + c] = Math.round(plane.color[c] * shade);
     }
