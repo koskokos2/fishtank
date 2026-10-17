@@ -124,8 +124,8 @@ export function setupTank(k: KAPLAYCtx, counts: TankEntityCounts, layer?: string
       k.z(-150),
     ]);
 
-  // Six live prop slots draw from the combined whitelist. One random occupant
-  // is replaced by a different whitelisted prop every five minutes.
+  // Four slots with the city, six without. Only occupied slots participate
+  // in the timed prop replacement cycle.
   if ((!layer || layer === "props") && !off("props")) {
     spawnRotatingProps(k);
 

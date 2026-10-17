@@ -198,7 +198,7 @@ function installLiveControls() {
     const crab = getCrabTheme(crawlingHandsEnabled);
     const plantsReady = off("plants") || plantCount === 0 || skinReady(plants, { sliceX: plants.cols, sliceY: plants.rows });
     const plantKey = `${off("plants")}:${plantCount}:${plants.sprite}`;
-    const propKey = `${off("props")}:${settings.disabled.filter(n => n.startsWith("obj-")).sort().join(",")}`;
+    const propKey = `${off("props")}:${off("ruins")}:${settings.disabled.filter(n => n.startsWith("obj-")).sort().join(",")}`;
     for (const layer of ["backdrop", "ruins", "sand", "props", "plants", "motes", "bubbles"]) {
       // Pearling bubbles reference the plant field, so replace the two together.
       if (!plantsReady && (layer === "plants" || layer === "bubbles")) continue;

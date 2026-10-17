@@ -53,6 +53,8 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   const layers = (name: string) => page.evaluate(name => window.birthdayTest.settingsLayer(name), name);
   await expect(toggle).toBeChecked();
   const before = await layers("ruins");
+  const slots = () => page.evaluate(() => window.birthdayTest.propSlots());
+  expect(await slots()).toEqual([0, 3, 4, 5, 6, 7]);
   const relic = await layers("city-relic");
   expect(relic).toHaveLength(1);
   expect(relic[0]).toMatchObject({ sprite: "city-guardian", hidden: false });
@@ -61,6 +63,7 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   const fish = await layers("fish");
   const origin = await page.evaluate(() => performance.timeOrigin);
   await toggle.uncheck();
+  expect(await slots()).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   expect(await layers("ruins")).toEqual(before.map(layer => ({ ...layer, hidden: true })));
   expect(await layers("city-relic")).toEqual(relic.map(layer => ({ ...layer, hidden: true })));
   expect(await layers("sand")).toEqual(sand);
@@ -77,6 +80,7 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   expect(restored.every(layer => layer.hidden)).toBe(true);
   expect((await layers("city-relic"))[0].hidden).toBe(true);
   await toggle.check();
+  expect(await slots()).toEqual([0, 3, 4, 5, 6, 7]);
   expect(await layers("ruins")).toEqual(restored.map(layer => ({ ...layer, hidden: false })));
   expect((await layers("city-relic"))[0].hidden).toBe(false);
 });

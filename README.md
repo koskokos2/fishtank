@@ -89,6 +89,10 @@ included in shared URLs; older links show the city by default.
 The fallen guardian head has a fixed placement on the left dune: horizontal -3,
 vertical +50 design pixels, with dithered sand burial and a matching crawler footprint.
 It follows **sunken city** visibility and also hides when sand is disabled.
+When the city is enabled, the second and third rotating prop slots from the left
+are absent from spawning, collision footprints and the rotation cycle. The first
+rotating prop and both fixed consoles remain. Disabling the city restores all six
+rotating slots live; rebuilding the prop group cancels its old timers and transitions.
 Placement controls have been removed. Retired v4–v6 URL fields still decode safely,
 but no longer override this chosen placement. Sand burial is baked once at startup.
 Only the guardian artwork is bundled; earlier source artwork remains for reference.

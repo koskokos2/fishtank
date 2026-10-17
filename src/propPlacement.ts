@@ -146,8 +146,6 @@ export const PROP_SLOTS: readonly PropSlot[] = [
   { fx: 0.88, depth: 36 },
 ];
 
-const VISIBLE_PROP_COUNT = PROP_SLOTS.length;
-
 // Rows 1-3 of the small-props atlas; row 0 is intentionally not whitelisted.
 export const SMALL_PROP_NAMES = [
   "forked_driftwood",
@@ -514,6 +512,8 @@ function spawnProp(
     k.anchor("bot"),
     k.rotate(0),
     k.z(z ?? groundZ(placement.rootY)),
+    "tank-prop",
+    { propSlotIndex: slotIndex },
   ]);
 }
 
@@ -691,10 +691,16 @@ export function spawnFixedProps(k: KAPLAYCtx) {
   });
 }
 
-export function spawnRotatingProps(k: KAPLAYCtx) {
+export function spawnRotatingProps(k: KAPLAYCtx, cityEnabled = !off("ruins")) {
   // Every family disabled via the settings panel — nothing to rotate.
   const pool = PROP_WHITELIST.filter(propEnabled);
   if (!pool.length) return;
+  // Omit the second and third rotating props from the left (slots 1 and 2).
+  // The fixed display consoles do not count toward these positions.
+  // Omit these slots entirely,
+  // retaining physical slot indices for placement and crawler obstacles.
+  const activeSlots = PROP_SLOTS.map((_, index) => index)
+    .filter(index => !cityEnabled || (index !== 1 && index !== 2));
 
   let propCycle = refillPropCycle(k, new Set(), pool);
   const takeNextProp = (visibleIds: ReadonlySet<string>) => {
@@ -712,16 +718,16 @@ export function spawnRotatingProps(k: KAPLAYCtx) {
 
   const initial: WhitelistedProp[] = [];
   const initialIds = new Set<string>();
-  while (initial.length < Math.min(VISIBLE_PROP_COUNT, pool.length)) {
+  while (initial.length < Math.min(activeSlots.length, pool.length)) {
     const prop = takeNextProp(initialIds);
     initial.push(prop);
     initialIds.add(prop.id);
   }
 
-  const displayed = initial.map((prop, slotIndex) => ({
-    prop,
-    object: spawnProp(k, prop, PROP_SLOTS[slotIndex], slotIndex),
-  }));
+  const displayed = initial.map((prop, index) => {
+    const slotIndex = activeSlots[index];
+    return { prop, slotIndex, object: spawnProp(k, prop, PROP_SLOTS[slotIndex], slotIndex) };
+  });
 
   // Wait a full rotation period before the first change. Each tick evicts one random
   // occupant and draws from a shuffled no-repeat cycle, so every whitelisted
@@ -733,14 +739,15 @@ export function spawnRotatingProps(k: KAPLAYCtx) {
     () => {
       if (rotating) return; // a handoff (~12-15s) never overlaps the next 300s tick, but guard anyway
       rotating = true;
-      const slotIndex = k.randi(0, displayed.length);
+      const displayIndex = k.randi(0, displayed.length);
       const activeIds = new Set(displayed.map(({ prop }) => prop.id));
       const next = takeNextProp(activeIds);
-      const old = displayed[slotIndex];
-      displayed[slotIndex] = { ...old, prop: next }; // next's id leaves the pool immediately
+      const old = displayed[displayIndex];
+      const slotIndex = old.slotIndex;
+      displayed[displayIndex] = { ...old, prop: next }; // next's id leaves the pool immediately
       sinkOutProp(k, old.object, old.prop, () =>
         dropInProp(k, next, PROP_SLOTS[slotIndex], slotIndex, (object) => {
-          displayed[slotIndex].object = object;
+          displayed[displayIndex].object = object;
           rotating = false;
         }),
       );

@@ -38,6 +38,7 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  propSlots: () => k.get("tank-prop").map(object => object.propSlotIndex as number).sort((a, b) => a - b),
   guardianPosition: () => k.get("city-dune-relic").map(object => ({
     x: object.pos.x, y: object.pos.y, z: object.z, id: object.id,
   })),
