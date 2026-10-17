@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { KAPLAYCtx } from "kaplay";
-import { spawnRotatingProps, resetPropObstacles, getPropObstacles, PROP_SLOTS } from "../src/propPlacement";
+import { spawnRotatingProps, resetPropObstacles, getPropObstacles, PROP_SLOTS,
+  insidePropFootprint, clampPathX } from "../src/propPlacement";
 import { liveGroup } from "../src/liveGroup";
 import { VW } from "../src/res";
 
@@ -69,6 +70,33 @@ test("city excludes the two guardian-side slots from spawning and repeated rotat
   spawnRotatingProps(ordinary.context, false);
   expect(spawnedSlots.slice(-6)).toEqual([0, 1, 2, 3, 4, 5]);
   expect(getPropObstacles()).toHaveLength(6);
+  const removed = getPropObstacles().slice(1, 3);
+  for (const obstacle of removed) {
+    expect(insidePropFootprint((obstacle.x0 + obstacle.x1) / 2, 0)).toBe(true);
+    expect(clampPathX(obstacle.x0 - 2, obstacle.x1 + 2, 0, 1)).toBeLessThan(obstacle.x0);
+  }
+  // Enable the city while a normal prop is changing. The disposed handoff
+  // must not recreate either an invisible sprite or its old collision bounds.
+  for (const timer of timers) if (timer.active) timer.callback();
   ordinary.dispose();
+  resetPropObstacles();
+  const restoredCity = liveGroup(shell, "props");
+  spawnRotatingProps(restoredCity.context, true);
+  const checkRemovedPaths = () => {
+    // Deliberately isolate prop obstacles here: the head has its own separate,
+    // intentional exclusion area, which can overlap one of these old slots.
+    expect(getPropObstacles()).toHaveLength(4);
+    for (const obstacle of removed) {
+      expect(insidePropFootprint((obstacle.x0 + obstacle.x1) / 2, 0)).toBe(false);
+      expect(clampPathX(obstacle.x0 - 2, obstacle.x1 + 2, 0, 1)).toBe(obstacle.x1 + 2);
+    }
+  };
+  checkRemovedPaths();
+  for (let cycle = 0; cycle < 24; cycle++) {
+    for (const timer of timers) if (timer.active) timer.callback();
+    for (let second = 0; second < 90; second++) tick();
+    checkRemovedPaths();
+  }
+  restoredCity.dispose();
   resetPropObstacles();
 });

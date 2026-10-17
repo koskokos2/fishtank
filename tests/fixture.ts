@@ -3,6 +3,8 @@ import { aquarium as k } from "../src/main";
 import { installBirthdayFish } from "../src/birthdayFish";
 import { BIRTHDAY_LAYOUT, BIRTHDAY_FRAME_WIDTH, BIRTHDAY_FRAME_HEIGHT } from "../src/birthdayFishAtlas";
 import { groundZ } from "../src/backdrop";
+import { insidePropFootprint } from "../src/propPlacement";
+import { RES } from "../src/res";
 import type { FishActor } from "../src/fish";
 
 k.randSeed(24);
@@ -38,6 +40,7 @@ let drawProbe: ((options: Parameters<typeof k.drawUVQuad>[0]) => void) | undefin
 const drawUVQuad = k.drawUVQuad;
 k.drawUVQuad = options => { drawProbe?.(options); return drawUVQuad(options); };
 const api = {
+  crawlerBlocked: (x: number, depth: number) => insidePropFootprint(x * RES, 30, depth * RES),
   propSlots: () => k.get("tank-prop").map(object => object.propSlotIndex as number).sort((a, b) => a - b),
   guardianPosition: () => k.get("city-dune-relic").map(object => ({
     x: object.pos.x, y: object.pos.y, z: object.z, id: object.id,

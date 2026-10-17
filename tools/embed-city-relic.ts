@@ -5,7 +5,7 @@ import { PNG } from "pngjs";
 // its maximum display size (RES=6), preserving openings and native alpha.
 const layers = [
   { name: "guardian", designWidth: 205, source: "art/sunken-city-landmark-guardian.png" },
-  { name: "halloween", designWidth: 205, source: "art/halloween-city-guardian-v2.png" },
+  { name: "halloween", designWidth: 205, source: "art/halloween-city-mourner.png" },
 ] as const;
 const sprites = layers.map(({ name, designWidth, source }) => {
   const png = PNG.sync.read(readFileSync(source));

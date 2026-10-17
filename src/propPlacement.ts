@@ -120,7 +120,12 @@ const SETTLE_DUR = 0.35;
 // as absolute screen y (baseY). A crawler in the same column at a shallower
 // ground line is behind the prop (occluded), a deeper one is in front — both
 // are fine; only standing through the base is not.
-export type PropObstacle = { x0: number; x1: number; baseY: number }; // buffer px
+export type PropObstacle = {
+  x0: number; x1: number; baseY: number;
+  // Solid buried landmarks occupy an area from the crest down, rather than
+  // the narrow contact plane of ordinary props. All dimensions are buffer px.
+  maxDepth?: number;
+};
 let obstacles: readonly PropObstacle[] = []; // fresh array identity per change = cheap version stamp
 const slotObstacles: PropObstacle[] = [];
 let cityRelicObstacles: readonly PropObstacle[] | null = null;
@@ -352,6 +357,7 @@ export function getPropObstacles(): readonly PropObstacle[] {
 // Depth is relative to the crest at the creature's own x, so it converts to a
 // ground line (screen y) before comparing against the prop's contact plane.
 function conflicts(o: PropObstacle, x: number, depth: number | undefined) {
+  if (o.maxDepth !== undefined) return depth === undefined || depth <= o.maxDepth;
   return (
     depth === undefined ||
     Math.abs(sandTopAt(x) + depth - o.baseY) < DEPTH_BAND
@@ -453,7 +459,10 @@ export function clampPathX(
       const ys = [pathY(xa), pathY((xa + xb) / 2), pathY(xb)];
       const yLo = Math.min(...ys);
       const yHi = Math.max(...ys);
-      if (yHi <= o.baseY - DEPTH_BAND || yLo >= o.baseY + DEPTH_BAND) continue;
+      if (o.maxDepth !== undefined) {
+        const depthAt = (x: number) => pathY(x) - sandTopAt(x);
+        if (Math.min(depthAt(xa), depthAt(xb)) > o.maxDepth) continue;
+      } else if (yHi <= o.baseY - DEPTH_BAND || yLo >= o.baseY + DEPTH_BAND) continue;
     }
     result =
       toX >= fromX
@@ -461,6 +470,45 @@ export function clampPathX(
         : Math.max(result, hi + standoff);
   }
   return result;
+}
+
+// A crawler may approach a buried landmark from the foreground while already
+// inside its x span. Clip the whole trip in (x, depth), not just its x endpoint,
+// so vertical/diagonal approaches cannot enter the stone or change slope after
+// clipping. Starting inside is allowed only to let a newly enabled head clear.
+export function clampLandmarkPath(
+  fromX: number, fromDepth: number, toX: number, toDepth: number,
+  halfWidth: number, standoff: number,
+): { x: number; depth: number } {
+  const dx = toX - fromX, dd = toDepth - fromDepth;
+  const distance = Math.hypot(dx, dd);
+  // A landmark can consist of adjoining contour strips. On live activation,
+  // allow escape across the entire contour, not just the starting strip.
+  if (obstacles.some(o => o.maxDepth !== undefined && fromDepth <= o.maxDepth
+    && fromX >= o.x0 - halfWidth && fromX <= o.x1 + halfWidth)) {
+    return { x: toX, depth: toDepth };
+  }
+  let stop = 1;
+  for (const o of obstacles) {
+    if (o.maxDepth === undefined) continue;
+    const lo = o.x0 - halfWidth, hi = o.x1 + halfWidth;
+    let enter = 0, leave = 1;
+    if (dx === 0) {
+      if (fromX < lo || fromX > hi) continue;
+    } else {
+      const a = (lo - fromX) / dx, b = (hi - fromX) / dx;
+      enter = Math.max(enter, Math.min(a, b));
+      leave = Math.min(leave, Math.max(a, b));
+    }
+    if (dd === 0) {
+      if (fromDepth > o.maxDepth) continue;
+    } else if (dd < 0) enter = Math.max(enter, (o.maxDepth - fromDepth) / dd);
+    else leave = Math.min(leave, (o.maxDepth - fromDepth) / dd);
+    if (enter > leave) continue;
+    stop = Math.min(stop, Math.max(0, enter - standoff / Math.max(distance, 1)));
+  }
+  return stop === 1 ? { x: toX, depth: toDepth }
+    : { x: fromX + dx * stop, depth: fromDepth + dd * stop };
 }
 
 function shuffled<T>(k: KAPLAYCtx, values: readonly T[]) {

@@ -1,6 +1,7 @@
 import type { KAPLAYCtx, Color, Vec2 } from "kaplay";
 import { off, profile, registerDebugStat, withDrawProfile } from "./profiling";
 import { RES } from "./res";
+import { groundZ } from "./backdrop";
 
 const S = RES;
 // Matches the shadow, body, and lit sand colours in backdrop.ts.
@@ -82,7 +83,10 @@ export function spawnSandPuff(
   const drag = 2.6;
   const puff = k.add([
     k.pos(0, 0),
-    k.z(19),
+    // Sort by the disturbed sand's contact depth, like grounded creatures and
+    // props. Keep this fixed as grains rise: crest puffs belong behind the head,
+    // while puffs from the foreground sand remain in front of it.
+    k.z(groundZ(sandY) + 0.01),
     {
       update() {
         profile("puffs", () => {

@@ -19,6 +19,7 @@ const { values } = parseArgs({ options: {
   seed: { type: "string", default: "24" }, group: { type: "string", default: "small" },
   creature: { type: "string", default: "crab" },
   "assert-moving": { type: "boolean", default: false },
+  city: { type: "boolean", default: false },
   output: { type: "string", default: "test-results/crab-soak.json" },
 } });
 const days = Number(values.days), fps = Number(values.fps), seed = Number(values.seed);
@@ -32,6 +33,7 @@ if (!SETTING_GATES.includes(group as typeof SETTING_GATES[number])) throw new Er
 // All optional layers off; only substrate, props and 20 crawlers remain.
 const settings = defaultSettings();
 settings.disabled = SETTING_GATES.filter(gate => !["sand", "props", isOctopus ? "cephs" : "crabs", group].includes(gate));
+if (values.city) settings.disabled = settings.disabled.filter(gate => gate !== "ruins");
 settings.counts = { fish: 0, jelly: 0, octo: isOctopus ? 20 : 0, naut: 0,
   crabs: creature === "snail" || isOctopus ? 0 : 20, snail: creature === "snail" ? 20 : 0, plants: 0 };
 settings.crawlingHands = creature === "hand";
@@ -70,7 +72,8 @@ const { spawnHermitCrab } = await import("../src/hermitCrab");
 const { spawnSeaSnail } = await import("../src/seaSnail");
 const { spawnCephalopod } = await import("../src/cephalopod");
 const { chooseOctopusSkins } = await import("../src/octopusSkins");
-const { spawnRotatingProps, getPropObstacles, PROP_WHITELIST } = await import("../src/propPlacement");
+const { spawnRotatingProps, getPropObstacles, setCityRelicObstacles, PROP_WHITELIST } = await import("../src/propPlacement");
+const { cityRelicFootprints } = await import("../src/cityDuneRelic");
 const { VW, VH } = await import("../src/res");
 
 // Seeded PRNG; the sequence is reproducible within this harness, not identical
@@ -122,7 +125,8 @@ const shell = {
   },
 };
 const k = shell as unknown as KAPLAYCtx;
-spawnRotatingProps(k);
+spawnRotatingProps(k, values.city);
+if (values.city) setCityRelicObstacles(cityRelicFootprints());
 const skins = creature === "halloween-octopus" ? chooseOctopusSkins(20, random) : [];
 const actors = Array.from({length: 20}, (_, i) => creature === "snail"
   ? spawnSeaSnail(k) : isOctopus ? spawnCephalopod(k, "octopus", {octopusSprite: skins[i]})
@@ -178,6 +182,14 @@ for (let frame = 1; frame <= totalFrames; frame++) {
   }
   // Only transient prop controllers disappear; compact without a per-tick copy.
   for (let i = objects.length - 1; i >= 0; i--) if (!objects[i].alive) objects.splice(i, 1);
+  if (values.city && (creature === "crab" || creature === "hand")) {
+    const head = cityRelicFootprints();
+    for (const actor of actors) {
+      const state = actor.soakState;
+      if (head.some(part => state.x >= part.x0 - 30 && state.x <= part.x1 + 30 && state.substrateDepth <= part.maxDepth))
+        throw new Error(`${creature} entered the head at ${time}: ${JSON.stringify(state)}`);
+    }
+  }
   if (beforeRetarget && invalidRetargets.length < 20) {
     for (let i = 0; i < actors.length; i++) {
       const before = beforeRetarget[i], after = actors[i].soakState;
@@ -236,7 +248,7 @@ for (let frame = 1; frame <= totalFrames; frame++) {
     console.log(JSON.stringify({event: "progress", ...row, actors: undefined}));
   }
 }
-const report = {days: time / 86400, fps, seed, group, creature, graphics: false, count: 20,
+const report = {days: time / 86400, fps, seed, group, creature, city: values.city, graphics: false, count: 20,
   settingsURL: `http://127.0.0.1:3000/${search}`, wallSeconds: (performance.now() - started) / 1000,
   ...(creature === "halloween-octopus" ? {
     settingsURLNote: "URL restores population and layers; Halloween skin overrides are applied directly by the harness.",

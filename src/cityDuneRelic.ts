@@ -14,15 +14,27 @@ const spriteName = "city-guardian";
 // Chosen placement: horizontal -3, vertical +50 design pixels.
 const x = -3 * RES;
 const baseY = originalBase + 50 * RES;
-const layout = { x, y: Math.round(baseY - height), z: groundZ(baseY),
-  footprints: [{ x0: Math.max(0, x), x1: x + width * .88, baseY }],
-};
+const layout = { x, y: Math.round(baseY - height), z: groundZ(baseY) };
 function burialY(worldX: number) {
   const u = Math.max(0, Math.min(1, (worldX - x) / width));
   const drift = (Math.sin(u * Math.PI * 3 + .6) * 3 - (1 - u) * 7) * RES;
   return sandTopAt(worldX) + 35 * RES + drift;
 }
-export function cityRelicFootprints() { return layout.footprints; }
+// Approximate the buried edge with short strips instead of carrying the same
+// depth down the whole dune. Near the chin the sprite ends above the burial
+// line: extending the exclusion below that point would seal off clear sand.
+const clearance = Math.max(22 * RES, 64); // native crawler body above its feet
+const footprints: { x0: number; x1: number; baseY: number; maxDepth: number }[] = [];
+for (let left = Math.max(0, x); left < x + width; left += 8 * RES) {
+  const right = Math.min(left + 8 * RES, x + width);
+  let maxDepth = 0;
+  for (let column = left; column <= right; column++) {
+    const bottom = Math.min(burialY(column), baseY);
+    maxDepth = Math.max(maxDepth, bottom - sandTopAt(column) + clearance);
+  }
+  footprints.push({ x0: left, x1: right, baseY, maxDepth });
+}
+export function cityRelicFootprints() { return footprints; }
 
 export async function makeCityRelicSprites() {
   return Promise.all(CITY_LANDMARK_IMAGES.map(async art => {

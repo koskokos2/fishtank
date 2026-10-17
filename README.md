@@ -88,6 +88,10 @@ depths live, independently of the sun, sand, creatures and theme. This choice is
 included in shared URLs; older links show the city by default.
 The fallen guardian head has a fixed placement on the left dune: horizontal -3,
 vertical +50 design pixels, with dithered sand burial and a matching crawler footprint.
+Its exclusion follows the burial line and stops at the sculpture's bottom edge,
+with body clearance for crabs/hands at every resolution. Sand below the chin stays
+walkable; vertical and diagonal trips stop outside the head, and narrow lanes
+have a sideways fallback. The exclusion switches off live with the head.
 It follows **sunken city** visibility and also hides when sand is disabled.
 When the city is enabled, the second and third rotating prop slots from the left
 are absent from spawning, collision footprints and the rotation cycle. The first
@@ -96,7 +100,7 @@ rotating slots live; rebuilding the prop group cancels its old timers and transi
 Placement controls have been removed. Retired v4–v6 URL fields still decode safely,
 but no longer override this chosen placement. Sand burial is baked once at startup.
 Halloween switches all four city assets live: the distant necropolis skyline,
-bronze-bell sanctuary, gothic framing ruins and broken crowned stone head.
+bronze-bell sanctuary, gothic framing ruins and broken veiled funerary head.
 The normal city returns when the Halloween preset is removed. Both sets are baked
 once and their existing scene objects are reused; switching preserves depth,
 day/night shading, the selected head placement and the cleared rotating-prop slots.
@@ -107,6 +111,9 @@ Both sets share the same luminance treatment without a Halloween exposure boost.
 Sources: `art/halloween-city-{far,middle,near,guardian}-v2.png`; built-in imagegen
 prompts: `art/halloween-city-production-v2-prompts.txt`. Rebuild with
 `bun tools/embed-sunken-ruins.ts` and `bun tools/embed-city-relic.ts`.
+The Halloween head now uses `art/halloween-city-mourner.png`, a veiled cemetery
+sculpture with the same placement and burial; the earlier crowned source is
+retained for reference. Built-in imagegen prompt: `art/halloween-city-mourner-prompt.txt`.
 Only the normal and Halloween heads are bundled; earlier source artwork remains for reference.
 Source: `art/sunken-city-landmark-guardian.png`; built-in imagegen prompts:
 `art/sunken-city-landmark-prompts.txt`. Run `bun tools/embed-city-relic.ts` to

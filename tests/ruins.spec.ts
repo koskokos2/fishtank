@@ -60,11 +60,14 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   const relic = await layers("city-relic");
   expect(relic).toHaveLength(1);
   expect(relic[0]).toMatchObject({ sprite: "city-guardian", hidden: false });
+  const headBlocked = () => page.evaluate(() => window.birthdayTest.crawlerBlocked(100, 20));
+  expect(await headBlocked()).toBe(true);
   const sand = await layers("sand");
   const water = await layers("backdrop");
   const fish = await layers("fish");
   const origin = await page.evaluate(() => performance.timeOrigin);
   await toggle.uncheck();
+  expect(await headBlocked()).toBe(false);
   expect(await slots()).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   expect(await layers("ruins")).toEqual(before.map(layer => ({ ...layer, hidden: true })));
   expect(await layers("city-relic")).toEqual(relic.map(layer => ({ ...layer, hidden: true })));
@@ -82,6 +85,7 @@ test("sunken city toggles every ruin depth live and restores from its shared URL
   expect(restored.every(layer => layer.hidden)).toBe(true);
   expect((await layers("city-relic"))[0].hidden).toBe(true);
   await toggle.check();
+  expect(await headBlocked()).toBe(true);
   expect(await slots()).toEqual([0, 3, 4, 5, 6, 7]);
   expect(await layers("ruins")).toEqual(restored.map(layer => ({ ...layer, hidden: false })));
   expect((await layers("city-relic"))[0].hidden).toBe(false);

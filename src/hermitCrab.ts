@@ -14,6 +14,7 @@ import { crawlingHandsEnabled, profile, profileDraw, profileDrawEnd } from "./pr
 import { chooseSubstrateDepth, maxSubstrateDepthAt } from "./substrate";
 import {
   clampPathX,
+  clampLandmarkPath,
   getPropObstacles,
   insidePropFootprint,
   nearestClearX,
@@ -133,6 +134,30 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
     // A clamp may have landed the stop where the bed is thinner than the
     // chosen depth; keep the target inside the local bed.
     targetDepth = Math.min(targetDepth, maxSubstrateDepthAt(targetX));
+    const clear = clampLandmarkPath(x, substrateDepth, targetX, targetDepth, HALF, STANDOFF);
+    targetX = clear.x;
+    targetDepth = clear.depth;
+    if (Math.hypot(targetX - x, targetDepth - substrateDepth) < 6 * S) {
+      // In front of the head a random depth change can point back into stone
+      // repeatedly. Try walking along the current sand lane in either direction
+      // before resting, especially where the foreground narrows with the dune.
+      // First try a short waypoint beyond the contour at the current depth.
+      // A long trip can lower its target depth with the dune and cut back into
+      // the chin before reaching that clear column.
+      const clearColumn = nearestClearX(x, HALF, STANDOFF, undefined, EDGE, k.width() - EDGE);
+      for (const destination of [clearColumn, x + facing * MIN_TRIP, x - facing * MIN_TRIP,
+        x + 8 * S, x - 8 * S]) {
+        let laneX = clamp(destination, EDGE, k.width() - EDGE);
+        laneX = clampPathX(x, laneX, HALF, STANDOFF, substrateDepth, substrateDepth);
+        const lane = clampLandmarkPath(x, substrateDepth, laneX,
+          Math.min(substrateDepth, maxSubstrateDepthAt(laneX)), HALF, STANDOFF);
+        if (Math.abs(lane.x - x) <= Math.abs(targetX - x)) continue;
+        targetX = lane.x;
+        targetDepth = lane.depth;
+        facing = lane.x > x ? 1 : -1;
+        crab.flipX = facing > 0;
+      }
+    }
   };
 
   crab.onUpdate(() =>
@@ -169,6 +194,9 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
         // thinner part of the bed. Revalidate depth at the new destination,
         // otherwise the bottom clamp prevents arrival forever.
         targetDepth = Math.min(targetDepth, maxSubstrateDepthAt(targetX));
+        const clear = clampLandmarkPath(x, substrateDepth, targetX, targetDepth, HALF, STANDOFF);
+        targetX = clear.x;
+        targetDepth = clear.depth;
       }
       if (rest > 0) {
         rest -= dt;
@@ -180,8 +208,18 @@ export function spawnHermitCrab(k: KAPLAYCtx, startX?: number) {
         const remaining = Math.hypot(remainingX, remainingDepth);
         const step = Math.min(remaining, speed * dt);
         const ratio = remaining > 0 ? step / remaining : 0;
-        x += remainingX * ratio;
-        substrateDepth += remainingDepth * ratio;
+        const nextX = x + remainingX * ratio;
+        const nextDepth = Math.min(substrateDepth + remainingDepth * ratio, maxSubstrateDepthAt(nextX));
+        const clear = clampLandmarkPath(x, substrateDepth, nextX, nextDepth, HALF, STANDOFF);
+        x = clear.x;
+        substrateDepth = clear.depth;
+        if (clear.x !== nextX || clear.depth !== nextDepth) {
+          // The intervening dune can constrain depth more than the endpoints.
+          // Stop short and choose another trip instead of entering the head.
+          targetX = x;
+          targetDepth = substrateDepth;
+          rest = 0.25;
+        }
         // Both trip endpoints fit their local bed, but the straight line between
         // them can dip below it where the crest falls away mid-trip; ride the
         // bottom margin there instead.
