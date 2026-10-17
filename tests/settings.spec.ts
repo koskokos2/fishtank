@@ -85,6 +85,47 @@ test("theme presets switch live, sync controls, and round trip in shared setting
   expect(errors).toEqual([]);
 });
 
+test("disabling Halloween fish and objects keeps the theme and skins through shared URLs", async ({ page }) => {
+  await open(page, "octo=3&jelly=2&snail=2&naut=2");
+  await checkbox(page, "pause").check();
+  const theme = page.getByRole("combobox", { name: "theme", exact: true });
+  await theme.selectOption("halloween");
+  await expect.poll(async () => (await layer(page, "octo")).filter(o => o.sprite?.startsWith("octopus-")).length).toBe(3);
+  const octopuses = await layer(page, "octo");
+  const ruins = await layer(page, "ruins"), head = await layer(page, "city-relic");
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  const halloween = checkbox(page, "halloween ⓘ");
+  const choices = [halloween.nth(0), checkbox(page, "witches ⓘ"), halloween.nth(1)];
+  for (const choice of choices) {
+    await choice.uncheck();
+    await expect(theme).toHaveValue("halloween");
+    expect(await layer(page, "octo")).toEqual(octopuses);
+    expect(await layer(page, "ruins")).toEqual(ruins);
+    expect(await layer(page, "city-relic")).toEqual(head);
+    for (const group of ["jelly", "snail", "naut"]) expect(await layer(page, group)).toHaveLength(0);
+  }
+  expect(await layer(page, "fish")).toHaveLength(0);
+  expect(await page.evaluate(() => window.birthdayTest.propSlots())).toHaveLength(0);
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  const saved = sharedSettings(page);
+  expect(saved.disabled).toEqual(expect.arrayContaining(["fish-halloween", "fish-witches", "obj-halloween"]));
+  await page.reload();
+  await page.locator('canvas[data-ready="true"]').waitFor();
+  await expect(theme).toHaveValue("halloween");
+  expect(sharedSettings(page)).toEqual(saved);
+  expect(await layer(page, "fish")).toHaveLength(0);
+  expect(await page.evaluate(() => window.birthdayTest.propSlots())).toHaveLength(0);
+  expect((await layer(page, "city-relic"))[0].sprite).toBe("city-guardian-halloween");
+  for (const choice of choices) {
+    await expect(choice).not.toBeChecked();
+    await choice.check();
+    await expect(theme).toHaveValue("halloween");
+  }
+  await theme.selectOption("none");
+  await expect(theme).toHaveValue("none");
+  expect((await layer(page, "city-relic"))[0].sprite).toBe("city-guardian");
+});
+
 test("Halloween bubbles switch live, burst within bounded pools, and restore from a shared URL", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));

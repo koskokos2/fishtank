@@ -186,8 +186,9 @@ sidebar controls. Counts,
 graphics, bubbles, birthday scheduling and sun settings stay unchanged. **no theme** restores
 all fish/prop sets and ordinary skins. Presets are stored through their existing
 settings; customizing them makes the dropdown show **no theme** without resetting
-other choices. Turning kelp off keeps Halloween selected; turning it back on
-restores goth kelp. This also survives sharing or reloading the URL.
+other choices. Turning kelp off or disabling the Halloween/witch fish sets or
+Halloween object set keeps Halloween selected, including city and creature skins.
+Turning kelp back on restores goth kelp. These choices survive shared URLs/reloads.
 
 Halloween also replaces octopuses with **Plague doctor**, **Possessed doll** and
 **Vampire squid** skins, and hides jellyfish, sea snails and nautiluses until the theme is
